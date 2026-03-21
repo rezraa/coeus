@@ -1,0 +1,2542 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-03-21",
+  "source": "scalability-knowledge-primer + authored",
+  "patterns": [
+    {
+      "id": "horizontal_scaling",
+      "name": "Horizontal Scaling",
+      "category": "scaling",
+      "description": "Adding more machines to a resource pool to distribute load across multiple nodes. Each node handles a subset of requests, enabling near-linear throughput growth. The cornerstone of modern distributed system design.",
+      "principles": [
+        "Stateless services scale more easily than stateful ones",
+        "Data partitioning strategy determines scaling ceiling",
+        "Each node should be independently deployable and replaceable",
+        "Shared-nothing architecture minimises inter-node coordination",
+        "Capacity planning should account for headroom and burst traffic",
+        "Service discovery must track the dynamic node pool"
+      ],
+      "when_to_use": [
+        "Single-node vertical limits have been reached or are approaching",
+        "Traffic patterns are unpredictable and require elastic capacity",
+        "High availability requires surviving individual node failures",
+        "Read-heavy workloads can be distributed across replicas",
+        "Cost-per-unit decreases with commodity hardware at scale",
+        "Geographic distribution is needed for latency reduction"
+      ],
+      "avoid_when": [
+        "Application state is tightly coupled and cannot be externalized",
+        "Strong consistency requirements make coordination overhead prohibitive",
+        "Workload is inherently sequential and cannot be parallelized",
+        "Operational complexity budget is already exhausted"
+      ],
+      "signals": [
+        "CPU or memory utilization consistently above 70% on single node",
+        "Request latency increases linearly with traffic volume",
+        "Deployment downtime required for capacity changes",
+        "Single point of failure in the serving path",
+        "Database connection pool exhaustion under peak load",
+        "Application uses stateless HTTP handlers or gRPC services"
+      ],
+      "key_concepts": [
+        "Shared-nothing architecture",
+        "Stateless service design",
+        "Service discovery and registration",
+        "Data partitioning and sharding",
+        "Load distribution algorithms",
+        "Rolling deployment strategies"
+      ],
+      "related_patterns": ["vertical_scaling", "load_balancer", "autoscaling_policy", "connection_pooling", "elastic_scaling"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "vertical_scaling",
+      "name": "Vertical Scaling",
+      "category": "scaling",
+      "description": "Increasing the capacity of a single node by adding CPU, memory, storage, or network bandwidth. Simpler operationally than horizontal scaling but bounded by hardware limits. Often the first scaling strategy before distributing.",
+      "principles": [
+        "Hardware limits impose a hard ceiling on vertical capacity",
+        "Single-node performance tuning should precede horizontal expansion",
+        "Larger instances often have non-linear cost curves",
+        "Vertical scaling preserves application simplicity",
+        "Downtime may be required for hardware upgrades in non-cloud environments",
+        "Monitoring must track resource saturation to anticipate limits"
+      ],
+      "when_to_use": [
+        "Application is monolithic and refactoring cost is high",
+        "Database workload benefits from larger memory for caching",
+        "Current hardware utilization is well below vendor maximum",
+        "Operational team lacks expertise in distributed systems",
+        "Latency-sensitive workloads benefit from faster single-thread performance",
+        "Quick capacity relief is needed before a longer-term horizontal migration"
+      ],
+      "avoid_when": [
+        "Hardware maximum has been reached or is economically impractical",
+        "High availability requires multi-node redundancy",
+        "Traffic growth rate will outpace vertical upgrade cadence",
+        "Cloud cost for large instances exceeds multiple smaller ones"
+      ],
+      "signals": [
+        "Single process consuming majority of available CPU cores",
+        "In-memory dataset approaching physical RAM limit",
+        "Disk I/O throughput saturated on current storage tier",
+        "Application architecture assumes single-process execution",
+        "Database query plans rely on large sort buffers or hash joins",
+        "Network interface throughput approaching NIC capacity"
+      ],
+      "key_concepts": [
+        "CPU core scaling and clock speed",
+        "Memory hierarchy and caching effects",
+        "Storage IOPS and throughput tiers",
+        "Instance type selection in cloud providers",
+        "Cost-performance ratio analysis",
+        "Resource saturation monitoring"
+      ],
+      "related_patterns": ["horizontal_scaling", "connection_pooling", "thread_pool", "query_cache"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "autoscaling_policy",
+      "name": "Autoscaling Policy",
+      "category": "scaling",
+      "description": "Automatically adjusting compute capacity based on observed metrics such as CPU utilization, request rate, or queue depth. Reduces cost during low traffic and ensures availability during spikes. Requires well-defined scaling triggers and cooldown periods.",
+      "principles": [
+        "Scale-out thresholds should trigger before saturation occurs",
+        "Scale-in must be conservative to avoid flapping",
+        "Cooldown periods prevent oscillation between scale events",
+        "Multiple metrics provide more robust scaling decisions than single metrics",
+        "Predictive scaling complements reactive scaling for known patterns",
+        "Minimum instance count must cover baseline traffic and health checks"
+      ],
+      "when_to_use": [
+        "Traffic has predictable diurnal or weekly patterns",
+        "Burst traffic events occur that are difficult to predict exactly",
+        "Cost optimization requires matching capacity to demand",
+        "Application startup time is fast enough for reactive scaling",
+        "Cloud infrastructure supports programmatic instance management",
+        "SLA requires maintaining response time under variable load"
+      ],
+      "avoid_when": [
+        "Application cold start time exceeds acceptable latency window",
+        "Workload is constant and predictable with no variance",
+        "Licensing costs scale per-instance making elastic scaling expensive",
+        "Stateful services cannot redistribute work to new nodes quickly"
+      ],
+      "signals": [
+        "Cloud provider autoscaling group or equivalent is configured",
+        "Metrics pipeline exports CPU, memory, and custom application metrics",
+        "Traffic dashboards show regular peaks and valleys",
+        "Monthly infrastructure cost exceeds budget due to over-provisioning",
+        "Deployment manifests include resource requests and limits",
+        "Queue depth or request latency used as scaling triggers"
+      ],
+      "key_concepts": [
+        "Target tracking scaling policies",
+        "Step scaling vs simple scaling",
+        "Cooldown period configuration",
+        "Predictive scaling schedules",
+        "Custom metric-based scaling",
+        "Warm pool and pre-warming strategies"
+      ],
+      "related_patterns": ["horizontal_scaling", "elastic_scaling", "load_balancer", "adaptive_concurrency"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "database_read_replicas",
+      "name": "Database Read Replicas",
+      "category": "scaling",
+      "description": "Replicating data from a primary database to one or more read-only replicas to distribute query load. Reduces contention on the primary for write operations. Introduces replication lag as a consistency tradeoff.",
+      "principles": [
+        "Read replicas serve read-only queries to offload the primary",
+        "Replication lag must be monitored and bounded by SLA",
+        "Application routing logic must distinguish read and write paths",
+        "Replica count should match read-to-write ratio",
+        "Failover promotion of a replica requires careful coordination",
+        "Schema changes must propagate consistently across all replicas"
+      ],
+      "when_to_use": [
+        "Read-to-write ratio exceeds 10:1",
+        "Analytical queries compete with transactional queries on the primary",
+        "Geographic distribution of read traffic reduces latency",
+        "Reporting workloads can tolerate seconds of staleness",
+        "Primary database CPU is saturated by SELECT queries",
+        "Backup and export operations should not impact production reads"
+      ],
+      "avoid_when": [
+        "Application requires read-after-write consistency on every query",
+        "Write volume is the bottleneck rather than read volume",
+        "Replication lag tolerance is zero for the workload",
+        "Operational team cannot manage multi-node database topology"
+      ],
+      "signals": [
+        "Database CPU dominated by SELECT statement execution",
+        "Query latency spikes correlate with batch reporting jobs",
+        "Connection pool on primary is saturated by read connections",
+        "Application code already separates read and write data sources",
+        "Slow query log dominated by analytical aggregations",
+        "Monitoring shows replication lag metrics are available"
+      ],
+      "key_concepts": [
+        "Asynchronous vs synchronous replication",
+        "Replication lag monitoring",
+        "Read-write splitting middleware",
+        "Replica promotion and failover",
+        "Consistency models for stale reads",
+        "Multi-region replica placement"
+      ],
+      "related_patterns": ["database_write_scaling", "connection_pooling", "eventual_consistency", "load_balancer"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "database_write_scaling",
+      "name": "Database Write Scaling",
+      "category": "scaling",
+      "description": "Distributing write operations across multiple database nodes through sharding, partitioning, or multi-primary replication. Eliminates the single-primary bottleneck for write-heavy workloads. Significantly increases architectural complexity.",
+      "principles": [
+        "Shard key selection determines data distribution and query routing",
+        "Cross-shard transactions should be minimized or eliminated",
+        "Rebalancing shards must be possible without downtime",
+        "Write amplification from indexes must be accounted for",
+        "Conflict resolution strategy is required for multi-primary setups",
+        "Backup and restore complexity increases with shard count"
+      ],
+      "when_to_use": [
+        "Write throughput exceeds single-node disk I/O capacity",
+        "Data volume exceeds single-node storage limits",
+        "Write latency is bounded by disk sync on a single primary",
+        "Natural partition key exists in the data model (tenant ID, region)",
+        "Application can tolerate eventual consistency across partitions",
+        "Growth trajectory will exceed vertical scaling limits within planning horizon"
+      ],
+      "avoid_when": [
+        "Read replicas can absorb the load and writes are modest",
+        "Cross-partition queries are frequent and essential",
+        "Transaction boundaries span multiple logical partitions",
+        "Data model has no natural shard key"
+      ],
+      "signals": [
+        "Write-ahead log throughput approaching disk bandwidth limit",
+        "INSERT/UPDATE latency increases under concurrent write load",
+        "Table row counts exceeding billions with degrading write performance",
+        "Disk utilization on primary consistently above 80%",
+        "Application data model includes tenant_id or region_id columns",
+        "Batch ingestion jobs blocking transactional write paths"
+      ],
+      "key_concepts": [
+        "Hash-based vs range-based sharding",
+        "Shard key selection criteria",
+        "Cross-shard query routing",
+        "Shard rebalancing and splitting",
+        "Multi-primary conflict resolution",
+        "Distributed transaction coordination"
+      ],
+      "related_patterns": ["database_read_replicas", "two_phase_commit", "eventual_consistency", "connection_pooling"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "connection_pooling",
+      "name": "Connection Pooling",
+      "category": "scaling",
+      "description": "Maintaining a pool of reusable connections to databases or external services to amortize connection setup cost. Bounds the maximum number of concurrent connections to protect downstream resources. Essential for high-throughput applications.",
+      "principles": [
+        "Pool size must balance concurrency needs against downstream limits",
+        "Idle connection timeout prevents resource leaks",
+        "Connection validation on borrow detects stale or broken connections",
+        "Pool exhaustion must produce clear errors rather than silent hangs",
+        "Separate pools for read and write paths enable independent tuning",
+        "Connection pool metrics are critical for capacity planning"
+      ],
+      "when_to_use": [
+        "Database connection setup time is significant (TCP + TLS + auth)",
+        "Application handles many concurrent requests sharing a database",
+        "Downstream service has a hard connection limit",
+        "Serverless or short-lived processes create excessive connection churn",
+        "Connection-per-request model causes resource exhaustion",
+        "Multiple microservices share a database cluster"
+      ],
+      "avoid_when": [
+        "Application is single-threaded with one connection at a time",
+        "Connection setup cost is negligible (in-process database)",
+        "Long-running connections with server-side state cannot be shared",
+        "Connection affinity is required for session-level settings"
+      ],
+      "signals": [
+        "Database max_connections limit frequently approached or hit",
+        "Connection setup time visible in request latency percentiles",
+        "TIME_WAIT socket states accumulating on application hosts",
+        "Database logs show rapid connect/disconnect cycling",
+        "Application startup includes connection pool configuration parameters",
+        "Monitoring shows connection count as a tracked metric"
+      ],
+      "key_concepts": [
+        "Pool sizing formulas and tuning",
+        "Connection lifecycle management",
+        "Health check and eviction policies",
+        "Connection multiplexing proxies (PgBouncer, ProxySQL)",
+        "Pool partitioning for multi-tenant isolation",
+        "Metrics: wait time, active count, idle count"
+      ],
+      "related_patterns": ["thread_pool", "database_read_replicas", "bulkhead", "timeout_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "thread_pool",
+      "name": "Thread Pool",
+      "category": "scaling",
+      "description": "Managing a fixed set of worker threads that process tasks from a shared queue, bounding concurrency and reducing thread creation overhead. Controls resource consumption and prevents thread explosion under load. Fundamental to server-side request processing.",
+      "principles": [
+        "Pool size should match the workload profile (CPU-bound vs I/O-bound)",
+        "Task queue depth must be bounded to apply backpressure",
+        "Thread pool exhaustion is a primary cause of cascading failure",
+        "Separate pools for different workload types prevent mutual interference",
+        "Thread-local state must be managed carefully to avoid leaks",
+        "Monitoring active, idle, and queued counts reveals saturation"
+      ],
+      "when_to_use": [
+        "Server processes concurrent requests with blocking I/O",
+        "CPU-bound tasks need bounded parallelism matching core count",
+        "Thread creation cost is high relative to task duration",
+        "Workload mix includes both fast and slow operations",
+        "Resource isolation between task types is needed",
+        "Graceful shutdown requires draining in-flight work"
+      ],
+      "avoid_when": [
+        "Async/non-blocking I/O framework handles concurrency natively",
+        "Tasks are extremely short-lived and queue overhead dominates",
+        "Single-threaded event loop model is sufficient for the workload",
+        "Language runtime manages green threads or coroutines transparently"
+      ],
+      "signals": [
+        "Thread dump shows many threads in WAITING or BLOCKED state",
+        "Request latency increases sharply at specific concurrency thresholds",
+        "OS-level thread count per process growing without bound",
+        "Application configuration includes thread pool size parameters",
+        "CPU utilization is low despite high request latency (thread starvation)",
+        "Task rejection errors appear in application logs"
+      ],
+      "key_concepts": [
+        "Core vs maximum pool size",
+        "Work-stealing vs work-sharing schedulers",
+        "Bounded vs unbounded task queues",
+        "Thread pool isolation (bulkhead pattern)",
+        "Fork-join parallelism",
+        "Virtual threads and lightweight concurrency"
+      ],
+      "related_patterns": ["worker_pool", "bulkhead", "connection_pooling", "async_processing", "backpressure"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "async_processing",
+      "name": "Asynchronous Processing",
+      "category": "scaling",
+      "description": "Decoupling request acceptance from request processing by using message queues, event streams, or task schedulers. Enables the system to absorb traffic spikes by buffering work. Converts synchronous latency into eventual completion.",
+      "principles": [
+        "Decouple producers from consumers via durable message brokers",
+        "Idempotent consumers enable safe retry without duplication",
+        "Message ordering guarantees must match business requirements",
+        "Dead letter queues capture permanently failed messages for analysis",
+        "Consumer lag monitoring detects processing bottlenecks",
+        "Backpressure signals should propagate from consumers to producers"
+      ],
+      "when_to_use": [
+        "Request processing time exceeds acceptable synchronous response latency",
+        "Downstream services have lower throughput than upstream producers",
+        "Work can be batched for more efficient processing",
+        "Failure of a processing step should not fail the user request",
+        "Traffic spikes are temporary and work can be drained over time",
+        "Multiple consumers need to process the same event independently"
+      ],
+      "avoid_when": [
+        "User expects synchronous confirmation of completed processing",
+        "End-to-end latency requirement is sub-millisecond",
+        "Message ordering is critical and difficult to guarantee",
+        "Operational complexity of message brokers exceeds team capacity",
+        "Debugging distributed async flows is beyond team skill level"
+      ],
+      "signals": [
+        "API endpoints performing long-running operations inline",
+        "Database transactions holding locks for extended durations",
+        "Timeout errors on downstream service calls during peak traffic",
+        "User-facing latency dominated by background processing steps",
+        "Application logs show retry storms against slow dependencies",
+        "Message queue or event stream infrastructure already deployed"
+      ],
+      "key_concepts": [
+        "Message broker patterns (point-to-point, pub/sub)",
+        "At-least-once vs exactly-once delivery semantics",
+        "Consumer group coordination",
+        "Message serialization and schema evolution",
+        "Poison message handling",
+        "Saga pattern for distributed transactions"
+      ],
+      "related_patterns": ["worker_pool", "dead_letter_queue", "backpressure", "idempotency", "retry_with_backoff"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "worker_pool",
+      "name": "Worker Pool",
+      "category": "scaling",
+      "description": "A set of worker processes or threads that consume tasks from a shared queue, enabling parallel processing of independent work units. Scales horizontally by adding more workers. Common in background job processing and data pipeline architectures.",
+      "principles": [
+        "Workers should be stateless and independently restartable",
+        "Task visibility timeout prevents duplicate processing on worker failure",
+        "Concurrency level should match available resources and downstream capacity",
+        "Work distribution should be fair to prevent hot-spot workers",
+        "Graceful shutdown must complete in-flight tasks before stopping",
+        "Worker health monitoring enables automatic replacement of failed workers"
+      ],
+      "when_to_use": [
+        "Background job processing requires parallel execution",
+        "Data pipeline stages process independent records concurrently",
+        "Email, notification, or webhook delivery at scale",
+        "Image, video, or document processing workloads",
+        "ETL jobs that can be parallelized by partition key",
+        "Scheduled batch processing with variable completion times"
+      ],
+      "avoid_when": [
+        "Tasks have strict ordering dependencies",
+        "Task processing requires shared mutable state",
+        "Single task processing time is so fast that coordination overhead dominates",
+        "Total task volume does not justify pool management complexity"
+      ],
+      "signals": [
+        "Background job queue depth growing faster than drain rate",
+        "Sequential processing of independent work items",
+        "Job processing framework configured with worker count parameters",
+        "Separate deployment for worker processes vs web servers",
+        "Monitoring dashboards tracking queue depth and processing rate",
+        "Auto-scaling rules based on queue depth metrics"
+      ],
+      "key_concepts": [
+        "Task queue brokers (Redis, SQS, RabbitMQ)",
+        "Visibility timeout and message acknowledgment",
+        "Horizontal worker scaling",
+        "Task priority and scheduling",
+        "Dead letter handling for failed tasks",
+        "Worker heartbeat and liveness detection"
+      ],
+      "related_patterns": ["thread_pool", "async_processing", "dead_letter_queue", "autoscaling_policy", "priority_queue"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "elastic_scaling",
+      "name": "Elastic Scaling",
+      "category": "scaling",
+      "description": "Dynamically provisioning and deprovisioning resources in response to real-time demand, achieving cost efficiency without sacrificing performance. Goes beyond autoscaling by encompassing infrastructure-level elasticity including serverless and spot instances. Optimizes cost-to-capacity ratio continuously.",
+      "principles": [
+        "Resources should scale both up and down automatically",
+        "Scaling decisions should incorporate cost signals alongside performance metrics",
+        "Spot and preemptible instances reduce cost for fault-tolerant workloads",
+        "Serverless functions provide per-invocation elasticity for bursty traffic",
+        "Infrastructure as code enables reproducible scaling configurations",
+        "Multi-cloud or multi-region elasticity increases resilience"
+      ],
+      "when_to_use": [
+        "Workload has extreme variance between peak and off-peak periods",
+        "Cost optimization is a primary concern alongside availability",
+        "Event-driven workloads with unpredictable invocation frequency",
+        "Development and staging environments used only during business hours",
+        "Batch processing jobs that can leverage spot instance pricing",
+        "Seasonal business patterns with known peak periods"
+      ],
+      "avoid_when": [
+        "Steady-state workload with minimal variance",
+        "Reserved instance pricing already optimizes cost for baseline",
+        "Application cannot tolerate instance preemption or cold starts",
+        "Regulatory requirements mandate dedicated hardware"
+      ],
+      "signals": [
+        "Monthly cloud bill shows significant spend on idle resources",
+        "Traffic graphs show distinct peak and trough patterns",
+        "Serverless function invocations vary by orders of magnitude",
+        "Spot instance interruption rate is acceptable for the workload",
+        "Infrastructure provisioning is automated via Terraform or Pulumi",
+        "Cost allocation tags track per-team or per-feature spending"
+      ],
+      "key_concepts": [
+        "Spot and preemptible instance strategies",
+        "Serverless compute models",
+        "Right-sizing and instance selection",
+        "Cost anomaly detection",
+        "Scheduled scaling policies",
+        "Multi-dimensional autoscaling"
+      ],
+      "related_patterns": ["autoscaling_policy", "horizontal_scaling", "graceful_degradation", "adaptive_concurrency"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "data_partitioning",
+      "name": "Data Partitioning",
+      "category": "scaling",
+      "description": "Dividing a dataset across multiple storage nodes based on a partition key so that each node manages a subset of the data. Enables both storage and throughput to scale linearly with partition count. The partition strategy determines query routing, data locality, and rebalancing complexity.",
+      "principles": [
+        "Partition key selection determines data distribution uniformity",
+        "Hot partitions degrade the entire system and must be detected early",
+        "Range-based partitioning supports range queries but risks skew",
+        "Hash-based partitioning distributes evenly but loses range query locality",
+        "Partition count should allow for future growth without repartitioning",
+        "Cross-partition operations should be avoided or explicitly bounded"
+      ],
+      "when_to_use": [
+        "Dataset exceeds single-node storage or throughput capacity",
+        "Natural partition key exists in the data model (tenant_id, date, region)",
+        "Query patterns align with partition boundaries for data locality",
+        "Write throughput must scale beyond single-node limits",
+        "Regulatory requirements mandate data residency by partition",
+        "Archival and lifecycle policies differ by partition (e.g., time-based)"
+      ],
+      "avoid_when": [
+        "Dataset fits comfortably on a single node with headroom",
+        "Queries frequently span all partitions negating the benefit",
+        "No natural partition key exists and synthetic keys add complexity",
+        "Operational team lacks tooling for partition management and rebalancing"
+      ],
+      "signals": [
+        "Table or collection configured with partition key in database schema",
+        "Shard ID or partition number in data routing logic",
+        "Consistent hashing ring implementation in data access layer",
+        "Hot partition alerts in database monitoring dashboards",
+        "Partition rebalancing operations in operational runbooks",
+        "Query router or coordinator layer in data access architecture"
+      ],
+      "key_concepts": [
+        "Hash-based vs range-based partitioning",
+        "Partition key selection criteria",
+        "Hot partition detection and mitigation",
+        "Partition rebalancing and splitting",
+        "Cross-partition query routing",
+        "Composite partition keys"
+      ],
+      "related_patterns": ["database_write_scaling", "horizontal_scaling", "distributed_cache", "load_balancer"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "cache_aside",
+      "name": "Cache-Aside (Lazy Loading)",
+      "category": "caching",
+      "description": "Application code explicitly manages the cache by checking it before querying the data store, and populating it on cache miss. The cache contains only data that has been requested, minimizing memory usage. Most commonly used caching strategy in web applications.",
+      "principles": [
+        "Application is responsible for cache read and write logic",
+        "Cache is populated lazily on first access (demand-driven)",
+        "Cache miss results in a data store query followed by cache population",
+        "TTL-based expiration provides eventual consistency with the data store",
+        "Cache stampede protection prevents thundering herd on popular keys",
+        "Serialization format must be consistent between write and read paths"
+      ],
+      "when_to_use": [
+        "Read-heavy workload where most reads hit the same data repeatedly",
+        "Data can tolerate staleness within a defined TTL window",
+        "Application needs fine-grained control over what is cached",
+        "Cache memory is limited and should only hold hot data",
+        "Different data types require different caching strategies",
+        "Integration with existing data stores without modifying them"
+      ],
+      "avoid_when": [
+        "Data changes frequently and stale reads are unacceptable",
+        "Write-heavy workload would cause constant cache invalidation",
+        "Application cannot tolerate the latency of cache misses on cold start",
+        "Cache management code duplicated across many services"
+      ],
+      "signals": [
+        "Database query logs show repeated identical queries",
+        "Application code contains get-from-cache-or-fetch patterns",
+        "Redis or Memcached client library in the dependency tree",
+        "Cache hit rate metrics tracked in monitoring dashboards",
+        "TTL configuration per entity type in application config",
+        "Data access layer wraps queries with cache lookup logic"
+      ],
+      "key_concepts": [
+        "Cache hit and miss handling",
+        "TTL and expiration strategies",
+        "Cache stampede and thundering herd prevention",
+        "Serialization and deserialization overhead",
+        "Cache key design and namespacing",
+        "Warm-up strategies for cold cache"
+      ],
+      "related_patterns": ["read_through", "write_through", "cache_invalidation", "distributed_cache"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "read_through",
+      "name": "Read-Through Cache",
+      "category": "caching",
+      "description": "The cache itself is responsible for loading data from the backing store on a miss, transparently to the application. Simplifies application code by encapsulating cache population logic within the cache layer. Often implemented by caching libraries or frameworks.",
+      "principles": [
+        "Cache layer encapsulates data loading logic",
+        "Application interacts only with the cache, never directly with the store on reads",
+        "Cache loader function must be idempotent and thread-safe",
+        "Synchronous loading blocks the requesting thread until data is available",
+        "Refresh-ahead can proactively reload frequently accessed entries before expiry",
+        "Error handling in the loader must not poison the cache with error states"
+      ],
+      "when_to_use": [
+        "Multiple application components access the same cached data",
+        "Cache population logic should be centralized and consistent",
+        "Framework or library supports read-through semantics natively",
+        "Data loading involves complex transformations before caching",
+        "Reducing code duplication of cache-aside patterns across services",
+        "Cache warming is handled by the cache infrastructure"
+      ],
+      "avoid_when": [
+        "Application needs direct control over when and how data is loaded",
+        "Different consumers need different representations of the same data",
+        "Cache framework does not support custom loader functions",
+        "Debugging requires visibility into cache vs store access paths"
+      ],
+      "signals": [
+        "Cache configuration includes a loader or origin function reference",
+        "Application code calls cache.get() without fallback to data store",
+        "Guava LoadingCache, Caffeine, or similar library in use",
+        "Cache metrics show automatic reload events",
+        "Single cache interface serves multiple consumers transparently",
+        "No explicit cache-miss handling in application business logic"
+      ],
+      "key_concepts": [
+        "Cache loader function design",
+        "Refresh-ahead and proactive reloading",
+        "Blocking vs non-blocking load",
+        "Loader error handling and fallback",
+        "Cache entry metadata (load time, source)",
+        "Coalescing concurrent loads for same key"
+      ],
+      "related_patterns": ["cache_aside", "write_through", "distributed_cache", "cache_invalidation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "write_through",
+      "name": "Write-Through Cache",
+      "category": "caching",
+      "description": "Data is written to both the cache and the backing store synchronously in a single operation. Ensures the cache always contains the latest written data, providing strong consistency at the cost of write latency. Pairs naturally with read-through caching.",
+      "principles": [
+        "Write completes only after both cache and store are updated",
+        "Cache and store consistency is guaranteed at write time",
+        "Write latency increases due to dual-write synchronous path",
+        "Atomicity of the dual write must be ensured to prevent inconsistency",
+        "Write-through populates cache proactively, eliminating read misses for written data",
+        "Suitable for workloads where written data is immediately read back"
+      ],
+      "when_to_use": [
+        "Read-after-write consistency is required",
+        "Written data is frequently read shortly after writing",
+        "Application cannot tolerate stale reads of recently written data",
+        "Cache and data store are co-located with low inter-latency",
+        "Data integrity is prioritized over write throughput",
+        "Audit requirements demand consistent cache and store state"
+      ],
+      "avoid_when": [
+        "Write throughput is the primary bottleneck",
+        "Written data is rarely read back (cache pollution)",
+        "Network latency between cache and store is high",
+        "Write-heavy workload would saturate the cache with infrequently accessed data"
+      ],
+      "signals": [
+        "Application writes to cache and database in the same transaction",
+        "Cache entries updated inline with database INSERT/UPDATE operations",
+        "Zero tolerance for stale cache reads of recently modified data",
+        "Cache hit rate for recently written data is critical for UX",
+        "ORM or data access layer has write-through hooks configured",
+        "Write path latency budget includes cache update overhead"
+      ],
+      "key_concepts": [
+        "Synchronous dual-write coordination",
+        "Write latency overhead analysis",
+        "Transactional consistency guarantees",
+        "Cache pollution from infrequent writes",
+        "Write-through vs write-back tradeoffs",
+        "Failure handling for partial writes"
+      ],
+      "related_patterns": ["write_behind", "read_through", "cache_aside", "cache_invalidation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "write_behind",
+      "name": "Write-Behind (Write-Back) Cache",
+      "category": "caching",
+      "description": "Data is written to the cache immediately and asynchronously flushed to the backing store. Provides low write latency by decoupling the store update from the request path. Introduces risk of data loss if the cache fails before flushing.",
+      "principles": [
+        "Cache absorbs writes immediately, store is updated asynchronously",
+        "Write coalescing reduces store write volume for frequently updated keys",
+        "Flush interval and batch size are tunable consistency-performance knobs",
+        "Data loss window equals the unflushed write buffer",
+        "Cache must be durable or replicated to minimize loss risk",
+        "Ordering of writes to the store must be preserved for correctness"
+      ],
+      "when_to_use": [
+        "Write latency must be minimized for user-facing operations",
+        "High write volume would overwhelm the backing store synchronously",
+        "Writes to the same key are frequent and can be coalesced",
+        "Temporary data loss of a few seconds is acceptable",
+        "Backing store has rate limits or throttling that buffer absorbs",
+        "Write patterns are bursty and benefit from smoothing"
+      ],
+      "avoid_when": [
+        "Data loss of any write is unacceptable (financial transactions)",
+        "Regulatory requirements mandate synchronous persistence",
+        "Cache infrastructure lacks durability or replication",
+        "Debugging write ordering issues is operationally costly"
+      ],
+      "signals": [
+        "Application write latency dominated by database persist time",
+        "High-frequency counter or metric updates to persistent store",
+        "Write bursts cause database connection pool exhaustion",
+        "Cache configured with async writeback or dirty flag tracking",
+        "Monitoring shows write coalescing ratio as a tracked metric",
+        "Application can reconstruct state from event log if cache is lost"
+      ],
+      "key_concepts": [
+        "Write coalescing and batching",
+        "Flush interval tuning",
+        "Dirty entry tracking",
+        "Data loss window calculation",
+        "Write ordering preservation",
+        "Cache durability and replication"
+      ],
+      "related_patterns": ["write_through", "async_processing", "dead_letter_queue", "cache_invalidation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "distributed_cache",
+      "name": "Distributed Cache",
+      "category": "caching",
+      "description": "A caching layer spread across multiple nodes, providing shared cache access for all application instances. Eliminates per-instance cache duplication and inconsistency. Adds network latency compared to local caches but offers horizontal scalability.",
+      "principles": [
+        "Consistent hashing distributes keys evenly across cache nodes",
+        "Cache cluster must tolerate node failures without full cache loss",
+        "Network round-trip adds latency compared to in-process caching",
+        "Serialization overhead must be minimized for large or complex objects",
+        "Memory capacity scales horizontally by adding cache nodes",
+        "Cache topology changes should not cause mass key redistribution"
+      ],
+      "when_to_use": [
+        "Multiple application instances need a shared consistent cache",
+        "Local cache duplication wastes memory across instances",
+        "Cache dataset exceeds single-node memory capacity",
+        "Session or state data must be accessible from any application instance",
+        "Cache invalidation must be immediate across all consumers",
+        "Horizontal scaling of cache capacity is required"
+      ],
+      "avoid_when": [
+        "Single application instance serves all traffic",
+        "Network latency for cache access exceeds latency budget",
+        "Data fits comfortably in local application memory",
+        "Operational overhead of a cache cluster is not justified"
+      ],
+      "signals": [
+        "Redis Cluster, Memcached, or Hazelcast in infrastructure",
+        "Multiple application pods accessing shared cache endpoints",
+        "Cache key collisions or inconsistencies across application instances",
+        "Local caches showing different values for the same key across pods",
+        "Cache infrastructure has dedicated monitoring and alerting",
+        "Cache connection strings in application configuration"
+      ],
+      "key_concepts": [
+        "Consistent hashing and key distribution",
+        "Cache cluster topology management",
+        "Replication vs sharding strategies",
+        "Client-side vs server-side partitioning",
+        "Near-cache (L1/L2) architectures",
+        "Cache cluster scaling operations"
+      ],
+      "related_patterns": ["cache_aside", "cache_invalidation", "connection_pooling", "horizontal_scaling"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "cdn_caching",
+      "name": "CDN Caching",
+      "category": "caching",
+      "description": "Caching content at geographically distributed edge servers to serve users from the nearest point of presence. Reduces origin server load and improves latency for static and semi-dynamic content. Controlled via HTTP cache headers and CDN-specific configuration.",
+      "principles": [
+        "Cache-Control headers govern CDN caching behavior",
+        "Edge locations serve content without origin round-trips on cache hit",
+        "Cache key must include all dimensions that affect response (vary headers)",
+        "Purge mechanisms must exist for emergency content updates",
+        "Origin shield reduces origin load by adding a mid-tier cache",
+        "Edge compute enables dynamic content personalization at the CDN layer"
+      ],
+      "when_to_use": [
+        "Static assets (images, CSS, JS) served to geographically distributed users",
+        "API responses that are cacheable with known TTL",
+        "Media streaming content delivery at scale",
+        "Reducing origin server bandwidth and compute costs",
+        "Protecting origin from traffic spikes and DDoS",
+        "Improving Time to First Byte for global audiences"
+      ],
+      "avoid_when": [
+        "Content is highly personalized per user with no shared segments",
+        "Real-time data freshness is required on every request",
+        "Cache purge latency exceeds acceptable staleness window",
+        "CDN cost per GB exceeds origin serving cost for the traffic volume"
+      ],
+      "signals": [
+        "CloudFront, Fastly, Cloudflare, or Akamai in infrastructure",
+        "Cache-Control and ETag headers in HTTP responses",
+        "Origin server bandwidth reduction after CDN deployment",
+        "Geographic latency variation in user experience metrics",
+        "Static asset URLs include content hash or version for cache busting",
+        "CDN hit ratio tracked as a key performance metric"
+      ],
+      "key_concepts": [
+        "HTTP cache headers (Cache-Control, ETag, Vary)",
+        "Point of presence and edge location selection",
+        "Origin shield and mid-tier caching",
+        "Cache purge and invalidation APIs",
+        "Edge compute and dynamic edge logic",
+        "Cache key normalization"
+      ],
+      "related_patterns": ["edge_caching", "cache_invalidation", "load_balancer", "rate_limiting"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "application_cache",
+      "name": "Application-Level Cache",
+      "category": "caching",
+      "description": "In-process caching within the application runtime, storing frequently accessed data in local memory. Provides the lowest possible access latency with zero network overhead. Limited by process memory and not shared across instances.",
+      "principles": [
+        "Local cache access is orders of magnitude faster than network cache",
+        "Memory bounds must be enforced to prevent OOM conditions",
+        "Eviction policies (LRU, LFU, FIFO) manage memory constraints",
+        "Cache entries should have TTL to prevent serving stale data indefinitely",
+        "Each application instance maintains its own independent cache",
+        "Cache warming on startup reduces cold-start latency impact"
+      ],
+      "when_to_use": [
+        "Lookup data (config, feature flags) accessed on every request",
+        "Computed results that are expensive to recalculate",
+        "Reference data that changes infrequently (country codes, enums)",
+        "Network latency to distributed cache exceeds budget for hot-path data",
+        "Single-instance applications where cache consistency is trivial",
+        "Reducing serialization overhead for complex object graphs"
+      ],
+      "avoid_when": [
+        "Multiple instances must see the same cache state",
+        "Cached data changes frequently requiring instant invalidation across instances",
+        "Dataset exceeds available process memory",
+        "Cache consistency across instances is a business requirement"
+      ],
+      "signals": [
+        "HashMap, ConcurrentHashMap, or dict used as lookup cache in code",
+        "Caffeine, Guava Cache, or lru_cache decorators in source",
+        "Repeated computation of the same result within request processing",
+        "Configuration or reference data loaded on startup and held in memory",
+        "Memory profiling shows large cached object graphs",
+        "Cache hit/miss counters in application metrics"
+      ],
+      "key_concepts": [
+        "LRU, LFU, and FIFO eviction policies",
+        "Maximum size and weight-based bounds",
+        "TTL and TTI (time-to-idle) expiration",
+        "Thread-safe concurrent access",
+        "Cache warming and preloading",
+        "Memory overhead estimation"
+      ],
+      "related_patterns": ["cache_aside", "distributed_cache", "object_cache", "query_cache"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "query_cache",
+      "name": "Query Result Cache",
+      "category": "caching",
+      "description": "Caching the results of database queries keyed by the query text and parameters. Eliminates redundant database round-trips for identical queries within the TTL window. Effective for read-heavy workloads with predictable query patterns.",
+      "principles": [
+        "Cache key must include query text, parameters, and any relevant context",
+        "Invalidation must occur when underlying data changes",
+        "Complex queries with large result sets have high serialization cost",
+        "Query plan caching is distinct from result caching",
+        "Parameterized queries improve cache hit rate over dynamic SQL",
+        "Cache should be bypassed for queries that must reflect real-time state"
+      ],
+      "when_to_use": [
+        "Dashboard or reporting queries executed repeatedly with identical parameters",
+        "API endpoints serving the same filtered/sorted data to multiple users",
+        "Database CPU is saturated by repeated identical query execution",
+        "Query response time exceeds acceptable latency and results are cacheable",
+        "Aggregate queries (COUNT, SUM, AVG) over slowly changing data",
+        "Full-text search results for popular search terms"
+      ],
+      "avoid_when": [
+        "Query results must reflect real-time data changes",
+        "Each query has unique parameters reducing cache hit probability",
+        "Result set is very large and serialization cost exceeds query cost",
+        "Write-heavy tables invalidate cached results too frequently"
+      ],
+      "signals": [
+        "Slow query log shows identical queries repeated frequently",
+        "Database CPU dominated by identical SELECT execution plans",
+        "Application-level query cache configuration (e.g., Hibernate L2 cache)",
+        "Redis keys structured as query hash values",
+        "API response caching middleware in the request pipeline",
+        "Query latency metrics show bimodal distribution (cache hit vs miss)"
+      ],
+      "key_concepts": [
+        "Query fingerprinting and cache key generation",
+        "Result set serialization format",
+        "Table-level vs row-level invalidation",
+        "ORM second-level cache integration",
+        "Prepared statement and plan caching",
+        "Cache bypass for transactional reads"
+      ],
+      "related_patterns": ["cache_aside", "application_cache", "database_read_replicas", "cache_invalidation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "object_cache",
+      "name": "Object Cache",
+      "category": "caching",
+      "description": "Caching fully constructed domain objects or aggregates to avoid repeated assembly from multiple data sources. Particularly valuable when object construction involves joins, computations, or external service calls. Reduces latency for complex object hydration paths.",
+      "principles": [
+        "Cache the fully assembled object, not individual data fragments",
+        "Invalidation must account for all data sources contributing to the object",
+        "Versioning cached objects handles schema evolution gracefully",
+        "Object identity (ID + version) should be part of the cache key",
+        "Deep object graphs require careful serialization strategies",
+        "Partial object caching can optimize memory at the cost of complexity"
+      ],
+      "when_to_use": [
+        "Object assembly requires multiple database queries or service calls",
+        "Domain aggregates are read far more often than modified",
+        "API responses serialize complex object graphs repeatedly",
+        "Product catalog, user profiles, or configuration objects accessed frequently",
+        "Object construction involves expensive computation or transformation",
+        "Microservice responses can cache assembled view models"
+      ],
+      "avoid_when": [
+        "Objects are modified as frequently as they are read",
+        "Object state includes user-specific data reducing shareability",
+        "Serialization cost of complex objects exceeds reconstruction cost",
+        "Cache invalidation for multi-source objects is too complex to maintain"
+      ],
+      "signals": [
+        "Multiple database queries executed to construct a single API response",
+        "Object assembly code performs joins across service boundaries",
+        "Profiling shows object construction as a significant latency contributor",
+        "Same aggregate root loaded repeatedly across different request handlers",
+        "Cache keys structured as entity_type:entity_id patterns",
+        "Domain model includes rich aggregate boundaries"
+      ],
+      "key_concepts": [
+        "Aggregate root caching boundaries",
+        "Multi-source invalidation coordination",
+        "Object versioning in cache keys",
+        "Serialization format selection (protobuf, MessagePack, JSON)",
+        "Cache-friendly domain model design",
+        "Lazy loading vs eager caching tradeoffs"
+      ],
+      "related_patterns": ["cache_aside", "application_cache", "distributed_cache", "cache_invalidation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "edge_caching",
+      "name": "Edge Caching",
+      "category": "caching",
+      "description": "Caching data and computation at network edge locations closest to end users, beyond traditional CDN static asset caching. Enables dynamic content generation, API response caching, and personalization at the edge. Leverages edge compute platforms like Cloudflare Workers or Lambda@Edge.",
+      "principles": [
+        "Edge cache reduces round-trip time to origin by serving locally",
+        "Cache segmentation by geography, device, or user cohort improves hit rate",
+        "Edge compute enables dynamic cache key computation and response assembly",
+        "Consistency is eventually achieved via background revalidation",
+        "Edge cache capacity is limited; eviction policies must be tuned",
+        "Origin failover at the edge improves availability during origin outages"
+      ],
+      "when_to_use": [
+        "Latency-sensitive applications serving global user base",
+        "API responses that can be cached with geographic or cohort segmentation",
+        "A/B testing where variant assignment can be computed at the edge",
+        "Bot detection and security filtering before reaching origin",
+        "GraphQL or REST API responses with shared segments across users",
+        "Real-time personalization with edge-side includes"
+      ],
+      "avoid_when": [
+        "All users require unique, non-cacheable responses",
+        "Edge compute cost exceeds latency benefit",
+        "Data sovereignty requires responses generated in specific regions only",
+        "Application logic complexity exceeds edge compute runtime limits"
+      ],
+      "signals": [
+        "Cloudflare Workers, Lambda@Edge, or Fastly Compute in infrastructure",
+        "Geographic latency variation exceeding 200ms across regions",
+        "Surrogate-Key or Cache-Tag headers for granular edge invalidation",
+        "Edge-side includes (ESI) in response templates",
+        "Edge function logs showing request routing decisions",
+        "Cache segmentation by Accept-Language or geo headers"
+      ],
+      "key_concepts": [
+        "Edge compute platforms and runtimes",
+        "Cache segmentation strategies",
+        "Stale-while-revalidate patterns",
+        "Edge-side includes (ESI)",
+        "Geographic cache partitioning",
+        "Edge observability and debugging"
+      ],
+      "related_patterns": ["cdn_caching", "cache_invalidation", "rate_limiting", "graceful_degradation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "cache_invalidation",
+      "name": "Cache Invalidation",
+      "category": "caching",
+      "description": "Strategies for removing or updating stale cache entries when the underlying data changes. One of the hardest problems in computer science due to the tradeoff between consistency, performance, and complexity. Requires careful design to avoid serving stale data or over-invalidating.",
+      "principles": [
+        "TTL-based expiration provides eventual consistency with minimal complexity",
+        "Event-driven invalidation provides near-real-time consistency",
+        "Over-invalidation wastes cache capacity; under-invalidation serves stale data",
+        "Cache tags enable invalidation of related entries in a single operation",
+        "Versioned cache keys avoid invalidation entirely by writing new keys",
+        "Invalidation scope must match the data dependency graph"
+      ],
+      "when_to_use": [
+        "Cached data has known mutation events that can trigger invalidation",
+        "Business requirements specify maximum staleness tolerance",
+        "Data changes are infrequent relative to reads",
+        "Cache tag infrastructure supports group invalidation",
+        "Database change data capture can feed invalidation events",
+        "Multiple cache layers (L1/L2) require coordinated invalidation"
+      ],
+      "avoid_when": [
+        "Data changes so frequently that invalidation rate exceeds cache utility",
+        "Invalidation dependency graph is too complex to model correctly",
+        "TTL-based eventual consistency is sufficient and simpler",
+        "Invalidation infrastructure adds more complexity than direct data store access"
+      ],
+      "signals": [
+        "Stale data complaints from users or downstream consumers",
+        "Cache delete or purge calls in write path code",
+        "Database triggers or CDC pipeline feeding invalidation events",
+        "Cache tag or key pattern-based bulk deletion in admin tools",
+        "Monitoring shows invalidation rate as a tracked metric",
+        "Incident reports citing stale cache as root cause"
+      ],
+      "key_concepts": [
+        "TTL-based vs event-driven invalidation",
+        "Cache tags and group invalidation",
+        "Versioned cache keys (immutable entries)",
+        "Change data capture for invalidation triggers",
+        "Cascading invalidation across cache layers",
+        "Probabilistic early expiration (PER)"
+      ],
+      "related_patterns": ["cache_aside", "write_through", "distributed_cache", "eventual_consistency"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "raft_consensus",
+      "name": "Raft Consensus",
+      "category": "distributed-consensus",
+      "description": "A consensus algorithm designed for understandability, achieving distributed agreement through leader election and log replication. Ensures a cluster of nodes agrees on a sequence of state transitions even in the presence of failures. Used in etcd, Consul, and CockroachDB.",
+      "principles": [
+        "Single leader handles all client writes and replicates to followers",
+        "Leader election uses randomized timeouts to break ties",
+        "Log entries are committed when a majority of nodes acknowledge them",
+        "Term numbers monotonically increase and prevent stale leader operations",
+        "Followers that fall behind can catch up via log replication or snapshots",
+        "Safety is never compromised; availability is sacrificed during leader election"
+      ],
+      "when_to_use": [
+        "Configuration management requiring strong consistency (etcd, Consul)",
+        "Metadata services where correctness is more important than throughput",
+        "Leader election for distributed coordinators",
+        "Distributed lock services requiring mutual exclusion guarantees",
+        "Replicated state machines for critical system state",
+        "Small cluster sizes (3, 5, 7 nodes) where Raft overhead is acceptable"
+      ],
+      "avoid_when": [
+        "High write throughput is required and consensus is the bottleneck",
+        "Cluster size exceeds practical Raft limits (more than ~7 voting members)",
+        "Eventual consistency is sufficient for the use case",
+        "Network partitions are frequent and availability is prioritized over consistency"
+      ],
+      "signals": [
+        "etcd, Consul, or CockroachDB in the infrastructure stack",
+        "Raft log directory and snapshot files on disk",
+        "Cluster membership configuration with odd node counts",
+        "Leader election timeout and heartbeat interval in configuration",
+        "Monitoring tracks term number, commit index, and replication lag",
+        "Application uses distributed lock or leader election APIs"
+      ],
+      "key_concepts": [
+        "Leader election and term numbering",
+        "Log replication and commitment",
+        "Majority quorum requirement",
+        "Snapshot and log compaction",
+        "Membership change via joint consensus",
+        "Linearizable read semantics"
+      ],
+      "related_patterns": ["paxos", "leader_election", "quorum", "cap_theorem_tradeoffs"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "paxos",
+      "name": "Paxos",
+      "category": "distributed-consensus",
+      "description": "The foundational consensus algorithm proving that distributed agreement is achievable in asynchronous systems with crash failures. Guarantees safety (agreement and validity) without requiring timing assumptions. Practically difficult to implement correctly, leading to variants like Multi-Paxos and Fast Paxos.",
+      "principles": [
+        "Proposers, acceptors, and learners are distinct logical roles",
+        "A value is chosen when accepted by a majority of acceptors",
+        "Prepare-promise-accept-learn phases ensure agreement",
+        "Higher proposal numbers override lower ones, preventing conflicts",
+        "No timing assumptions needed for safety (only for liveness)",
+        "Multi-Paxos optimizes for repeated consensus with a stable leader"
+      ],
+      "when_to_use": [
+        "Building consensus-based systems where correctness is paramount",
+        "Academic or research implementations requiring proven correctness",
+        "Systems where Raft's leader-based model is too restrictive",
+        "Multi-decree consensus with stable leadership (Multi-Paxos)",
+        "Distributed database commit protocols requiring provable safety",
+        "Understanding the theoretical foundation of distributed consensus"
+      ],
+      "avoid_when": [
+        "Raft provides sufficient functionality with better understandability",
+        "Team lacks deep distributed systems expertise for correct implementation",
+        "Off-the-shelf consensus systems (etcd, ZooKeeper) can be used instead",
+        "Eventual consistency is acceptable for the use case"
+      ],
+      "signals": [
+        "Research papers or design docs referencing Paxos by name",
+        "Custom consensus implementation in the codebase",
+        "Proposal number tracking and ballot management logic",
+        "Acceptor state persistence for crash recovery",
+        "Google Chubby or Spanner-inspired system architecture",
+        "Multi-phase commit protocol with prepare and accept phases"
+      ],
+      "key_concepts": [
+        "Proposer, acceptor, learner roles",
+        "Prepare and accept phases",
+        "Proposal number ordering",
+        "Multi-Paxos optimization",
+        "FLP impossibility result context",
+        "Flexible Paxos and quorum intersection"
+      ],
+      "related_patterns": ["raft_consensus", "quorum", "leader_election", "two_phase_commit"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "two_phase_commit",
+      "name": "Two-Phase Commit (2PC)",
+      "category": "distributed-consensus",
+      "description": "A distributed transaction protocol coordinating atomic commit or abort across multiple participants. The coordinator sends prepare requests, collects votes, then broadcasts commit or abort. Provides atomicity but is blocking and vulnerable to coordinator failure.",
+      "principles": [
+        "Coordinator drives the prepare and commit/abort phases",
+        "All participants must vote yes for the transaction to commit",
+        "Any participant voting no causes the entire transaction to abort",
+        "Participants hold locks between prepare and commit, blocking other transactions",
+        "Coordinator failure after prepare creates an in-doubt state",
+        "Write-ahead logging on coordinator and participants enables recovery"
+      ],
+      "when_to_use": [
+        "Distributed transactions across heterogeneous databases",
+        "XA transactions in enterprise middleware (JTA, MSDTC)",
+        "Cross-shard atomic operations requiring all-or-nothing semantics",
+        "Legacy system integration where saga pattern refactoring is infeasible",
+        "Financial transactions requiring strict atomicity across systems",
+        "Database federation requiring cross-database consistency"
+      ],
+      "avoid_when": [
+        "High throughput is required and lock contention is unacceptable",
+        "Coordinator single point of failure risk is too high",
+        "Participants span wide-area networks with high latency",
+        "Saga pattern or eventual consistency is acceptable",
+        "Microservice architecture favors autonomy over distributed transactions"
+      ],
+      "signals": [
+        "XA transaction manager in middleware configuration",
+        "Distributed transaction coordinator process in deployment",
+        "Prepare and commit log entries in database transaction logs",
+        "In-doubt transaction recovery procedures in operations playbooks",
+        "Cross-database JOIN or UPDATE operations in application code",
+        "Lock timeout errors under concurrent distributed transaction load"
+      ],
+      "key_concepts": [
+        "Coordinator and participant roles",
+        "Prepare, commit, and abort phases",
+        "In-doubt transaction recovery",
+        "XA specification and transaction managers",
+        "Blocking nature and lock holding",
+        "Presumed abort and presumed commit optimizations"
+      ],
+      "related_patterns": ["three_phase_commit", "compensating_transaction", "idempotency", "database_write_scaling"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "three_phase_commit",
+      "name": "Three-Phase Commit (3PC)",
+      "category": "distributed-consensus",
+      "description": "An extension of two-phase commit that adds a pre-commit phase to reduce blocking in the event of coordinator failure. Participants in the pre-commit state can independently decide to commit after a timeout. Trades additional message complexity for reduced blocking window.",
+      "principles": [
+        "Pre-commit phase allows participants to know the coordinator's decision",
+        "Timeout-based recovery enables progress without coordinator",
+        "Three round-trips increase latency compared to 2PC",
+        "Does not solve the fundamental problem under network partitions",
+        "Participants can make autonomous decisions after coordinator timeout",
+        "Practical implementations are rare due to complexity and network partition issues"
+      ],
+      "when_to_use": [
+        "Coordinator failure blocking is unacceptable in the deployment environment",
+        "Network is reliable (same datacenter, low partition probability)",
+        "Availability of the transaction protocol is critical",
+        "Academic or research systems exploring non-blocking commit",
+        "Systems where 2PC blocking has caused production incidents",
+        "Environments where bounded commit latency is required"
+      ],
+      "avoid_when": [
+        "Network partitions are common (wide-area deployments)",
+        "Additional message round-trip latency is unacceptable",
+        "Saga pattern or eventual consistency provides sufficient guarantees",
+        "Implementation complexity exceeds team capacity",
+        "2PC blocking has not been a practical problem in production"
+      ],
+      "signals": [
+        "Pre-commit phase in transaction protocol implementation",
+        "Timeout-based autonomous commit decision logic",
+        "Three distinct phase handlers in transaction coordinator code",
+        "Research or design documents discussing non-blocking commit",
+        "Transaction protocol with can-commit, pre-commit, and do-commit states",
+        "Coordinator failure recovery procedures that reference 3PC"
+      ],
+      "key_concepts": [
+        "Can-commit, pre-commit, and do-commit phases",
+        "Non-blocking commit under coordinator failure",
+        "Timeout-based decision making",
+        "Network partition limitations",
+        "Message complexity vs blocking tradeoff",
+        "Comparison with 2PC blocking scenarios"
+      ],
+      "related_patterns": ["two_phase_commit", "paxos", "raft_consensus", "compensating_transaction"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "vector_clocks",
+      "name": "Vector Clocks",
+      "category": "distributed-consensus",
+      "description": "A mechanism for tracking causality in distributed systems by maintaining a vector of logical timestamps, one per node. Enables detection of concurrent updates and causal ordering without physical clock synchronization. Used in eventually consistent datastores like Dynamo-style systems.",
+      "principles": [
+        "Each node increments its own position in the vector on local events",
+        "Vectors are merged on message receipt by taking component-wise maximum",
+        "Two events are causally ordered if one vector dominates the other",
+        "Concurrent events have incomparable vectors requiring conflict resolution",
+        "Vector size grows with the number of participating nodes",
+        "Version vectors (a variant) track data item versions for conflict detection"
+      ],
+      "when_to_use": [
+        "Detecting causality relationships between distributed events",
+        "Conflict detection in multi-master replication systems",
+        "Eventually consistent datastores requiring version tracking",
+        "Distributed debugging and event ordering analysis",
+        "Optimistic concurrency control across distributed nodes",
+        "Implementing last-writer-wins or merge-based conflict resolution"
+      ],
+      "avoid_when": [
+        "Strong consistency eliminates concurrent writes by design",
+        "Number of nodes is very large making vector size impractical",
+        "Simpler Lamport timestamps provide sufficient ordering",
+        "Physical clock-based ordering (TrueTime) is available and sufficient"
+      ],
+      "signals": [
+        "Version vector or vector clock data structure in codebase",
+        "Conflict resolution logic comparing event timestamps",
+        "Dynamo-style or Riak-style database in infrastructure",
+        "Concurrent update detection and merge functions in data layer",
+        "Per-node sequence number tracking in replication protocol",
+        "Causal consistency model documented in system design"
+      ],
+      "key_concepts": [
+        "Logical clock advancement rules",
+        "Vector comparison and dominance",
+        "Concurrent event detection",
+        "Version vectors vs vector clocks",
+        "Dotted version vectors for compaction",
+        "Causal consistency guarantees"
+      ],
+      "related_patterns": ["crdt", "eventual_consistency", "gossip_protocol", "cap_theorem_tradeoffs"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "crdt",
+      "name": "Conflict-Free Replicated Data Type (CRDT)",
+      "category": "distributed-consensus",
+      "description": "Data structures that can be replicated across nodes and merged automatically without coordination, guaranteeing eventual convergence. Designed so that all concurrent operations commute, eliminating the need for consensus on write ordering. Used in collaborative editing, distributed counters, and edge computing.",
+      "principles": [
+        "Merge function must be commutative, associative, and idempotent",
+        "State-based CRDTs ship full state; operation-based CRDTs ship operations",
+        "All replicas converge to the same state given the same set of updates",
+        "No coordination required between replicas for writes",
+        "Monotonic join semilattice property ensures convergence",
+        "Garbage collection of tombstones and metadata requires coordination"
+      ],
+      "when_to_use": [
+        "Collaborative editing requiring concurrent updates without locks",
+        "Distributed counters that must be incremented across multiple nodes",
+        "Shopping carts, voting systems, or presence indicators",
+        "Edge computing where nodes operate independently and sync periodically",
+        "Offline-first applications requiring conflict-free sync",
+        "Systems where availability is prioritized over immediate consistency"
+      ],
+      "avoid_when": [
+        "Strong consistency and immediate convergence is required",
+        "Data model does not map naturally to known CRDT types",
+        "Metadata overhead of CRDT state tracking is too large",
+        "Operations are inherently non-commutative (e.g., ordered sequences with constraints)"
+      ],
+      "signals": [
+        "Automerge, Yjs, or Riak data types library in dependencies",
+        "Merge functions in data layer that combine concurrent states",
+        "Counter types with increment-only or positive-negative tracking",
+        "Set types with add/remove operations and tombstone tracking",
+        "Distributed application operating in offline or partition-tolerant mode",
+        "Collaborative features (shared documents, whiteboards) in product"
+      ],
+      "key_concepts": [
+        "State-based (CvRDT) vs operation-based (CmRDT)",
+        "G-Counter, PN-Counter, G-Set, OR-Set types",
+        "LWW-Register and MV-Register",
+        "Tombstone and garbage collection",
+        "Causal delivery for operation-based CRDTs",
+        "Delta-state CRDTs for bandwidth efficiency"
+      ],
+      "related_patterns": ["eventual_consistency", "vector_clocks", "gossip_protocol", "cap_theorem_tradeoffs"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "gossip_protocol",
+      "name": "Gossip Protocol",
+      "category": "distributed-consensus",
+      "description": "A decentralized communication protocol where nodes periodically exchange state with randomly selected peers, propagating information epidemically. Provides eventual consistency without centralized coordination. Highly resilient to node failures and network partitions.",
+      "principles": [
+        "Each node periodically selects random peers to exchange state",
+        "Information spreads exponentially through the cluster",
+        "Convergence time is O(log N) for N nodes under ideal conditions",
+        "No central coordinator or single point of failure",
+        "Tolerates high node churn and network partitions gracefully",
+        "Anti-entropy mechanisms reconcile divergent state between nodes"
+      ],
+      "when_to_use": [
+        "Cluster membership and failure detection in large systems",
+        "Disseminating configuration updates across a distributed cluster",
+        "Aggregate computation (global counts, averages) without centralization",
+        "Systems with high node count where centralized broadcast is impractical",
+        "Peer-to-peer networks requiring decentralized state propagation",
+        "Eventual consistency of metadata across datacenter nodes"
+      ],
+      "avoid_when": [
+        "Immediate consistency is required for propagated state",
+        "Cluster size is small enough for direct broadcast to all nodes",
+        "Deterministic propagation time is a hard requirement",
+        "Network bandwidth for gossip messages is constrained"
+      ],
+      "signals": [
+        "Serf, memberlist, or SWIM protocol library in dependencies",
+        "Random peer selection logic in cluster communication code",
+        "Gossip interval and fanout configuration parameters",
+        "Cluster membership view that converges rather than being centrally managed",
+        "Anti-entropy or state reconciliation background processes",
+        "Failure detector based on missed gossip heartbeats"
+      ],
+      "key_concepts": [
+        "Push, pull, and push-pull gossip variants",
+        "SWIM failure detection protocol",
+        "Anti-entropy and reconciliation",
+        "Convergence time analysis",
+        "Gossip fanout and interval tuning",
+        "Rumor mongering vs anti-entropy dissemination"
+      ],
+      "related_patterns": ["eventual_consistency", "crdt", "leader_election", "health_check"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "leader_election",
+      "name": "Leader Election",
+      "category": "distributed-consensus",
+      "description": "A protocol for selecting a single node in a distributed system to serve as the coordinator for a specific task or partition. Ensures exactly one leader is active at a time to prevent split-brain scenarios. Critical for systems that require centralized decision-making within a distributed architecture.",
+      "principles": [
+        "Exactly one leader must be active at any given time (mutual exclusion)",
+        "Fencing tokens prevent stale leaders from making decisions after replacement",
+        "Leader lease renewal must occur before expiry to prevent interregnum",
+        "Split-brain detection and resolution is essential for correctness",
+        "Leader failure must be detected and a new election triggered promptly",
+        "Election protocol must tolerate network partitions safely"
+      ],
+      "when_to_use": [
+        "Coordinating writes to a shared resource from multiple nodes",
+        "Scheduling and task assignment in a distributed worker cluster",
+        "Master-slave replication requiring a designated primary",
+        "Singleton services that must run on exactly one node",
+        "Partition leadership assignment in stream processing systems",
+        "Distributed lock coordination requiring a central arbiter"
+      ],
+      "avoid_when": [
+        "Leaderless architecture can handle the coordination requirement",
+        "CRDTs or gossip protocol can replace centralized coordination",
+        "Single point of failure from leader dependency is unacceptable without rapid failover",
+        "Leader election overhead exceeds the coordination benefit"
+      ],
+      "signals": [
+        "ZooKeeper ephemeral nodes or Consul sessions for leader tracking",
+        "Kubernetes lease objects for controller leader election",
+        "Fencing token or generation number in write operations",
+        "Leader health check and failover procedures in runbooks",
+        "Application startup includes leader election registration logic",
+        "Split-brain incident reports in operations history"
+      ],
+      "key_concepts": [
+        "Bully algorithm and ring-based election",
+        "Lease-based leadership with TTL",
+        "Fencing tokens for stale leader prevention",
+        "Split-brain detection and resolution",
+        "Leader lease renewal and heartbeat",
+        "Graceful leadership transfer"
+      ],
+      "related_patterns": ["raft_consensus", "paxos", "quorum", "health_check"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "quorum",
+      "name": "Quorum",
+      "category": "distributed-consensus",
+      "description": "Requiring a minimum number of nodes to agree on a read or write operation to ensure consistency in a replicated system. Read and write quorums that overlap guarantee that reads observe the most recent write. The fundamental building block for tunable consistency in distributed datastores.",
+      "principles": [
+        "Write quorum W plus read quorum R must exceed total replicas N (W + R > N)",
+        "Larger W increases write latency but reduces read quorum requirement",
+        "Quorum intersection ensures at least one node has the latest write",
+        "Sloppy quorum trades consistency for availability during partitions",
+        "Hinted handoff enables writes during temporary node unavailability",
+        "Quorum configuration is a tunable consistency-availability knob"
+      ],
+      "when_to_use": [
+        "Dynamo-style databases requiring tunable consistency (Cassandra, Riak)",
+        "Replicated systems where strict majority consensus is too expensive",
+        "Applications needing flexible consistency levels per operation",
+        "Read-heavy workloads that can use R=1 with W=N for fast reads",
+        "Write-heavy workloads that can use W=1 with R=N for fast writes",
+        "Multi-datacenter replication with local quorum semantics"
+      ],
+      "avoid_when": [
+        "Linearizable consistency is required (use Raft or Paxos instead)",
+        "Replica count is very small (2 nodes) making quorum fragile",
+        "Application cannot handle the complexity of tunable consistency",
+        "Network partitions are frequent and sloppy quorum semantics are confusing"
+      ],
+      "signals": [
+        "Consistency level configuration (ONE, QUORUM, ALL) in database queries",
+        "Replication factor and quorum size parameters in database config",
+        "Read repair or anti-entropy processes in database maintenance",
+        "Hinted handoff directories on database nodes",
+        "Cassandra, Riak, or DynamoDB in the infrastructure stack",
+        "Consistency level tuning based on operation criticality"
+      ],
+      "key_concepts": [
+        "Read and write quorum overlap (W + R > N)",
+        "Sloppy quorum and hinted handoff",
+        "Read repair and anti-entropy",
+        "Local quorum for multi-datacenter",
+        "Quorum configuration tradeoffs",
+        "Consistency level per-operation tuning"
+      ],
+      "related_patterns": ["raft_consensus", "eventual_consistency", "cap_theorem_tradeoffs", "database_read_replicas"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "cap_theorem_tradeoffs",
+      "name": "CAP Theorem Tradeoffs",
+      "category": "distributed-consensus",
+      "description": "The practical application of the CAP theorem, which states that a distributed system can provide at most two of three guarantees: consistency, availability, and partition tolerance. Since network partitions are inevitable, the real choice is between consistency and availability during partitions. Guides architecture decisions for distributed data systems.",
+      "principles": [
+        "Network partitions are inevitable; the choice is between C and A during partitions",
+        "CP systems sacrifice availability to maintain consistency during partitions",
+        "AP systems sacrifice consistency to maintain availability during partitions",
+        "CAP is a spectrum, not a binary choice, in practice",
+        "PACELC extends CAP to address latency-consistency tradeoffs during normal operation",
+        "Different parts of a system can make different CAP tradeoffs"
+      ],
+      "when_to_use": [
+        "Designing a new distributed data system and choosing consistency model",
+        "Evaluating database technology for a distributed deployment",
+        "Analyzing failure modes and their impact on data consistency",
+        "Documenting system behavior during network partition scenarios",
+        "Making per-service or per-operation consistency decisions",
+        "Communicating tradeoffs to stakeholders in system design reviews"
+      ],
+      "avoid_when": [
+        "System is not distributed (single node, no replication)",
+        "Using CAP as the sole framework without considering PACELC",
+        "Oversimplifying the nuances of consistency models",
+        "Network partitions are genuinely impossible (single rack, no WAN)"
+      ],
+      "signals": [
+        "Architecture documents discussing consistency vs availability tradeoffs",
+        "Database selection evaluations comparing CP vs AP systems",
+        "Incident reports describing behavior during network partition events",
+        "Consistency level configuration varying by operation type",
+        "System design documents referencing CAP or PACELC explicitly",
+        "Multi-region deployment with cross-region replication decisions"
+      ],
+      "key_concepts": [
+        "Consistency, availability, partition tolerance definitions",
+        "CP vs AP system classification",
+        "PACELC extension (latency tradeoffs)",
+        "Linearizability vs sequential vs causal consistency",
+        "Per-operation consistency tuning",
+        "Partition detection and recovery strategies"
+      ],
+      "related_patterns": ["eventual_consistency", "quorum", "raft_consensus", "crdt"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "eventual_consistency",
+      "name": "Eventual Consistency",
+      "category": "distributed-consensus",
+      "description": "A consistency model guaranteeing that, in the absence of new updates, all replicas will eventually converge to the same value. Provides high availability and low latency at the cost of temporary inconsistency windows. The foundation of most large-scale distributed systems.",
+      "principles": [
+        "All replicas converge to the same value given sufficient time without updates",
+        "Inconsistency window must be bounded and monitored",
+        "Conflict resolution strategy handles concurrent updates (LWW, merge, manual)",
+        "Read-your-writes consistency can be layered on top for better UX",
+        "Anti-entropy processes accelerate convergence between replicas",
+        "Application logic must tolerate reading stale or intermediate states"
+      ],
+      "when_to_use": [
+        "High availability is more important than immediate consistency",
+        "Multi-region deployments where synchronous replication is too slow",
+        "Social media feeds, recommendations, and analytics that tolerate staleness",
+        "Shopping carts, user preferences, and non-critical user state",
+        "DNS, CDN, and content distribution systems",
+        "Metrics, logging, and observability data pipelines"
+      ],
+      "avoid_when": [
+        "Financial transactions requiring immediate account balance accuracy",
+        "Inventory systems where overselling is unacceptable",
+        "Coordination systems where stale reads cause incorrect decisions",
+        "User expectations require immediate visibility of their own changes"
+      ],
+      "signals": [
+        "Replication lag metrics tracked in monitoring dashboards",
+        "Conflict resolution functions (last-writer-wins, merge) in codebase",
+        "Anti-entropy or read-repair background processes",
+        "Application code handling stale reads gracefully",
+        "Asynchronous replication configuration between database nodes",
+        "Consistency model documented as eventual in system design docs"
+      ],
+      "key_concepts": [
+        "Convergence guarantees and bounds",
+        "Conflict resolution strategies",
+        "Read-your-writes and monotonic reads",
+        "Session consistency models",
+        "Anti-entropy and read repair",
+        "Staleness metrics and monitoring"
+      ],
+      "related_patterns": ["cap_theorem_tradeoffs", "crdt", "vector_clocks", "quorum", "cache_invalidation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "circuit_breaker",
+      "name": "Circuit Breaker",
+      "category": "resilience",
+      "description": "A stability pattern that prevents an application from repeatedly calling a failing dependency by tripping open after a failure threshold is reached. In the open state, calls fail fast without attempting the downstream call. Periodically allows test requests to check if the dependency has recovered.",
+      "principles": [
+        "Closed state allows all calls; open state rejects all calls immediately",
+        "Half-open state allows a limited number of test calls to probe recovery",
+        "Failure threshold (count or rate) determines when to trip open",
+        "Timeout for the open state determines when to transition to half-open",
+        "Separate circuit breakers per dependency prevent correlated failures",
+        "Circuit breaker state changes should be logged and alerted on"
+      ],
+      "when_to_use": [
+        "Calling external services that may become unresponsive or slow",
+        "Database connections that fail due to overload or network issues",
+        "Preventing cascading failures across microservice dependency chains",
+        "API gateway protecting backend services from client-induced overload",
+        "Third-party API integrations with unknown reliability characteristics",
+        "Any synchronous dependency call that could block or fail repeatedly"
+      ],
+      "avoid_when": [
+        "Failures are transient and resolved by simple retry",
+        "Dependency has no recovery mechanism (circuit will never close)",
+        "Local in-process calls that cannot fail independently",
+        "Fire-and-forget operations where failure is acceptable"
+      ],
+      "signals": [
+        "Hystrix, Resilience4j, Polly, or pybreaker in dependencies",
+        "Circuit breaker state (OPEN/CLOSED/HALF_OPEN) in health endpoints",
+        "Failure count thresholds in service call configuration",
+        "Fallback response logic triggered on circuit open",
+        "Dashboard showing circuit breaker state across services",
+        "Cascading timeout failures in distributed call chains"
+      ],
+      "key_concepts": [
+        "Closed, open, and half-open states",
+        "Failure rate threshold and sliding window",
+        "Slow call rate detection",
+        "Fallback function design",
+        "Per-dependency circuit isolation",
+        "Circuit breaker state machine monitoring"
+      ],
+      "related_patterns": ["bulkhead", "retry_with_backoff", "timeout_pattern", "fallback", "graceful_degradation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "bulkhead",
+      "name": "Bulkhead",
+      "category": "resilience",
+      "description": "Isolating components or resources into partitions so that failure in one partition does not cascade to others. Named after ship bulkheads that prevent flooding from sinking the entire vessel. Applied through thread pool isolation, connection pool partitioning, or process separation.",
+      "principles": [
+        "Each critical dependency gets its own isolated resource pool",
+        "Failure in one partition is contained and cannot exhaust shared resources",
+        "Pool size per partition is tuned based on dependency throughput and latency",
+        "Rejected calls due to pool exhaustion should have fallback behavior",
+        "Monitoring per-partition utilization detects imbalanced resource allocation",
+        "Bulkhead boundaries align with failure domains in the architecture"
+      ],
+      "when_to_use": [
+        "Multiple downstream dependencies with different reliability profiles",
+        "Slow dependency consuming all threads, starving other request types",
+        "Multi-tenant systems requiring resource isolation between tenants",
+        "Critical vs non-critical request paths needing separate resource pools",
+        "Microservice architectures where one dependency failure should not affect others",
+        "Database connection pools shared across multiple query types"
+      ],
+      "avoid_when": [
+        "System has a single dependency and partitioning adds no value",
+        "Overall resource pool is too small to partition meaningfully",
+        "Dependencies have identical reliability and performance characteristics",
+        "Operational complexity of managing multiple pools exceeds benefit"
+      ],
+      "signals": [
+        "Thread pool per dependency in service configuration",
+        "Semaphore-based concurrency limiters per operation type",
+        "Kubernetes resource quotas per namespace or pod",
+        "Connection pool configuration separated by read/write or by tenant",
+        "Hystrix thread pool isolation in circuit breaker configuration",
+        "Incident reports showing one slow dependency affecting unrelated requests"
+      ],
+      "key_concepts": [
+        "Thread pool isolation vs semaphore isolation",
+        "Resource pool sizing per partition",
+        "Failure domain alignment",
+        "Tenant isolation in multi-tenant systems",
+        "Process-level vs thread-level bulkheads",
+        "Rejection policy and fallback design"
+      ],
+      "related_patterns": ["circuit_breaker", "thread_pool", "connection_pooling", "graceful_degradation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "retry_with_backoff",
+      "name": "Retry with Exponential Backoff",
+      "category": "resilience",
+      "description": "Automatically retrying failed operations with progressively increasing delays between attempts. Gives transient failures time to resolve while preventing retry storms that overwhelm recovering services. Adding jitter prevents synchronized retries from multiple clients.",
+      "principles": [
+        "Only retry on transient errors; permanent errors should fail immediately",
+        "Exponential backoff increases wait time between successive retries",
+        "Jitter (randomization) prevents thundering herd from synchronized retries",
+        "Maximum retry count bounds total retry duration",
+        "Retry budget limits the fraction of requests that are retries",
+        "Idempotent operations are safe to retry; non-idempotent operations need special handling"
+      ],
+      "when_to_use": [
+        "Network calls failing due to transient connectivity issues",
+        "HTTP 429 (rate limited) or 503 (service unavailable) responses",
+        "Database deadlock errors that resolve on retry",
+        "Distributed lock acquisition failures",
+        "Cloud API calls subject to rate limiting and throttling",
+        "Message queue publish failures due to transient broker issues"
+      ],
+      "avoid_when": [
+        "Error is permanent (authentication failure, invalid input, 4xx)",
+        "Operation is not idempotent and retry could cause duplication",
+        "Downstream service is known to be down for extended maintenance",
+        "Retry latency exceeds acceptable end-to-end response time",
+        "Circuit breaker has already opened for the dependency"
+      ],
+      "signals": [
+        "Retry library (Tenacity, retry, Spring Retry) in dependencies",
+        "Exponential backoff configuration with base delay and max retries",
+        "Jitter factor in retry delay calculation",
+        "Retry count metrics in monitoring dashboards",
+        "HTTP client configuration with retry policies",
+        "Error classification logic distinguishing retryable vs permanent errors"
+      ],
+      "key_concepts": [
+        "Exponential backoff formula (base * 2^attempt)",
+        "Full jitter vs decorrelated jitter",
+        "Retry budget and retry storm prevention",
+        "Idempotency requirement for safe retries",
+        "Error classification (transient vs permanent)",
+        "Maximum retry count and total timeout"
+      ],
+      "related_patterns": ["circuit_breaker", "timeout_pattern", "idempotency", "rate_limiting", "backpressure"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "timeout_pattern",
+      "name": "Timeout Pattern",
+      "category": "resilience",
+      "description": "Setting explicit time bounds on operations to prevent indefinite blocking when a dependency is slow or unresponsive. Converts unbounded waits into bounded failures, enabling the caller to take fallback action. Essential for preventing resource exhaustion from hung connections.",
+      "principles": [
+        "Every network call must have an explicit timeout configured",
+        "Timeout values should be based on observed latency percentiles (p99, p999)",
+        "Connection timeout and request timeout serve different purposes",
+        "Cascading timeouts across a call chain must sum to less than the top-level timeout",
+        "Timeout errors should trigger fallback behavior, not just error responses",
+        "Default framework timeouts are often too generous for production use"
+      ],
+      "when_to_use": [
+        "HTTP client calls to external or internal services",
+        "Database query execution where slow queries must be killed",
+        "Distributed lock acquisition with bounded wait time",
+        "File I/O operations over network file systems",
+        "Message broker publish and consume operations",
+        "Any blocking call where indefinite wait is unacceptable"
+      ],
+      "avoid_when": [
+        "Operation has a natural completion guarantee and cannot hang",
+        "Long-running operations where timeout would waste significant completed work",
+        "Streaming operations with chunked transfer that should not be time-bounded",
+        "Batch processing where individual item timeout is more appropriate than total"
+      ],
+      "signals": [
+        "HTTP client timeout configuration (connect_timeout, read_timeout)",
+        "Database statement_timeout or query_timeout settings",
+        "Socket timeout settings in network client configuration",
+        "Timeout exception handling with fallback logic in error handlers",
+        "SLA documentation specifying maximum response time per endpoint",
+        "Cascading timeout calculation in distributed call chain design docs"
+      ],
+      "key_concepts": [
+        "Connection timeout vs read/write timeout",
+        "Timeout budget propagation across services",
+        "Deadline propagation in gRPC and similar frameworks",
+        "Timeout calibration from latency percentiles",
+        "Timeout interaction with retry policies",
+        "Hung connection detection and cleanup"
+      ],
+      "related_patterns": ["circuit_breaker", "retry_with_backoff", "fallback", "graceful_degradation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "fallback",
+      "name": "Fallback Pattern",
+      "category": "resilience",
+      "description": "Providing an alternative response or behavior when the primary operation fails, enabling the system to continue functioning in a degraded mode. Fallback strategies range from cached responses to default values to alternative service calls. Ensures users receive a response even when dependencies are unavailable.",
+      "principles": [
+        "Fallback should provide a meaningful degraded experience, not just an error",
+        "Cached previous response is often the most useful fallback",
+        "Static default values must be safe and not misleading",
+        "Fallback execution must not itself become a failure point",
+        "Fallback activation should be monitored and alerted on",
+        "Users should be informed when they are receiving degraded data"
+      ],
+      "when_to_use": [
+        "Service dependency returns errors but stale data is acceptable",
+        "Feature toggling allows disabling non-critical features under load",
+        "Recommendation engine failure can fall back to popular items",
+        "Search service failure can fall back to category browsing",
+        "Payment processing can queue for later retry with user notification",
+        "Personalization failure can fall back to generic content"
+      ],
+      "avoid_when": [
+        "Fallback data would be misleading or dangerous (medical, financial)",
+        "User explicitly requires real-time accuracy and stale data is harmful",
+        "Fallback masks persistent failures that need immediate attention",
+        "Fallback implementation is as complex and failure-prone as the primary"
+      ],
+      "signals": [
+        "Fallback functions in circuit breaker configuration",
+        "Try/catch blocks returning cached or default values on error",
+        "Feature flags toggling non-critical functionality",
+        "Alternative service endpoints configured as backup data sources",
+        "Degraded mode indicators in API responses",
+        "Stale cache serving logic activated on primary source failure"
+      ],
+      "key_concepts": [
+        "Cached response fallback",
+        "Static default value fallback",
+        "Alternative service fallback",
+        "Feature degradation strategy",
+        "Fallback chain (primary -> secondary -> default)",
+        "Degradation transparency to consumers"
+      ],
+      "related_patterns": ["circuit_breaker", "graceful_degradation", "cache_aside", "timeout_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "graceful_degradation",
+      "name": "Graceful Degradation",
+      "category": "resilience",
+      "description": "Systematically reducing system functionality under stress or partial failure to preserve core capabilities. Non-essential features are shed to protect critical operations. Requires pre-defined degradation levels and clear criteria for transitioning between them.",
+      "principles": [
+        "Core business functionality is identified and prioritized for preservation",
+        "Degradation levels are pre-defined with clear activation criteria",
+        "Non-essential features are shed before essential ones are impacted",
+        "Degradation transitions should be automated based on system health signals",
+        "Recovery from degraded mode should be automated with hysteresis",
+        "Users should be informed of degraded functionality when applicable"
+      ],
+      "when_to_use": [
+        "System is under extreme load approaching capacity limits",
+        "Critical dependency is partially failing or slow",
+        "Infrastructure incident affecting non-critical subsystems",
+        "Planned maintenance requiring reduced functionality",
+        "Cost optimization during off-peak hours by reducing feature set",
+        "DDoS mitigation requiring non-essential feature shedding"
+      ],
+      "avoid_when": [
+        "All features are equally critical and cannot be prioritized",
+        "Degradation modes have not been tested and validated",
+        "User expectations require full functionality or explicit failure",
+        "Regulatory requirements mandate all-or-nothing operation"
+      ],
+      "signals": [
+        "Feature flags with degradation levels in configuration",
+        "Load shedding logic in request processing pipeline",
+        "Health check endpoints reporting degraded vs healthy status",
+        "Runbook procedures for manually activating degraded mode",
+        "SLA documentation defining core vs non-core features",
+        "Degradation level monitoring in system dashboards"
+      ],
+      "key_concepts": [
+        "Feature criticality classification",
+        "Degradation level definitions",
+        "Load shedding strategies",
+        "Degradation trigger criteria",
+        "Recovery and hysteresis policies",
+        "User communication during degradation"
+      ],
+      "related_patterns": ["fallback", "circuit_breaker", "rate_limiting", "backpressure", "chaos_engineering"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "chaos_engineering",
+      "name": "Chaos Engineering",
+      "category": "resilience",
+      "description": "The discipline of proactively injecting failures into production or staging systems to discover weaknesses before they cause outages. Builds confidence in a system's ability to withstand turbulent conditions. Follows a scientific method: hypothesize, experiment, observe, improve.",
+      "principles": [
+        "Start with a steady-state hypothesis about normal system behavior",
+        "Inject realistic failures that could occur in production",
+        "Run experiments in production when safe; staging for destructive tests",
+        "Minimize blast radius with abort conditions and kill switches",
+        "Automate experiments to run continuously, not just one-off",
+        "Share findings openly to build organizational resilience knowledge"
+      ],
+      "when_to_use": [
+        "System has complex dependency chains with unknown failure modes",
+        "Moving to microservices or distributed architecture",
+        "After significant infrastructure changes or migrations",
+        "Validating disaster recovery and failover procedures",
+        "Building confidence before high-traffic events (Black Friday, launches)",
+        "Training teams on incident response procedures"
+      ],
+      "avoid_when": [
+        "System lacks basic monitoring and observability",
+        "No rollback or abort mechanism exists for experiments",
+        "Organization lacks incident response maturity",
+        "System is known to have critical unresolved vulnerabilities",
+        "Regulatory environment prohibits intentional service disruption"
+      ],
+      "signals": [
+        "Chaos Monkey, Litmus, or Gremlin in infrastructure tooling",
+        "Gameday or chaos experiment schedules in team calendars",
+        "Fault injection middleware or sidecars in deployment manifests",
+        "Experiment runbooks with hypothesis, procedure, and abort criteria",
+        "Post-experiment reports documenting findings and remediation",
+        "Kill switch or emergency stop mechanisms for chaos experiments"
+      ],
+      "key_concepts": [
+        "Steady-state hypothesis definition",
+        "Blast radius control and abort conditions",
+        "Failure injection methods (network, process, resource)",
+        "GameDay exercises and tabletop scenarios",
+        "Continuous chaos automation",
+        "Observability requirements for experiment analysis"
+      ],
+      "related_patterns": ["circuit_breaker", "graceful_degradation", "health_check", "fallback"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "health_check",
+      "name": "Health Check Pattern",
+      "category": "resilience",
+      "description": "Exposing endpoints that report the operational status of a service and its dependencies, enabling automated monitoring, load balancer routing, and orchestrator restart decisions. Distinguishes between liveness (is the process running) and readiness (can it serve traffic). Critical for container orchestration and service mesh operation.",
+      "principles": [
+        "Liveness checks determine if the process should be restarted",
+        "Readiness checks determine if the instance should receive traffic",
+        "Dependency health should be included in readiness but not liveness",
+        "Health checks must be fast and not cause the problems they detect",
+        "Startup probes handle slow initialization without premature restart",
+        "Health check responses should include structured diagnostic information"
+      ],
+      "when_to_use": [
+        "Container orchestration (Kubernetes) requires liveness and readiness probes",
+        "Load balancer needs to route traffic only to healthy instances",
+        "Monitoring systems require structured health status for alerting",
+        "Service mesh needs health signals for traffic management decisions",
+        "Auto-healing infrastructure requires signals to restart unhealthy instances",
+        "Deployment automation needs rollout health gates"
+      ],
+      "avoid_when": [
+        "Health check implementation is more complex than the service itself",
+        "False positive health check failures cause unnecessary restarts",
+        "Checking dependency health creates cascading health check failures",
+        "Health check endpoint is exposed without authentication on sensitive services"
+      ],
+      "signals": [
+        "GET /health, /healthz, or /ready endpoints in service routes",
+        "Kubernetes livenessProbe and readinessProbe in pod specifications",
+        "Health check response JSON with component status breakdown",
+        "Load balancer health check configuration targeting specific endpoints",
+        "Startup probe configuration for slow-starting applications",
+        "Health check failure alerts in monitoring and paging systems"
+      ],
+      "key_concepts": [
+        "Liveness vs readiness vs startup probes",
+        "Dependency health inclusion decisions",
+        "Health check response format and detail",
+        "Check frequency and timeout calibration",
+        "Cascading health check failure prevention",
+        "Deep vs shallow health checks"
+      ],
+      "related_patterns": ["circuit_breaker", "load_balancer", "graceful_degradation", "gossip_protocol"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "dead_letter_queue",
+      "name": "Dead Letter Queue",
+      "category": "resilience",
+      "description": "A secondary queue that captures messages that cannot be processed successfully after exhausting retry attempts. Prevents poison messages from blocking the main processing queue indefinitely. Enables investigation, manual remediation, and replay of failed messages.",
+      "principles": [
+        "Failed messages are moved to DLQ after max retry count is exhausted",
+        "DLQ messages retain original metadata for debugging (timestamp, error, source)",
+        "DLQ monitoring and alerting detects processing failures promptly",
+        "Replay mechanism enables reprocessing DLQ messages after fixes",
+        "DLQ retention policy prevents unbounded growth",
+        "Separate DLQs per source queue enable targeted investigation"
+      ],
+      "when_to_use": [
+        "Message processing can fail due to data issues or transient errors",
+        "Poison messages would otherwise block FIFO queue processing",
+        "Failed message investigation and remediation is required for compliance",
+        "Message replay after bug fix is a common operational procedure",
+        "SQS, RabbitMQ, or Kafka consumer groups with processing failures",
+        "Event-driven architectures where no message should be silently dropped"
+      ],
+      "avoid_when": [
+        "Messages can be safely dropped without business impact",
+        "Processing failures are always transient and resolved by retry alone",
+        "Operational team cannot investigate and remediate DLQ messages",
+        "DLQ messages contain sensitive data requiring additional security controls"
+      ],
+      "signals": [
+        "DLQ configuration in message broker or queue service settings",
+        "Max receive count or delivery attempt limit on main queue",
+        "DLQ depth monitoring alerts in operations dashboards",
+        "Message replay scripts or tools in operations tooling",
+        "Error metadata attached to DLQ messages (exception, stack trace)",
+        "Periodic DLQ review procedures in team runbooks"
+      ],
+      "key_concepts": [
+        "Max delivery attempt configuration",
+        "DLQ message metadata and diagnostics",
+        "Message replay and reprocessing",
+        "DLQ monitoring and alerting",
+        "Retention policy and purge procedures",
+        "Poison message identification"
+      ],
+      "related_patterns": ["async_processing", "retry_with_backoff", "worker_pool", "idempotency"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "idempotency",
+      "name": "Idempotency",
+      "category": "resilience",
+      "description": "Designing operations so that executing them multiple times produces the same result as executing them once. Essential for safe retry behavior in distributed systems where network failures can cause duplicate requests. Typically implemented via idempotency keys stored in a persistent deduplication store.",
+      "principles": [
+        "Same idempotency key with same parameters must produce identical results",
+        "Idempotency key storage must be durable and checked atomically with the operation",
+        "Key expiration prevents unbounded storage growth",
+        "Client-generated idempotency keys (UUID) prevent server-side duplication",
+        "Naturally idempotent operations (GET, DELETE by ID) need no additional mechanism",
+        "Response caching for idempotent requests returns the original result on replay"
+      ],
+      "when_to_use": [
+        "Payment processing where duplicate charges are unacceptable",
+        "API mutations that may be retried by clients on timeout",
+        "Message processing in at-least-once delivery systems",
+        "Webhook delivery where the same event may arrive multiple times",
+        "Distributed saga steps that may be replayed on coordinator recovery",
+        "Database writes from retry-enabled consumers"
+      ],
+      "avoid_when": [
+        "All operations are naturally idempotent (reads, upserts by natural key)",
+        "Exactly-once delivery is guaranteed by the transport layer",
+        "Idempotency key storage cost exceeds the cost of occasional duplicates",
+        "Operation has no side effects (pure functions)"
+      ],
+      "signals": [
+        "Idempotency-Key header in API request specifications",
+        "Deduplication table or cache storing processed request IDs",
+        "Unique constraint on operation identifiers in database schema",
+        "Client code generating UUIDs for mutation requests",
+        "Message deduplication configuration in queue consumer settings",
+        "API documentation specifying idempotent endpoints"
+      ],
+      "key_concepts": [
+        "Idempotency key generation and storage",
+        "Deduplication window and key expiration",
+        "Atomic check-and-execute pattern",
+        "Natural vs artificial idempotency",
+        "Response caching for duplicate requests",
+        "Idempotent receiver pattern in messaging"
+      ],
+      "related_patterns": ["retry_with_backoff", "async_processing", "two_phase_commit", "compensating_transaction"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "compensating_transaction",
+      "name": "Compensating Transaction",
+      "category": "resilience",
+      "description": "Undoing the effects of a previously completed operation by executing a semantically opposite action when a later step in a multi-step process fails. Central to the Saga pattern for distributed transactions. Not a true rollback but a business-level reversal that must be designed for each operation.",
+      "principles": [
+        "Each forward operation must have a defined compensating action",
+        "Compensations must be idempotent since they may be retried",
+        "Compensations may not perfectly reverse the forward action (e.g., notifications already sent)",
+        "Compensation ordering is the reverse of the forward execution order",
+        "Compensation state must be persisted to survive coordinator failures",
+        "Some operations are inherently non-compensable and require alternative strategies"
+      ],
+      "when_to_use": [
+        "Saga pattern orchestrating multi-service distributed transactions",
+        "Long-running business processes with multiple steps across services",
+        "Booking systems where reservations must be released on failure",
+        "Order processing where payment must be refunded if fulfillment fails",
+        "Workflow engines managing multi-step processes with rollback capability",
+        "Event sourcing systems where compensating events reverse prior events"
+      ],
+      "avoid_when": [
+        "Two-phase commit provides sufficient atomicity for the use case",
+        "All operations are within a single database transaction boundary",
+        "Compensating actions are not semantically meaningful for the domain",
+        "Compensation logic complexity exceeds the benefit of the saga approach"
+      ],
+      "signals": [
+        "Saga orchestrator or choreography framework in codebase",
+        "Compensate or undo methods paired with forward action methods",
+        "Compensation log or journal persisting undo steps",
+        "Refund, cancel, or release operations in service API contracts",
+        "Workflow state machine with forward and backward transitions",
+        "Event store with compensating event types"
+      ],
+      "key_concepts": [
+        "Saga pattern (orchestration vs choreography)",
+        "Compensating action design per operation",
+        "Compensation idempotency requirement",
+        "Semantic reversal vs true rollback",
+        "Compensation ordering (reverse of forward)",
+        "Non-compensable operation strategies (pivot transactions)"
+      ],
+      "related_patterns": ["two_phase_commit", "idempotency", "async_processing", "dead_letter_queue"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "load_balancer",
+      "name": "Load Balancer",
+      "category": "load-management",
+      "description": "Distributing incoming requests across multiple backend instances to optimize resource utilization, maximize throughput, and ensure no single instance is overwhelmed. Operates at Layer 4 (TCP) or Layer 7 (HTTP) with algorithm choices affecting distribution fairness and session handling.",
+      "principles": [
+        "Load balancing algorithm must match the workload characteristics",
+        "Health checks remove unhealthy backends from the rotation",
+        "Session affinity trades optimal distribution for session consistency",
+        "Connection draining ensures in-flight requests complete during removal",
+        "Layer 7 load balancers can route based on content (path, headers)",
+        "Multiple load balancer tiers prevent single points of failure"
+      ],
+      "when_to_use": [
+        "Multiple application instances serving the same traffic",
+        "Horizontal scaling requires traffic distribution across nodes",
+        "Blue-green or canary deployments need traffic shifting",
+        "SSL termination should be offloaded from application servers",
+        "Geographic routing to nearest datacenter or region",
+        "WebSocket or gRPC requiring connection-level load balancing"
+      ],
+      "avoid_when": [
+        "Single instance deployment with no scaling requirement",
+        "Client-side load balancing is more appropriate (service mesh)",
+        "Peer-to-peer architecture with no central ingress point",
+        "Load balancer introduces unacceptable single-hop latency"
+      ],
+      "signals": [
+        "NGINX, HAProxy, ALB, or Envoy in infrastructure configuration",
+        "Upstream or backend server pool definitions in load balancer config",
+        "Health check endpoint configuration in load balancer settings",
+        "Sticky session or affinity configuration for stateful services",
+        "SSL certificate configuration on load balancer for TLS termination",
+        "Traffic weight or percentage configuration for canary deployments"
+      ],
+      "key_concepts": [
+        "Round-robin, least-connections, weighted algorithms",
+        "Layer 4 vs Layer 7 load balancing",
+        "Session affinity and sticky sessions",
+        "SSL/TLS termination",
+        "Health check integration",
+        "Connection draining on deregistration"
+      ],
+      "related_patterns": ["horizontal_scaling", "health_check", "rate_limiting", "connection_draining", "traffic_shaping"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "rate_limiting",
+      "name": "Rate Limiting",
+      "category": "load-management",
+      "description": "Controlling the rate at which clients can make requests to protect services from overload, abuse, and resource exhaustion. Enforced at API gateways, application middleware, or infrastructure level. Returns HTTP 429 when limits are exceeded, with Retry-After headers guiding client behavior.",
+      "principles": [
+        "Rate limits should be set based on capacity planning and SLA commitments",
+        "Per-client limits prevent a single client from monopolizing resources",
+        "Global limits protect the service from aggregate overload",
+        "Rate limit responses must include retry guidance (Retry-After header)",
+        "Different rate limits for different API endpoints or tiers",
+        "Rate limit state must be shared across distributed service instances"
+      ],
+      "when_to_use": [
+        "Public API exposed to untrusted or unpredictable clients",
+        "Preventing abuse and denial-of-service attacks",
+        "Enforcing fair usage across multi-tenant API consumers",
+        "Protecting downstream services from upstream traffic spikes",
+        "Monetizing API access with tiered usage plans",
+        "Compliance with third-party API rate limits when acting as a proxy"
+      ],
+      "avoid_when": [
+        "Internal service-to-service calls within a trust boundary",
+        "Backpressure mechanisms provide sufficient flow control",
+        "Traffic volume is consistently below service capacity",
+        "Rate limiting would violate SLA guarantees to premium clients"
+      ],
+      "signals": [
+        "HTTP 429 responses in API logs and client error handling",
+        "Rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining) in responses",
+        "API gateway rate limiting configuration (Kong, Apigee, AWS API Gateway)",
+        "Redis-based rate limit counter storage for distributed enforcement",
+        "Tiered API key or subscription plan with different rate limits",
+        "Rate limit exceeded alerts in monitoring dashboards"
+      ],
+      "key_concepts": [
+        "Fixed window vs sliding window rate limiting",
+        "Token bucket and leaky bucket algorithms",
+        "Per-client vs global rate limits",
+        "Distributed rate limit synchronization",
+        "Rate limit response headers and retry guidance",
+        "Tiered and adaptive rate limits"
+      ],
+      "related_patterns": ["token_bucket", "leaky_bucket", "throttling", "backpressure", "load_balancer"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "backpressure",
+      "name": "Backpressure",
+      "category": "load-management",
+      "description": "A flow control mechanism where a slower consumer signals upstream producers to reduce their sending rate, preventing buffer overflow and resource exhaustion. Propagates demand signals backward through the processing pipeline. Essential for reactive and streaming system designs.",
+      "principles": [
+        "Consumers must signal their processing capacity to producers",
+        "Unbounded buffers mask backpressure and eventually cause failures",
+        "Backpressure must propagate through all stages of a pipeline",
+        "Dropping messages is a valid backpressure strategy when appropriate",
+        "Reactive Streams specification standardizes backpressure semantics",
+        "TCP flow control is the network-level analog of application backpressure"
+      ],
+      "when_to_use": [
+        "Stream processing pipelines with variable stage throughput",
+        "Producer is faster than consumer and buffering is bounded",
+        "Reactive application frameworks (RxJava, Reactor, Akka Streams)",
+        "Log or event ingestion systems receiving bursty traffic",
+        "Inter-service communication where consumer speed varies",
+        "Database write paths receiving faster input than write throughput"
+      ],
+      "avoid_when": [
+        "Producers cannot meaningfully slow down (external event sources)",
+        "Buffering capacity is effectively unlimited and cost-acceptable",
+        "Message loss is unacceptable and blocking producers is preferable",
+        "System throughput is consistently balanced between stages"
+      ],
+      "signals": [
+        "Reactive Streams (Publisher/Subscriber/Subscription) in codebase",
+        "Buffer overflow errors or warnings in application logs",
+        "Queue depth growing unbounded in monitoring dashboards",
+        "Flow control configuration in stream processing frameworks",
+        "Consumer request(n) calls limiting demand in reactive pipelines",
+        "TCP window size changes indicating network-level backpressure"
+      ],
+      "key_concepts": [
+        "Demand signaling (request N items)",
+        "Bounded vs unbounded buffers",
+        "Drop strategies (newest, oldest, random)",
+        "Reactive Streams specification",
+        "Pipeline stage throughput balancing",
+        "TCP flow control analogy"
+      ],
+      "related_patterns": ["rate_limiting", "throttling", "async_processing", "thread_pool", "leaky_bucket"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "throttling",
+      "name": "Throttling",
+      "category": "load-management",
+      "description": "Deliberately limiting the rate of operation execution to protect system resources or comply with external constraints. Unlike rate limiting which rejects excess requests, throttling may queue, delay, or degrade excess requests. Provides smoother traffic shaping than hard rejection.",
+      "principles": [
+        "Throttling smooths traffic patterns rather than rejecting excess",
+        "Multiple throttling dimensions (per-user, per-tenant, global) provide layered protection",
+        "Throttle limits should be configurable without deployment",
+        "Throttled requests should receive clear feedback about wait time",
+        "Priority-based throttling preserves capacity for critical operations",
+        "Throttle metrics must be monitored to detect sustained overload"
+      ],
+      "when_to_use": [
+        "Multi-tenant systems requiring fair resource allocation",
+        "Complying with downstream service rate limits",
+        "Smoothing bursty traffic patterns before reaching backend services",
+        "Protecting shared resources (database, cache) from thundering herd",
+        "Cost control by limiting expensive operation throughput",
+        "Preventing noisy neighbor effects in shared infrastructure"
+      ],
+      "avoid_when": [
+        "Hard rejection is acceptable and simpler to implement",
+        "Queuing throttled requests would consume excessive memory",
+        "Real-time requirements cannot tolerate added delay from queuing",
+        "Downstream systems handle their own rate limiting"
+      ],
+      "signals": [
+        "Request queuing with delayed processing in middleware",
+        "Throttle percentage or rate parameters in service configuration",
+        "Tenant-level throughput limits in multi-tenant platform settings",
+        "Delayed response metrics indicating throttled request handling",
+        "Priority tagging on requests for selective throttling",
+        "Cost-based throttling on expensive API operations"
+      ],
+      "key_concepts": [
+        "Queuing vs rejection vs degradation responses",
+        "Multi-dimensional throttle limits",
+        "Dynamic throttle adjustment",
+        "Priority-based throttling",
+        "Throttle bypass for critical operations",
+        "Throttle feedback headers and retry guidance"
+      ],
+      "related_patterns": ["rate_limiting", "backpressure", "token_bucket", "fair_scheduling", "priority_queue"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "priority_queue",
+      "name": "Priority Queue",
+      "category": "load-management",
+      "description": "Processing work items in order of priority rather than arrival time, ensuring critical operations are handled before less important ones. Enables service differentiation under constrained capacity. Requires clear priority classification and starvation prevention for lower priorities.",
+      "principles": [
+        "Priority levels must be well-defined and consistently assigned",
+        "Starvation prevention ensures low-priority items eventually process",
+        "Priority escalation (aging) promotes long-waiting items",
+        "Separate queues per priority level simplify implementation",
+        "Priority inversion must be detected and mitigated",
+        "Monitoring per-priority queue depth and latency reveals imbalances"
+      ],
+      "when_to_use": [
+        "Mixed workloads with different urgency levels sharing processing capacity",
+        "Customer tier differentiation (premium vs free tier) for processing order",
+        "Incident response systems where severity determines handling order",
+        "Real-time vs batch processing sharing the same pipeline",
+        "Order processing where express shipping takes priority",
+        "Alert routing where critical alerts are processed before informational ones"
+      ],
+      "avoid_when": [
+        "All items have equal priority and FIFO ordering is sufficient",
+        "Priority assignment logic is complex and error-prone",
+        "Starvation of low-priority items is unacceptable",
+        "Processing capacity always exceeds demand (no queuing needed)"
+      ],
+      "signals": [
+        "Multiple queue channels or topics with priority naming",
+        "Priority field or header in message payload schema",
+        "Weighted consumer allocation across priority queues",
+        "SLA documentation with priority-differentiated response times",
+        "Customer tier mapping to processing priority levels",
+        "Queue depth monitoring split by priority level"
+      ],
+      "key_concepts": [
+        "Priority level definition and assignment",
+        "Starvation prevention and aging",
+        "Weighted fair queuing",
+        "Priority inversion detection",
+        "Multi-level feedback queue",
+        "Priority-based SLA enforcement"
+      ],
+      "related_patterns": ["fair_scheduling", "worker_pool", "throttling", "async_processing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "fair_scheduling",
+      "name": "Fair Scheduling",
+      "category": "load-management",
+      "description": "Allocating processing resources proportionally across multiple tenants, users, or workload classes to prevent any single consumer from monopolizing shared capacity. Ensures equitable access while allowing unused capacity to be redistributed. Common in multi-tenant platforms and shared compute clusters.",
+      "principles": [
+        "Each consumer receives a guaranteed minimum share of resources",
+        "Unused capacity is redistributed to active consumers",
+        "Weight-based allocation enables differentiated service tiers",
+        "Preemption may be necessary to enforce fair share guarantees",
+        "Fair share calculation must update dynamically as demand changes",
+        "Monitoring per-consumer resource usage detects fairness violations"
+      ],
+      "when_to_use": [
+        "Multi-tenant platforms with shared compute or storage resources",
+        "Cluster scheduling (YARN, Kubernetes) for mixed workloads",
+        "API platforms with multiple consumer teams sharing backend capacity",
+        "Database connection allocation across multiple application services",
+        "Shared CI/CD pipeline capacity across development teams",
+        "Network bandwidth allocation across competing traffic flows"
+      ],
+      "avoid_when": [
+        "Single tenant or single consumer exclusively owns the resource",
+        "Strict priority ordering is required over fair sharing",
+        "Resource pool is large enough that contention never occurs",
+        "Fairness computation overhead exceeds the benefit for small pools"
+      ],
+      "signals": [
+        "YARN Fair Scheduler or Kubernetes ResourceQuota in cluster config",
+        "Per-tenant resource quota configuration in platform settings",
+        "Weight or share assignments per consumer in scheduling config",
+        "Resource usage dashboards broken down by tenant or team",
+        "Preemption events in scheduler logs",
+        "Fair share violation alerts in monitoring systems"
+      ],
+      "key_concepts": [
+        "Dominant resource fairness (DRF)",
+        "Max-min fairness algorithm",
+        "Weight-based share allocation",
+        "Resource preemption policies",
+        "Capacity guarantee vs best-effort",
+        "Dynamic fair share recalculation"
+      ],
+      "related_patterns": ["priority_queue", "throttling", "bulkhead", "rate_limiting"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "token_bucket",
+      "name": "Token Bucket",
+      "category": "load-management",
+      "description": "A rate limiting algorithm that allows bursts of traffic up to a bucket capacity while enforcing a long-term average rate. Tokens are added at a fixed rate and consumed per request; requests are rejected or queued when the bucket is empty. Provides a balance between strict rate enforcement and burst tolerance.",
+      "principles": [
+        "Tokens are added at a constant rate up to the bucket capacity",
+        "Each request consumes one or more tokens from the bucket",
+        "Burst size is limited by the bucket capacity (maximum tokens)",
+        "Sustained rate is limited by the token refill rate",
+        "Empty bucket causes request rejection or queuing",
+        "Multiple bucket dimensions (per-user, per-endpoint) enable layered limiting"
+      ],
+      "when_to_use": [
+        "API rate limiting that should allow short traffic bursts",
+        "Network traffic shaping with burst tolerance",
+        "Metering resource consumption with burst credits",
+        "SaaS API quota enforcement with burst allowance",
+        "Smoothing traffic while permitting natural request clustering",
+        "Client-side rate limiting to avoid exceeding upstream limits"
+      ],
+      "avoid_when": [
+        "Strictly uniform rate is required (use leaky bucket instead)",
+        "Burst traffic would overwhelm downstream systems",
+        "Rate limiting granularity is too fine for token bucket overhead",
+        "Simpler fixed-window counting is sufficient"
+      ],
+      "signals": [
+        "Token bucket or bucket capacity parameters in rate limiter config",
+        "Burst size and refill rate configuration in API gateway",
+        "Rate limiter allowing occasional request spikes above average rate",
+        "Token balance tracking in rate limiter state (Redis, memory)",
+        "AWS API Gateway throttle and burst limit settings",
+        "Custom rate limiter implementation with bucket abstraction"
+      ],
+      "key_concepts": [
+        "Bucket capacity (burst size)",
+        "Token refill rate (sustained rate)",
+        "Token consumption per request",
+        "Distributed token bucket synchronization",
+        "Hierarchical token buckets",
+        "Token bucket vs leaky bucket comparison"
+      ],
+      "related_patterns": ["leaky_bucket", "rate_limiting", "throttling", "adaptive_concurrency"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "leaky_bucket",
+      "name": "Leaky Bucket",
+      "category": "load-management",
+      "description": "A rate limiting algorithm that processes requests at a constant output rate regardless of input burstiness. Incoming requests fill a bucket; the bucket drains at a fixed rate. If the bucket overflows, excess requests are rejected. Produces smooth, predictable output traffic.",
+      "principles": [
+        "Output rate is constant regardless of input rate variations",
+        "Bucket depth determines maximum burst absorption capacity",
+        "Overflow causes request rejection or dropping",
+        "FIFO queuing in the bucket preserves request ordering",
+        "Fixed drain rate provides predictable downstream load",
+        "Simpler to implement than token bucket but less burst-friendly"
+      ],
+      "when_to_use": [
+        "Downstream systems require perfectly smooth traffic flow",
+        "Network traffic shaping for quality of service enforcement",
+        "Processing pipeline requires constant throughput rate",
+        "Protecting databases from bursty write traffic",
+        "Achieving predictable resource utilization",
+        "Rate limiting where burst tolerance is undesirable"
+      ],
+      "avoid_when": [
+        "Burst traffic should be allowed when capacity permits",
+        "FIFO ordering constraint causes head-of-line blocking issues",
+        "Queue memory for burst absorption is too expensive",
+        "Token bucket's burst tolerance better matches the traffic pattern"
+      ],
+      "signals": [
+        "Constant output rate despite variable input rate in traffic graphs",
+        "Queue depth configuration for burst absorption",
+        "Traffic shaping policy with guaranteed constant rate",
+        "FIFO request queue draining at fixed rate in middleware",
+        "Network QoS configuration using leaky bucket model",
+        "Outbound rate control on API client libraries"
+      ],
+      "key_concepts": [
+        "Constant drain rate mechanism",
+        "Bucket depth sizing for burst absorption",
+        "Overflow handling (drop, reject, signal)",
+        "FIFO queuing semantics",
+        "Output smoothing characteristics",
+        "Comparison with token bucket for burst handling"
+      ],
+      "related_patterns": ["token_bucket", "rate_limiting", "throttling", "backpressure"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "adaptive_concurrency",
+      "name": "Adaptive Concurrency Control",
+      "category": "load-management",
+      "description": "Dynamically adjusting the allowed concurrency level based on observed system behavior, typically latency and error rates. Uses algorithms like gradient-based or Vegas-style TCP congestion control adapted for application-level concurrency. Automatically finds the optimal concurrency without manual tuning.",
+      "principles": [
+        "Concurrency limit adjusts automatically based on latency and error signals",
+        "No manual tuning of concurrency limits required",
+        "Gradient descent algorithms converge on optimal concurrency",
+        "Latency increase indicates approaching system capacity",
+        "Concurrency reduction on error prevents cascading failure",
+        "Minimum and maximum concurrency bounds prevent extreme values"
+      ],
+      "when_to_use": [
+        "Service-to-service calls where optimal concurrency is unknown",
+        "Variable backend capacity (autoscaling) makes static limits ineffective",
+        "Proxy or gateway fronting backends with unknown capacity",
+        "Systems where manual concurrency tuning is impractical",
+        "Microservice architectures with diverse and changing backends",
+        "Envoy, gRPC, or service mesh requiring automatic concurrency limits"
+      ],
+      "avoid_when": [
+        "Backend capacity is well-known and stable for static limits",
+        "Latency variation is inherent to the workload and not load-related",
+        "Algorithm convergence time is too slow for rapidly changing capacity",
+        "Simple fixed concurrency limits provide sufficient protection"
+      ],
+      "signals": [
+        "Netflix concurrency-limits library or similar in dependencies",
+        "Envoy adaptive concurrency filter in proxy configuration",
+        "Dynamic concurrency limit value in runtime metrics",
+        "Gradient-based or AIMD algorithm configuration parameters",
+        "Concurrency limit oscillation visible in time-series monitoring",
+        "Latency-based load shedding tied to concurrency limit"
+      ],
+      "key_concepts": [
+        "Vegas-style RTT-based concurrency control",
+        "Gradient descent convergence",
+        "AIMD (additive increase, multiplicative decrease)",
+        "Minimum RTT tracking as baseline",
+        "Concurrency limit smoothing (exponential moving average)",
+        "Integration with circuit breaker and load balancer"
+      ],
+      "related_patterns": ["rate_limiting", "backpressure", "circuit_breaker", "autoscaling_policy", "load_balancer"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "connection_draining",
+      "name": "Connection Draining",
+      "category": "load-management",
+      "description": "Gracefully removing a backend instance from a load balancer by allowing in-flight requests to complete while refusing new connections. Prevents request failures during deployments, scaling events, or maintenance. Essential for zero-downtime operations in production environments.",
+      "principles": [
+        "New connections are directed away from the draining instance immediately",
+        "In-flight requests are allowed to complete within a timeout window",
+        "Drain timeout must be set based on maximum expected request duration",
+        "Long-lived connections (WebSocket, gRPC streams) require special handling",
+        "Health check failure should trigger draining, not abrupt removal",
+        "Draining state should be observable in monitoring for deployment tracking"
+      ],
+      "when_to_use": [
+        "Rolling deployments requiring zero-downtime instance replacement",
+        "Autoscaling scale-in events removing instances from the pool",
+        "Planned maintenance window for individual backend instances",
+        "Container orchestration pod termination with graceful shutdown",
+        "Load balancer backend deregistration for any operational reason",
+        "Blue-green deployment traffic cutover"
+      ],
+      "avoid_when": [
+        "Requests are stateless and idempotent, making abrupt removal safe",
+        "Drain timeout would delay deployment unacceptably",
+        "All connections are short-lived and complete in milliseconds",
+        "Emergency shutdown requires immediate termination"
+      ],
+      "signals": [
+        "Deregistration delay configuration on load balancer target groups",
+        "Kubernetes terminationGracePeriodSeconds in pod spec",
+        "PreStop lifecycle hook in container orchestration",
+        "Connection drain timeout parameter in load balancer settings",
+        "SIGTERM handler in application code completing in-flight requests",
+        "Deployment strategy configuration specifying drain behavior"
+      ],
+      "key_concepts": [
+        "Drain timeout configuration",
+        "SIGTERM handling and graceful shutdown",
+        "Long-lived connection drain strategies",
+        "Load balancer deregistration delay",
+        "Health check failure-triggered draining",
+        "Deployment orchestration integration"
+      ],
+      "related_patterns": ["load_balancer", "health_check", "graceful_degradation", "horizontal_scaling"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "traffic_shaping",
+      "name": "Traffic Shaping",
+      "category": "load-management",
+      "description": "Controlling the volume and rate of network traffic to optimize resource usage, enforce policies, and ensure quality of service. Encompasses techniques like bandwidth throttling, request prioritization, and traffic policing. Applied at network, infrastructure, and application layers.",
+      "principles": [
+        "Traffic classification determines which shaping policy applies",
+        "Shaping delays traffic to conform to a desired rate profile",
+        "Policing drops or marks traffic exceeding the rate limit",
+        "Quality of service (QoS) classes receive differentiated treatment",
+        "Traffic shaping must be coordinated across all ingress points",
+        "Monitoring shaped vs unshaped traffic reveals policy effectiveness"
+      ],
+      "when_to_use": [
+        "WAN links require bandwidth allocation across traffic classes",
+        "API traffic needs different treatment by priority or customer tier",
+        "Canary deployments require percentage-based traffic splitting",
+        "Service mesh traffic management for A/B testing and rollouts",
+        "Protecting shared infrastructure from noisy neighbor effects",
+        "Compliance with network usage policies or bandwidth contracts"
+      ],
+      "avoid_when": [
+        "Network bandwidth vastly exceeds demand",
+        "Traffic classification is not feasible or meaningful",
+        "Shaping latency is unacceptable for the application",
+        "Simpler rate limiting provides sufficient control"
+      ],
+      "signals": [
+        "Istio, Envoy, or Linkerd traffic management rules in configuration",
+        "Canary or weighted routing configuration in service mesh",
+        "Network QoS marking (DSCP) in infrastructure configuration",
+        "Traffic percentage split between deployment versions",
+        "Bandwidth limit configuration on network interfaces or policies",
+        "Traffic class definitions with differentiated handling rules"
+      ],
+      "key_concepts": [
+        "Traffic classification and marking",
+        "Shaping vs policing vs queuing",
+        "Weighted traffic routing for deployments",
+        "QoS class definitions and enforcement",
+        "Ingress and egress shaping coordination",
+        "Service mesh traffic management primitives"
+      ],
+      "related_patterns": ["load_balancer", "rate_limiting", "token_bucket", "leaky_bucket", "throttling"],
+      "last_reviewed": "2026-03-21"
+    }
+  ]
+}

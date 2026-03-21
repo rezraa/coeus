@@ -1,0 +1,1749 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-03-21",
+  "source": "architecture-decision-rules + authored",
+  "rules": [
+    {
+      "id": "rule_small_team_crud",
+      "name": "Small Team CRUD Application",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 1-5 engineers",
+        "CRUD-dominant business logic",
+        "single deployment target",
+        "rapid iteration required"
+      ],
+      "recommended_patterns": ["monolith", "modular_monolith"],
+      "alternatives": ["vertical_slice", "clean_architecture"],
+      "rationale": "Small teams cannot absorb the operational overhead of distributed systems. A well-structured monolith with clear module boundaries gives 80% of the modularity benefit at 20% of the cost. Deploy once, debug locally, iterate fast.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "compliance": "none"
+        },
+        "avoid_when": {
+          "team_size": "50+",
+          "scale": "hyperscale"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_small_team_event_driven",
+      "name": "Small Team with Async Workflows",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 1-5 engineers",
+        "background job processing needed",
+        "email or notification triggers",
+        "no real-time latency requirement"
+      ],
+      "recommended_patterns": ["monolith", "task_queue"],
+      "alternatives": ["modular_monolith", "serverless_functions"],
+      "rationale": "Small teams needing async workflows should embed a task queue (Celery, Dramatiq, BullMQ) inside their monolith rather than building separate services. The operational surface stays small while gaining reliable background processing. Splitting into services adds deployment complexity the team cannot sustain.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "timeline": "weeks"
+        },
+        "avoid_when": {
+          "team_size": "50+",
+          "scale": "hyperscale"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_small_team_realtime",
+      "name": "Small Team Real-Time Features",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 1-5 engineers",
+        "WebSocket or SSE required",
+        "chat or live dashboard",
+        "low concurrent user count"
+      ],
+      "recommended_patterns": ["monolith", "websocket_gateway"],
+      "alternatives": ["modular_monolith", "serverless_websocket"],
+      "rationale": "Real-time features for small teams should be co-located in the monolith using a WebSocket library, not a separate real-time service. Frameworks like Phoenix, Socket.IO, or Django Channels handle this natively. Splitting real-time into a service doubles your deployment and debugging surface for no gain at low scale.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "latency": "sub-second"
+        },
+        "avoid_when": {
+          "team_size": "20+",
+          "scale": "enterprise"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_medium_team_growing",
+      "name": "Growing Team Modular Monolith",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 6-15 engineers",
+        "multiple feature domains emerging",
+        "shared database",
+        "deployment conflicts increasing"
+      ],
+      "recommended_patterns": ["modular_monolith", "vertical_slice"],
+      "alternatives": ["clean_architecture", "hexagonal_architecture"],
+      "rationale": "At 6-15 engineers, code ownership conflicts start. A modular monolith with enforced module boundaries (internal packages, linting rules) gives teams autonomy without the operational tax of microservices. Vertical slices per domain keep coupling low while sharing infrastructure.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "6-15",
+          "scale": "growth",
+          "existing_stack": "monolith"
+        },
+        "avoid_when": {
+          "team_size": "1-3",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_medium_team_multi_language",
+      "name": "Medium Team Polyglot Stack",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 6-15 engineers",
+        "multiple programming languages needed",
+        "ML pipeline alongside web app",
+        "distinct runtime requirements per component"
+      ],
+      "recommended_patterns": ["modular_services", "api_gateway"],
+      "alternatives": ["modular_monolith", "sidecar_pattern"],
+      "rationale": "When a team genuinely needs multiple languages (e.g., Python ML + TypeScript frontend + Go data pipeline), service boundaries should follow language boundaries. Keep it to 2-4 services maximum at this team size. An API gateway unifies the external interface without exposing internal topology.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "6-15",
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_large_team_microservices",
+      "name": "Large Team Domain-Driven Microservices",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 50+ engineers",
+        "multiple autonomous squads",
+        "independent release cycles required",
+        "bounded contexts clearly defined",
+        "dedicated platform engineering team"
+      ],
+      "recommended_patterns": ["microservices", "domain_driven_design", "api_gateway"],
+      "alternatives": ["service_mesh", "event_driven_architecture"],
+      "rationale": "Microservices are an organizational scaling pattern, not a technical one. At 50+ engineers with a platform team, the coordination cost of a monolith exceeds the operational cost of distributed systems. Each squad owns a bounded context end-to-end. Without a platform team, do not attempt this.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "50+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-15",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_large_team_platform",
+      "name": "Large Organization Internal Platform",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 100+ engineers",
+        "multiple product lines sharing infrastructure",
+        "common authentication and authorization",
+        "shared observability requirements",
+        "internal developer experience investment"
+      ],
+      "recommended_patterns": ["platform_engineering", "internal_developer_platform", "service_mesh"],
+      "alternatives": ["microservices", "api_gateway"],
+      "rationale": "At 100+ engineers, a dedicated internal platform reduces duplication and enforces organizational standards. The platform team provides golden paths for deployment, observability, and security. Without this investment, each squad reinvents infrastructure, creating drift and inconsistency.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "100+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-50",
+          "scale": "growth"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_solo_developer_saas",
+      "name": "Solo Developer SaaS Product",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 1 engineer",
+        "SaaS product with subscription billing",
+        "multi-tenant data isolation needed",
+        "rapid time to market"
+      ],
+      "recommended_patterns": ["monolith", "serverless_functions"],
+      "alternatives": ["modular_monolith", "jamstack"],
+      "rationale": "Solo developers must minimize operational surface. A single deployable monolith with a managed database and a PaaS deployment (Railway, Fly.io, Render) eliminates infrastructure management. Serverless functions can handle webhooks and billing callbacks without a second service. Never add complexity you cannot debug alone at 3am.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "1",
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        },
+        "avoid_when": {
+          "team_size": "10+",
+          "scale": "enterprise"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_remote_distributed_team",
+      "name": "Distributed Remote Team Coordination",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 15-50 engineers",
+        "multiple time zones",
+        "async communication preferred",
+        "independent deployability required",
+        "low coordination overhead needed"
+      ],
+      "recommended_patterns": ["modular_monolith", "event_driven_architecture"],
+      "alternatives": ["microservices", "vertical_slice"],
+      "rationale": "Distributed teams need architectural boundaries that minimize synchronous coordination. Event-driven communication between modules lets teams work independently across time zones. A modular monolith with async events provides this without the operational burden of true microservices until team scale justifies the migration.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "15-50",
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_contractor_heavy_team",
+      "name": "Contractor-Heavy Development Team",
+      "category": "team-scale",
+      "structural_signals": [
+        "high contractor to employee ratio",
+        "frequent team member turnover",
+        "knowledge transfer overhead",
+        "standardized development practices needed"
+      ],
+      "recommended_patterns": ["clean_architecture", "modular_monolith", "vertical_slice"],
+      "alternatives": ["hexagonal_architecture", "monolith"],
+      "rationale": "High-turnover teams need architecture that is self-documenting and constrains developers into correct patterns. Clean architecture with strict layer dependencies and vertical slices make onboarding faster and reduce the blast radius of mistakes. Avoid distributed systems where tribal knowledge is required to debug production issues.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "5-30",
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "team_size": "1-3",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_small_team_api_only",
+      "name": "Small Team API-Only Backend",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 1-5 engineers",
+        "headless API backend",
+        "mobile or SPA frontend consuming API",
+        "single domain model"
+      ],
+      "recommended_patterns": ["monolith", "rest_api"],
+      "alternatives": ["modular_monolith", "graphql_api"],
+      "rationale": "A small team building an API backend should ship a single deployable with a well-designed REST API. Adding GraphQL, gRPC, or BFF layers increases complexity without proportional value at this scale. Focus on clean resource modeling and consistent error handling rather than architectural sophistication.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        },
+        "avoid_when": {
+          "team_size": "20+",
+          "scale": "enterprise"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_low_latency_trading",
+      "name": "Ultra-Low Latency Trading System",
+      "category": "performance",
+      "structural_signals": [
+        "sub-millisecond latency required",
+        "high-frequency trading workload",
+        "co-located with exchange",
+        "deterministic execution required"
+      ],
+      "recommended_patterns": ["monolith", "lock_free_architecture", "kernel_bypass"],
+      "alternatives": ["event_sourcing", "cqrs"],
+      "rationale": "Ultra-low latency systems must eliminate all sources of jitter: garbage collection, network hops, context switches. A single-process monolith with lock-free data structures, kernel bypass networking (DPDK/io_uring), and pre-allocated memory pools is the only architecture that meets sub-millisecond p99 requirements. Distributed architectures add network serialization overhead that is unacceptable.",
+      "constraints": {
+        "applies_when": {
+          "latency": "sub-millisecond",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "latency": "seconds",
+          "budget": "minimal"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_high_throughput_ingestion",
+      "name": "High Throughput Data Ingestion Pipeline",
+      "category": "performance",
+      "structural_signals": [
+        "millions of events per second",
+        "append-only write pattern",
+        "eventual consistency acceptable",
+        "batch processing downstream"
+      ],
+      "recommended_patterns": ["event_streaming", "write_ahead_log", "partitioned_processing"],
+      "alternatives": ["lambda_architecture", "kappa_architecture"],
+      "rationale": "High-throughput ingestion must decouple write acceptance from processing. An append-only log (Kafka, Redpanda, Pulsar) absorbs burst traffic while downstream consumers process at their own pace. Partitioning by key enables horizontal scaling without coordination. Never put a relational database as the first write target for millions of events per second.",
+      "constraints": {
+        "applies_when": {
+          "scale": "hyperscale",
+          "latency": "seconds"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_read_heavy_content",
+      "name": "Read-Heavy Content Serving",
+      "category": "performance",
+      "structural_signals": [
+        "read-to-write ratio above 100:1",
+        "content rarely changes",
+        "global audience",
+        "cache-friendly access patterns"
+      ],
+      "recommended_patterns": ["cdn_edge_caching", "read_replicas", "static_site_generation"],
+      "alternatives": ["cqrs", "materialized_views"],
+      "rationale": "When reads vastly outnumber writes, push content to the edge. CDN caching eliminates origin requests for static and semi-static content. Read replicas handle dynamic queries without loading the primary database. Materializing views at write time trades write latency for read performance, which is the correct trade-off for read-heavy workloads.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth",
+          "latency": "sub-second"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_write_heavy_analytics",
+      "name": "Write-Heavy Analytics Workload",
+      "category": "performance",
+      "structural_signals": [
+        "write-to-read ratio above 10:1",
+        "time-series or log data",
+        "analytical queries over large windows",
+        "columnar storage beneficial"
+      ],
+      "recommended_patterns": ["columnar_storage", "write_ahead_log", "time_series_db"],
+      "alternatives": ["event_sourcing", "lambda_architecture"],
+      "rationale": "Write-heavy analytics workloads need storage engines optimized for sequential writes and columnar scans. Row-oriented databases cannot sustain the write throughput or query performance needed. Use a columnar store (ClickHouse, DuckDB, Apache Parquet) with a write-ahead log buffer. Separate the ingestion path from the query path to prevent write amplification from degrading read performance.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth",
+          "latency": "seconds"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_global_low_latency",
+      "name": "Global Low-Latency Application",
+      "category": "performance",
+      "structural_signals": [
+        "users across multiple continents",
+        "sub-200ms response time required globally",
+        "localized content and data",
+        "regulatory data residency constraints"
+      ],
+      "recommended_patterns": ["multi_region_deployment", "edge_computing", "cdn_edge_caching"],
+      "alternatives": ["geo_replicated_database", "active_active_replication"],
+      "rationale": "Physics dictates that a single-region deployment cannot serve sub-200ms responses globally. Light travels 100ms round-trip across the Atlantic. Multi-region deployment with edge computing pushes logic and data close to users. Geo-replicated databases handle state, but conflict resolution strategy must be chosen upfront: last-write-wins, CRDTs, or application-level merge.",
+      "constraints": {
+        "applies_when": {
+          "scale": "enterprise",
+          "latency": "sub-200ms"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_burst_traffic",
+      "name": "Burst Traffic Pattern Handling",
+      "category": "performance",
+      "structural_signals": [
+        "10x-100x traffic spikes",
+        "predictable burst windows",
+        "flash sale or event-driven spikes",
+        "cost-sensitive during low traffic"
+      ],
+      "recommended_patterns": ["auto_scaling", "queue_based_load_leveling", "serverless_functions"],
+      "alternatives": ["cdn_edge_caching", "throttling_pattern"],
+      "rationale": "Burst traffic requires elastic capacity without paying for peak at all times. Queue-based load leveling absorbs spikes by decoupling request acceptance from processing. Serverless functions scale to zero during quiet periods and scale up during bursts without pre-provisioning. Pre-warming caches before predictable events reduces origin load during spikes.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth",
+          "budget": "moderate"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "latency": "sub-millisecond"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_compute_intensive_batch",
+      "name": "Compute-Intensive Batch Processing",
+      "category": "performance",
+      "structural_signals": [
+        "CPU-bound computation",
+        "batch jobs running minutes to hours",
+        "parallelizable workload",
+        "tolerance for job queuing"
+      ],
+      "recommended_patterns": ["batch_processing", "map_reduce", "worker_pool"],
+      "alternatives": ["serverless_functions", "partitioned_processing"],
+      "rationale": "CPU-bound batch jobs should run on dedicated compute, not on the same instances serving user requests. A worker pool with job queuing isolates batch load from interactive traffic. Parallelizing across workers with map-reduce semantics reduces wall-clock time linearly with worker count for embarrassingly parallel workloads.",
+      "constraints": {
+        "applies_when": {
+          "latency": "minutes",
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "latency": "sub-second"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_real_time_streaming",
+      "name": "Real-Time Stream Processing",
+      "category": "performance",
+      "structural_signals": [
+        "continuous data streams",
+        "windowed aggregations needed",
+        "sub-second processing latency",
+        "stateful stream transformations"
+      ],
+      "recommended_patterns": ["stream_processing", "event_streaming", "kappa_architecture"],
+      "alternatives": ["cqrs", "event_sourcing"],
+      "rationale": "Real-time stream processing requires a framework that handles windowing, state management, and exactly-once semantics natively. Batch-based approaches introduce unacceptable latency. Stream processors (Flink, Kafka Streams, Materialize) provide the primitives for windowed aggregations with fault tolerance. Roll-your-own stream processing invariably fails on exactly-once delivery and state recovery.",
+      "constraints": {
+        "applies_when": {
+          "scale": "enterprise",
+          "latency": "sub-second"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_relational_transactional",
+      "name": "Transactional Relational Data",
+      "category": "data",
+      "structural_signals": [
+        "ACID transactions required",
+        "complex joins across entities",
+        "referential integrity critical",
+        "normalized data model",
+        "financial or inventory data"
+      ],
+      "recommended_patterns": ["relational_database", "repository_pattern", "unit_of_work"],
+      "alternatives": ["clean_architecture", "cqrs"],
+      "rationale": "When data integrity is non-negotiable and relationships between entities are complex, a relational database with proper normalization is the correct default. NoSQL databases sacrifice consistency guarantees that financial and inventory systems require. Use the repository pattern to abstract persistence and maintain testability without coupling domain logic to SQL.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "financial",
+          "scale": "any"
+        },
+        "avoid_when": {
+          "scale": "hyperscale",
+          "latency": "sub-millisecond"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_document_store_flexible",
+      "name": "Flexible Document-Oriented Storage",
+      "category": "data",
+      "structural_signals": [
+        "schema varies per record",
+        "nested document structures",
+        "read-by-primary-key dominant",
+        "rapid schema evolution needed"
+      ],
+      "recommended_patterns": ["document_database", "schema_on_read"],
+      "alternatives": ["relational_database", "key_value_store"],
+      "rationale": "Document databases excel when each record has a different shape and the primary access pattern is by document ID. They eliminate the impedance mismatch between application objects and database rows. However, they trade away joins and transactions across documents. Use them when your data is genuinely document-shaped, not as a way to avoid schema design.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "compliance": "financial",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_graph_connected_data",
+      "name": "Highly Connected Graph Data",
+      "category": "data",
+      "structural_signals": [
+        "relationship traversals dominate queries",
+        "social network or recommendation graph",
+        "variable-depth path queries",
+        "entity relationship discovery"
+      ],
+      "recommended_patterns": ["graph_database", "property_graph_model"],
+      "alternatives": ["relational_database", "knowledge_graph"],
+      "rationale": "When queries are primarily about traversing relationships rather than filtering attributes, graph databases outperform relational joins by orders of magnitude. A 6-hop traversal in a graph database is O(1) per hop; the same query in SQL requires 6 self-joins with exponential cost. Use a graph database when relationship patterns are the primary query axis, not when you merely have foreign keys.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "existing_stack": "relational_only"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_event_sourced_audit",
+      "name": "Event-Sourced Audit Trail",
+      "category": "data",
+      "structural_signals": [
+        "complete audit trail required",
+        "temporal queries needed",
+        "state reconstruction from history",
+        "regulatory record retention"
+      ],
+      "recommended_patterns": ["event_sourcing", "cqrs", "append_only_store"],
+      "alternatives": ["change_data_capture", "audit_log_pattern"],
+      "rationale": "Event sourcing stores every state change as an immutable event, creating a complete audit trail by construction. This eliminates the need for separate audit logging, which is always incomplete. CQRS pairs naturally by projecting events into read-optimized views. The cost is increased storage and complexity in event schema evolution, which must be planned for upfront.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "audit_required",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_caching_strategy",
+      "name": "Multi-Layer Caching Architecture",
+      "category": "data",
+      "structural_signals": [
+        "repeated reads of same data",
+        "acceptable staleness window",
+        "database under read pressure",
+        "latency-sensitive user-facing queries"
+      ],
+      "recommended_patterns": ["cache_aside", "read_through_cache", "distributed_cache"],
+      "alternatives": ["materialized_views", "cdn_edge_caching"],
+      "rationale": "Caching reduces database load and improves latency but introduces cache invalidation complexity. Cache-aside is the simplest pattern: check cache, miss goes to database, populate cache on return. Read-through caches abstract this from application code. Choose TTL-based expiry for simplicity or event-driven invalidation for consistency. Never cache without a defined invalidation strategy.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth",
+          "latency": "sub-second"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "compliance": "real_time_consistency"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_data_lake_analytics",
+      "name": "Data Lake for Analytics and ML",
+      "category": "data",
+      "structural_signals": [
+        "multiple data sources to integrate",
+        "exploratory analytics workload",
+        "machine learning training data",
+        "schema-on-read flexibility needed",
+        "petabyte-scale storage"
+      ],
+      "recommended_patterns": ["data_lake", "medallion_architecture", "schema_on_read"],
+      "alternatives": ["data_warehouse", "lakehouse"],
+      "rationale": "A data lake stores raw data in its native format, enabling diverse analytics without upfront schema design. The medallion architecture (bronze/silver/gold) provides progressive refinement from raw to curated. Use open formats (Parquet, Delta Lake, Iceberg) to avoid vendor lock-in. A data lake without governance becomes a data swamp; invest in cataloging from day one.",
+      "constraints": {
+        "applies_when": {
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_multi_model_polyglot",
+      "name": "Polyglot Persistence Strategy",
+      "category": "data",
+      "structural_signals": [
+        "different data access patterns per domain",
+        "search alongside transactional data",
+        "session storage with different durability needs",
+        "best-fit storage per workload"
+      ],
+      "recommended_patterns": ["polyglot_persistence", "database_per_service"],
+      "alternatives": ["relational_database", "document_database"],
+      "rationale": "Different data access patterns deserve different storage engines. Using a relational database for full-text search or a document store for financial transactions is fighting the tool. Polyglot persistence selects the right engine per workload: Postgres for transactions, Elasticsearch for search, Redis for sessions. The cost is operational complexity per additional engine, so add storage types only when the benefit is clear.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "10+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_data_migration_strangler",
+      "name": "Incremental Data Migration",
+      "category": "data",
+      "structural_signals": [
+        "legacy database migration needed",
+        "zero-downtime migration required",
+        "data consistency during transition",
+        "gradual cutover preferred"
+      ],
+      "recommended_patterns": ["strangler_fig", "change_data_capture", "dual_write"],
+      "alternatives": ["blue_green_database", "event_sourcing"],
+      "rationale": "Big-bang database migrations fail. The strangler fig pattern migrates data incrementally by routing reads and writes through an abstraction layer that gradually shifts to the new store. Change data capture keeps old and new in sync during the transition. Dual-write is simpler but risks inconsistency; use CDC when correctness matters. Plan for a rollback path at every stage.",
+      "constraints": {
+        "applies_when": {
+          "existing_stack": "legacy",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "timeline": "days"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_search_full_text",
+      "name": "Full-Text Search Architecture",
+      "category": "data",
+      "structural_signals": [
+        "full-text search across documents",
+        "faceted filtering and aggregation",
+        "relevance ranking required",
+        "autocomplete and suggestions"
+      ],
+      "recommended_patterns": ["search_index", "cqrs", "bm25_ranking"],
+      "alternatives": ["document_database", "materialized_views"],
+      "rationale": "Full-text search requires inverted indexes that relational databases provide only as bolt-on features. A dedicated search index (Elasticsearch, Meilisearch, Typesense) handles tokenization, stemming, and relevance ranking natively. Sync data from the primary store via CDC or application-level events. BM25 ranking provides solid baseline relevance; tune with domain-specific boosting.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_data_privacy_residency",
+      "name": "Data Residency and Privacy Architecture",
+      "category": "data",
+      "structural_signals": [
+        "GDPR or data residency requirements",
+        "personal data processing",
+        "cross-border data transfer restrictions",
+        "right to deletion required"
+      ],
+      "recommended_patterns": ["data_residency_pattern", "encryption_at_rest", "data_classification"],
+      "alternatives": ["multi_region_deployment", "tokenization"],
+      "rationale": "Data residency requirements mandate that personal data stays within geographic boundaries. This architectural constraint must be addressed at the storage layer with region-specific database instances, not at the application layer with filtering. Implement data classification to identify PII at ingestion, encrypt at rest with region-specific keys, and design deletion workflows that propagate across all replicas and caches.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "gdpr",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "compliance": "none",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_rest_resource_oriented",
+      "name": "RESTful Resource-Oriented API",
+      "category": "api-design",
+      "structural_signals": [
+        "resource-oriented domain model",
+        "CRUD operations dominant",
+        "public API for third-party consumers",
+        "HTTP caching beneficial",
+        "broad client ecosystem"
+      ],
+      "recommended_patterns": ["rest_api", "hateoas", "openapi_spec"],
+      "alternatives": ["graphql_api", "json_rpc"],
+      "rationale": "REST is the correct default for public APIs consumed by diverse clients. HTTP semantics (methods, status codes, caching headers) are universally understood. OpenAPI specifications enable code generation for clients and servers. HATEOAS provides discoverability without out-of-band documentation. Choose REST when your domain maps naturally to resources and CRUD operations.",
+      "constraints": {
+        "applies_when": {
+          "scale": "any"
+        },
+        "avoid_when": {
+          "latency": "sub-millisecond"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_graphql_flexible_clients",
+      "name": "GraphQL for Diverse Client Needs",
+      "category": "api-design",
+      "structural_signals": [
+        "multiple client types with different data needs",
+        "mobile app minimizing payload size",
+        "rapid frontend iteration",
+        "nested relationship queries common"
+      ],
+      "recommended_patterns": ["graphql_api", "dataloader_pattern", "schema_stitching"],
+      "alternatives": ["rest_api", "bff_pattern"],
+      "rationale": "GraphQL shines when multiple clients (web, mobile, embedded) need different projections of the same data. Instead of building N REST endpoints or a BFF per client, one GraphQL schema lets each client request exactly what it needs. Dataloader pattern is mandatory to prevent N+1 queries. Be aware of query complexity attacks; always implement depth and cost limiting.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "5+",
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "team_size": "1-3",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_grpc_internal_services",
+      "name": "gRPC for Internal Service Communication",
+      "category": "api-design",
+      "structural_signals": [
+        "service-to-service communication",
+        "strict type contracts required",
+        "streaming data between services",
+        "performance-critical internal calls"
+      ],
+      "recommended_patterns": ["grpc_api", "protobuf_schema", "service_mesh"],
+      "alternatives": ["rest_api", "message_queue"],
+      "rationale": "gRPC provides strongly-typed contracts via Protobuf, bidirectional streaming, and binary serialization that is 5-10x faster than JSON. For internal service communication where both ends are controlled, gRPC eliminates serialization ambiguity and enables code generation in any language. Do not use gRPC for public APIs; browser support requires gRPC-Web proxy, adding complexity.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "15+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_api_versioning",
+      "name": "API Versioning Strategy",
+      "category": "api-design",
+      "structural_signals": [
+        "public API with external consumers",
+        "breaking changes anticipated",
+        "backward compatibility required",
+        "multiple API versions in production"
+      ],
+      "recommended_patterns": ["url_versioning", "header_versioning", "api_evolution"],
+      "alternatives": ["graphql_api", "content_negotiation"],
+      "rationale": "API versioning is a social contract, not a technical pattern. URL versioning (/v1/, /v2/) is the most explicit and cacheable approach. Header versioning is cleaner but less discoverable. Regardless of mechanism, maintain backward compatibility within a version and provide migration guides between versions. Sunset old versions with published timelines, never abruptly.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_webhook_event_notification",
+      "name": "Webhook-Based Event Notification",
+      "category": "api-design",
+      "structural_signals": [
+        "push notifications to external systems",
+        "integration with third-party platforms",
+        "event-driven partner integrations",
+        "asynchronous status updates"
+      ],
+      "recommended_patterns": ["webhook_pattern", "retry_with_backoff", "idempotency_pattern"],
+      "alternatives": ["polling_pattern", "server_sent_events"],
+      "rationale": "Webhooks push events to consumers instead of requiring polling, reducing latency and server load. Every webhook system must handle delivery failures with exponential backoff, provide idempotency keys for deduplication, and include signature verification for security. Without these three elements, your webhook system will cause data loss, duplicate processing, or security vulnerabilities.",
+      "constraints": {
+        "applies_when": {
+          "scale": "any"
+        },
+        "avoid_when": {
+          "latency": "sub-millisecond"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_bff_mobile_web",
+      "name": "Backend for Frontend Pattern",
+      "category": "api-design",
+      "structural_signals": [
+        "mobile and web clients with divergent needs",
+        "aggregation of multiple backend services",
+        "client-specific business logic",
+        "dedicated frontend team per platform"
+      ],
+      "recommended_patterns": ["bff_pattern", "api_gateway", "graphql_api"],
+      "alternatives": ["rest_api", "edge_computing"],
+      "rationale": "When mobile and web clients have fundamentally different data needs, UX flows, and performance constraints, a Backend for Frontend (BFF) per client type reduces coupling. Each BFF is owned by its frontend team and aggregates backend services into client-optimized responses. Without BFF, backend APIs become littered with client-specific parameters and conditional logic.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "10+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_api_rate_limiting",
+      "name": "API Rate Limiting and Throttling",
+      "category": "api-design",
+      "structural_signals": [
+        "public API exposed to external consumers",
+        "protection against abuse required",
+        "fair usage enforcement",
+        "tiered access levels"
+      ],
+      "recommended_patterns": ["rate_limiting", "token_bucket", "api_gateway"],
+      "alternatives": ["circuit_breaker", "throttling_pattern"],
+      "rationale": "Every public API needs rate limiting to prevent abuse and ensure fair usage. Token bucket algorithm provides burst tolerance while enforcing sustained rate limits. Implement at the API gateway layer, not in application code, to centralize policy enforcement. Return 429 with Retry-After headers so well-behaved clients can back off gracefully. Differentiate limits by authentication tier.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_async_api_long_operations",
+      "name": "Async API for Long-Running Operations",
+      "category": "api-design",
+      "structural_signals": [
+        "operations taking more than 30 seconds",
+        "file processing or report generation",
+        "client cannot hold connection open",
+        "progress tracking needed"
+      ],
+      "recommended_patterns": ["async_request_reply", "polling_pattern", "task_queue"],
+      "alternatives": ["webhook_pattern", "server_sent_events"],
+      "rationale": "HTTP requests that take more than 30 seconds will be killed by load balancers, proxies, or impatient clients. Accept the request, return 202 with a polling URL, process asynchronously, and let the client poll for completion. Include progress percentage in the polling response for UX. Webhooks are an alternative but require the client to be addressable, which is not always the case.",
+      "constraints": {
+        "applies_when": {
+          "scale": "any",
+          "latency": "minutes"
+        },
+        "avoid_when": {
+          "latency": "sub-second"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_circuit_breaker_cascade",
+      "name": "Circuit Breaker for Cascade Prevention",
+      "category": "resilience",
+      "structural_signals": [
+        "service-to-service dependencies",
+        "downstream service instability",
+        "cascade failure risk",
+        "graceful degradation required"
+      ],
+      "recommended_patterns": ["circuit_breaker", "bulkhead_pattern", "fallback_pattern"],
+      "alternatives": ["retry_with_backoff", "timeout_pattern"],
+      "rationale": "Without circuit breakers, a failing downstream service causes thread pool exhaustion in callers, cascading the failure upward. The circuit breaker trips after N failures, returning a fallback response instantly instead of waiting for timeouts. The bulkhead pattern isolates connection pools per dependency so one failing service cannot exhaust resources needed by others. These patterns are mandatory in any distributed system.",
+      "constraints": {
+        "applies_when": {
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_retry_idempotency",
+      "name": "Retry Safety with Idempotency",
+      "category": "resilience",
+      "structural_signals": [
+        "network unreliability",
+        "transient failure recovery needed",
+        "payment or state-changing operations",
+        "at-least-once delivery semantics"
+      ],
+      "recommended_patterns": ["retry_with_backoff", "idempotency_pattern", "idempotency_key"],
+      "alternatives": ["circuit_breaker", "saga_pattern"],
+      "rationale": "Retries are essential for handling transient failures, but retrying non-idempotent operations causes duplicate side effects (double charges, duplicate orders). Every state-changing API must accept an idempotency key that ensures the same request processed twice produces the same result. Combine with exponential backoff and jitter to avoid thundering herd on recovery.",
+      "constraints": {
+        "applies_when": {
+          "scale": "any",
+          "compliance": "financial"
+        },
+        "avoid_when": {}
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_multi_region_disaster_recovery",
+      "name": "Multi-Region Disaster Recovery",
+      "category": "resilience",
+      "structural_signals": [
+        "99.99% uptime SLA required",
+        "regional outage tolerance needed",
+        "RPO under 1 hour",
+        "RTO under 15 minutes"
+      ],
+      "recommended_patterns": ["multi_region_deployment", "active_passive_replication", "dns_failover"],
+      "alternatives": ["active_active_replication", "pilot_light"],
+      "rationale": "Single-region architectures have a ceiling around 99.95% availability because cloud region outages, while rare, happen. For 99.99%, you need a standby region with replicated data and automated failover. Active-passive is simpler and cheaper than active-active; the passive region runs minimal compute until failover. Test failover regularly or it will fail when you need it.",
+      "constraints": {
+        "applies_when": {
+          "scale": "enterprise",
+          "compliance": "high_availability"
+        },
+        "avoid_when": {
+          "budget": "minimal",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_saga_distributed_transactions",
+      "name": "Saga Pattern for Distributed Transactions",
+      "category": "resilience",
+      "structural_signals": [
+        "cross-service data consistency needed",
+        "long-running business processes",
+        "compensation logic required",
+        "distributed transaction coordination"
+      ],
+      "recommended_patterns": ["saga_pattern", "orchestrator_pattern", "compensating_transaction"],
+      "alternatives": ["two_phase_commit", "event_sourcing"],
+      "rationale": "Distributed transactions via two-phase commit do not scale and introduce a single point of failure in the coordinator. Sagas break a distributed transaction into local transactions with compensating actions for rollback. Choreography-based sagas (events) are simpler but harder to debug; orchestration-based sagas (central coordinator) are easier to reason about. Choose orchestration when the business process has more than 4 steps.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "15+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_chaos_engineering",
+      "name": "Chaos Engineering Practice",
+      "category": "resilience",
+      "structural_signals": [
+        "production reliability critical",
+        "complex failure modes possible",
+        "distributed system dependencies",
+        "confidence in recovery procedures needed"
+      ],
+      "recommended_patterns": ["chaos_engineering", "game_day_exercises", "failure_injection"],
+      "alternatives": ["load_testing", "disaster_recovery_testing"],
+      "rationale": "You cannot test resilience by only testing the happy path. Chaos engineering deliberately injects failures (network partitions, pod kills, latency spikes) in controlled environments to verify that recovery mechanisms work. Start with game day exercises in staging, graduate to automated chaos in production with blast radius controls. If you have never tested your failover, it does not work.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "15+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-10",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_health_check_observability",
+      "name": "Health Checks and Observability",
+      "category": "resilience",
+      "structural_signals": [
+        "production monitoring needed",
+        "automated recovery desired",
+        "SLA compliance tracking",
+        "multi-component system"
+      ],
+      "recommended_patterns": ["health_check_api", "structured_logging", "distributed_tracing"],
+      "alternatives": ["metrics_aggregation", "alerting_pipeline"],
+      "rationale": "Health check endpoints enable load balancers and orchestrators to route traffic away from unhealthy instances automatically. Structured logging with correlation IDs makes debugging distributed requests possible. Distributed tracing (OpenTelemetry) shows the full request path across services. These three pillars of observability are non-negotiable for any production system beyond a prototype.",
+      "constraints": {
+        "applies_when": {
+          "scale": "any"
+        },
+        "avoid_when": {}
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_graceful_degradation",
+      "name": "Graceful Degradation Under Load",
+      "category": "resilience",
+      "structural_signals": [
+        "non-critical features alongside critical path",
+        "acceptable reduced functionality",
+        "user experience preservation during failures",
+        "feature flags infrastructure in place"
+      ],
+      "recommended_patterns": ["graceful_degradation", "feature_flags", "load_shedding"],
+      "alternatives": ["circuit_breaker", "throttling_pattern"],
+      "rationale": "When a system is overloaded, it should shed non-critical work to preserve the critical path. Feature flags enable runtime toggling of expensive features (recommendations, analytics, personalization) without deployment. Load shedding drops low-priority requests early in the pipeline, returning 503 before consuming resources. Design every feature with a degraded mode from the start, not as an afterthought.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_data_backup_recovery",
+      "name": "Data Backup and Recovery Strategy",
+      "category": "resilience",
+      "structural_signals": [
+        "business-critical data storage",
+        "disaster recovery planning",
+        "regulatory data retention requirements",
+        "accidental deletion risk"
+      ],
+      "recommended_patterns": ["backup_strategy", "point_in_time_recovery", "immutable_backups"],
+      "alternatives": ["geo_replicated_database", "event_sourcing"],
+      "rationale": "Replication is not backup. Replicas propagate deletions and corruptions. Immutable backups with point-in-time recovery capability are the last line of defense against data loss from bugs, attacks, or human error. Test restoration regularly; an untested backup is not a backup. Store backups in a separate account or region from production to protect against account-level compromise.",
+      "constraints": {
+        "applies_when": {
+          "scale": "any",
+          "compliance": "any"
+        },
+        "avoid_when": {}
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_strangler_fig_migration",
+      "name": "Strangler Fig Legacy Migration",
+      "category": "evolution",
+      "structural_signals": [
+        "legacy system replacement needed",
+        "cannot afford big-bang rewrite",
+        "incremental migration preferred",
+        "existing system must remain operational"
+      ],
+      "recommended_patterns": ["strangler_fig", "anti_corruption_layer", "branch_by_abstraction"],
+      "alternatives": ["parallel_run", "feature_flags"],
+      "rationale": "Big-bang rewrites fail because they require perfect knowledge of the legacy system, which nobody has. The strangler fig pattern incrementally replaces legacy functionality by routing requests through a facade that delegates to either old or new code. An anti-corruption layer prevents legacy concepts from leaking into the new system. Migrate one feature at a time, validate in production, then move to the next.",
+      "constraints": {
+        "applies_when": {
+          "existing_stack": "legacy",
+          "scale": "any"
+        },
+        "avoid_when": {
+          "timeline": "days"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_monolith_to_modules",
+      "name": "Monolith to Modular Monolith",
+      "category": "evolution",
+      "structural_signals": [
+        "growing monolith with tangled dependencies",
+        "team size increasing to 10-20",
+        "deployment conflicts between teams",
+        "not ready for microservices"
+      ],
+      "recommended_patterns": ["modular_monolith", "vertical_slice", "dependency_inversion"],
+      "alternatives": ["clean_architecture", "hexagonal_architecture"],
+      "rationale": "The first step in monolith evolution is not microservices; it is module boundaries. Enforce explicit interfaces between modules, eliminate circular dependencies, and restrict cross-module database access. This gives you 80% of microservices benefits (team autonomy, clear ownership) without the distributed systems tax. Extract services later only when specific modules have genuinely different scaling or deployment needs.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "10-20",
+          "existing_stack": "monolith"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_modules_to_services",
+      "name": "Modular Monolith to Services Extraction",
+      "category": "evolution",
+      "structural_signals": [
+        "module needs independent scaling",
+        "module needs different deployment cadence",
+        "module has different reliability requirements",
+        "clear API boundary already exists",
+        "team of 20+ engineers"
+      ],
+      "recommended_patterns": ["service_extraction", "api_gateway", "event_driven_architecture"],
+      "alternatives": ["microservices", "sidecar_pattern"],
+      "rationale": "Extract a service from a modular monolith only when there is a concrete technical reason: independent scaling, different deployment frequency, or different reliability tier. If the module deploys fine with the monolith and scales with it, extraction adds network overhead and operational complexity for no benefit. The presence of a clean API boundary is necessary but not sufficient; you need a forcing function.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "20+",
+          "existing_stack": "modular_monolith"
+        },
+        "avoid_when": {
+          "team_size": "1-10",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_api_first_evolution",
+      "name": "API-First Contract Evolution",
+      "category": "evolution",
+      "structural_signals": [
+        "API consumed by external partners",
+        "breaking changes needed",
+        "multiple API versions in production",
+        "consumer migration required"
+      ],
+      "recommended_patterns": ["api_evolution", "consumer_driven_contracts", "api_versioning"],
+      "alternatives": ["graphql_api", "content_negotiation"],
+      "rationale": "API evolution without breaking consumers requires discipline: additive changes only within a version, deprecation notices with timelines, and consumer-driven contract testing to catch breaking changes before release. Never remove a field without a deprecation period. Consumer-driven contracts shift the compatibility burden left into the CI pipeline where it belongs.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_database_schema_evolution",
+      "name": "Database Schema Evolution Strategy",
+      "category": "evolution",
+      "structural_signals": [
+        "schema changes alongside application releases",
+        "zero-downtime deployments required",
+        "multiple application versions reading same database",
+        "migration rollback capability needed"
+      ],
+      "recommended_patterns": ["expand_contract_pattern", "online_schema_migration", "backward_compatible_migrations"],
+      "alternatives": ["blue_green_database", "feature_flags"],
+      "rationale": "Database schema changes are the hardest part of zero-downtime deployments. The expand-contract pattern adds new columns or tables first (expand), deploys application code that uses them, then removes old columns (contract). Never rename or remove a column in the same release that changes application code. Online schema migration tools (gh-ost, pt-online-schema-change) handle large table alterations without locking.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "timeline": "days"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_feature_flags_progressive",
+      "name": "Feature Flags for Progressive Delivery",
+      "category": "evolution",
+      "structural_signals": [
+        "canary releases needed",
+        "A/B testing infrastructure",
+        "risk mitigation for new features",
+        "targeted rollouts by segment"
+      ],
+      "recommended_patterns": ["feature_flags", "canary_deployment", "progressive_delivery"],
+      "alternatives": ["blue_green_deployment", "ring_deployment"],
+      "rationale": "Feature flags decouple deployment from release. Deploy code to production with the feature disabled, then enable it progressively: internal users first, then 1% canary, then full rollout. This reduces blast radius of bugs and enables instant rollback without redeployment. Treat feature flags as short-lived; clean up flags older than 30 days to avoid flag debt.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "team_size": "1-3"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_tech_debt_refactoring",
+      "name": "Systematic Technical Debt Reduction",
+      "category": "evolution",
+      "structural_signals": [
+        "increasing bug rates in specific modules",
+        "developer velocity declining",
+        "onboarding time increasing",
+        "test coverage gaps in critical paths"
+      ],
+      "recommended_patterns": ["boy_scout_rule", "branch_by_abstraction", "mikado_method"],
+      "alternatives": ["strangler_fig", "clean_architecture"],
+      "rationale": "Technical debt compounds like financial debt. The boy scout rule (leave code cleaner than you found it) handles small debt. For structural debt, branch by abstraction introduces a new implementation behind an interface while the old one still runs. The Mikado method graphs dependencies to find the correct refactoring order. Never schedule a debt sprint; integrate debt reduction into feature work.",
+      "constraints": {
+        "applies_when": {
+          "existing_stack": "any",
+          "scale": "any"
+        },
+        "avoid_when": {}
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_blue_green_deployment",
+      "name": "Blue-Green Deployment Strategy",
+      "category": "evolution",
+      "structural_signals": [
+        "zero-downtime deployment required",
+        "instant rollback capability needed",
+        "stateless application tier",
+        "database backward compatibility maintained"
+      ],
+      "recommended_patterns": ["blue_green_deployment", "immutable_infrastructure", "infrastructure_as_code"],
+      "alternatives": ["canary_deployment", "rolling_deployment"],
+      "rationale": "Blue-green deployment runs two identical environments: blue (current) and green (new). Traffic switches atomically from blue to green after validation. Rollback is instant by switching back to blue. This requires stateless application tiers and database backward compatibility. The cost is double the infrastructure during deployment; serverless and container orchestrators reduce this cost significantly.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "budget": "minimal",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_compliance_healthcare",
+      "name": "Healthcare HIPAA Compliance Architecture",
+      "category": "compliance",
+      "structural_signals": [
+        "protected health information processing",
+        "HIPAA compliance required",
+        "audit logging mandated",
+        "access control per patient record"
+      ],
+      "recommended_patterns": ["encryption_at_rest", "audit_log_pattern", "role_based_access_control", "data_classification"],
+      "alternatives": ["attribute_based_access_control", "zero_trust_architecture"],
+      "rationale": "HIPAA mandates encryption at rest and in transit for PHI, comprehensive audit logging of all access, and minimum necessary access controls. Architecture must enforce these at the infrastructure level, not rely on application-level checks alone. Use separate encryption keys per tenant, implement break-glass access procedures, and retain audit logs for 6 years minimum. Compliance is an architectural constraint, not a feature.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "hipaa",
+          "scale": "any"
+        },
+        "avoid_when": {
+          "compliance": "none"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_compliance_financial_pci",
+      "name": "PCI-DSS Payment Processing Architecture",
+      "category": "compliance",
+      "structural_signals": [
+        "credit card data handling",
+        "PCI-DSS compliance required",
+        "payment processing integration",
+        "cardholder data environment isolation"
+      ],
+      "recommended_patterns": ["tokenization", "network_segmentation", "encryption_at_rest", "audit_log_pattern"],
+      "alternatives": ["payment_gateway_delegation", "vault_pattern"],
+      "rationale": "The best PCI architecture minimizes your cardholder data environment (CDE) scope. Delegate card handling to a PCI-compliant payment processor (Stripe, Adyen) and never touch raw card numbers. If you must handle cards, isolate the CDE in a separate network segment with strict access controls, encrypted storage, and comprehensive logging. Every additional system in the CDE scope multiplies audit cost and risk.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "pci_dss",
+          "scale": "any"
+        },
+        "avoid_when": {
+          "compliance": "none"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_compliance_gdpr_privacy",
+      "name": "GDPR Privacy-By-Design Architecture",
+      "category": "compliance",
+      "structural_signals": [
+        "EU user data processing",
+        "GDPR compliance required",
+        "consent management needed",
+        "right to erasure implementation"
+      ],
+      "recommended_patterns": ["privacy_by_design", "consent_management", "data_residency_pattern", "encryption_at_rest"],
+      "alternatives": ["tokenization", "pseudonymization"],
+      "rationale": "GDPR requires privacy by design, not as an afterthought. Implement consent management at the data ingestion layer, tag all personal data with purpose and legal basis, and design deletion workflows that cascade across all stores, caches, backups, and analytics pipelines. Pseudonymization reduces risk but does not eliminate GDPR obligations. Data residency within the EU must be enforced at the infrastructure level.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "gdpr",
+          "scale": "any"
+        },
+        "avoid_when": {
+          "compliance": "none"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_compliance_sox_financial",
+      "name": "SOX Financial Controls Architecture",
+      "category": "compliance",
+      "structural_signals": [
+        "publicly traded company",
+        "SOX compliance required",
+        "financial reporting systems",
+        "separation of duties mandated"
+      ],
+      "recommended_patterns": ["separation_of_duties", "audit_log_pattern", "immutable_audit_trail", "role_based_access_control"],
+      "alternatives": ["four_eyes_principle", "approval_workflow"],
+      "rationale": "SOX requires separation of duties: the person who writes code cannot deploy it, and the person who approves changes cannot make them. Architecture must enforce this through role-based access control on deployment pipelines, immutable audit trails for all changes, and automated compliance checks in CI/CD. Manual compliance processes fail under pressure; encode controls in infrastructure.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "sox",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "compliance": "none",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_compliance_multi_region_data",
+      "name": "Multi-Jurisdictional Data Compliance",
+      "category": "compliance",
+      "structural_signals": [
+        "operations in multiple countries",
+        "conflicting regulatory requirements",
+        "data localization laws",
+        "cross-border data transfer restrictions"
+      ],
+      "recommended_patterns": ["data_residency_pattern", "multi_region_deployment", "data_classification"],
+      "alternatives": ["federation_pattern", "data_mesh"],
+      "rationale": "Operating across jurisdictions with conflicting data laws (EU GDPR, China PIPL, Brazil LGPD) requires data architecture that enforces residency at the storage layer. Classify data by jurisdiction at ingestion, route to region-specific storage, and prevent cross-border transfers unless legally justified. A single global database cannot satisfy conflicting localization requirements. Plan for this complexity upfront; retrofitting data residency is extremely expensive.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "multi_jurisdiction",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_compliance_zero_trust",
+      "name": "Zero Trust Security Architecture",
+      "category": "compliance",
+      "structural_signals": [
+        "defense-in-depth required",
+        "remote workforce access",
+        "internal threat mitigation",
+        "microsegmentation needed"
+      ],
+      "recommended_patterns": ["zero_trust_architecture", "mutual_tls", "identity_aware_proxy"],
+      "alternatives": ["network_segmentation", "vpn_based_access"],
+      "rationale": "Zero trust assumes no implicit trust based on network location. Every request is authenticated and authorized regardless of origin. Mutual TLS between services eliminates network-level trust assumptions. Identity-aware proxies replace VPNs for user access. This architecture is more secure and more flexible than perimeter-based security, but requires investment in identity infrastructure and service mesh capabilities.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "20+",
+          "scale": "enterprise",
+          "compliance": "high_security"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_compliance_audit_logging",
+      "name": "Comprehensive Audit Logging Architecture",
+      "category": "compliance",
+      "structural_signals": [
+        "regulatory audit requirements",
+        "who-did-what tracking needed",
+        "tamper-evident logging required",
+        "long-term log retention mandated"
+      ],
+      "recommended_patterns": ["audit_log_pattern", "immutable_audit_trail", "structured_logging"],
+      "alternatives": ["event_sourcing", "change_data_capture"],
+      "rationale": "Audit logs must answer who did what, when, from where, and why. Store audit events in an append-only, tamper-evident log separate from application logs. Include actor identity, action, resource, timestamp, and request context. Use structured formats (JSON) for machine parseability. Retain according to regulatory requirements (7 years for financial, 6 for HIPAA). Never log sensitive data in audit trails; log references, not values.",
+      "constraints": {
+        "applies_when": {
+          "compliance": "audit_required",
+          "scale": "any"
+        },
+        "avoid_when": {
+          "compliance": "none"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_compliance_secrets_management",
+      "name": "Secrets Management Architecture",
+      "category": "compliance",
+      "structural_signals": [
+        "API keys and credentials management",
+        "secret rotation required",
+        "multi-environment secret isolation",
+        "audit trail for secret access"
+      ],
+      "recommended_patterns": ["vault_pattern", "secret_rotation", "environment_isolation"],
+      "alternatives": ["encrypted_config", "managed_secrets_service"],
+      "rationale": "Secrets in environment variables, config files, or code repositories are a breach waiting to happen. Use a secrets manager (HashiCorp Vault, cloud-native equivalents) that provides audit-logged access, automatic rotation, and dynamic secrets with TTL. Isolate secrets by environment so staging credentials cannot access production data. Rotate secrets on a schedule and immediately on any suspected compromise.",
+      "constraints": {
+        "applies_when": {
+          "scale": "any",
+          "compliance": "any"
+        },
+        "avoid_when": {}
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_cost_serverless_sporadic",
+      "name": "Serverless for Sporadic Workloads",
+      "category": "cost",
+      "structural_signals": [
+        "highly variable traffic with long idle periods",
+        "pay-per-use pricing preferred",
+        "no baseline traffic",
+        "event-driven triggers"
+      ],
+      "recommended_patterns": ["serverless_functions", "event_driven_architecture"],
+      "alternatives": ["auto_scaling", "spot_instances"],
+      "rationale": "Serverless functions cost nothing when idle and scale automatically with demand. For workloads with sporadic traffic (webhooks, cron jobs, event processors), serverless eliminates the cost of idle compute. The break-even point versus always-on compute is typically around 30-40% utilization; below that, serverless wins on cost. Above that, reserved instances or containers are cheaper.",
+      "constraints": {
+        "applies_when": {
+          "budget": "minimal",
+          "scale": "any"
+        },
+        "avoid_when": {
+          "latency": "sub-millisecond",
+          "scale": "hyperscale"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_cost_reserved_steady",
+      "name": "Reserved Capacity for Steady Workloads",
+      "category": "cost",
+      "structural_signals": [
+        "predictable steady-state traffic",
+        "24/7 uptime required",
+        "utilization above 40%",
+        "cost optimization priority"
+      ],
+      "recommended_patterns": ["reserved_instances", "committed_use_discounts", "right_sizing"],
+      "alternatives": ["spot_instances", "auto_scaling"],
+      "rationale": "Steady-state workloads with predictable traffic should use reserved capacity for 30-60% cost savings over on-demand pricing. Right-size instances based on actual utilization metrics, not guesses. Over-provisioning wastes money; under-provisioning causes performance issues. Monitor utilization weekly for the first month, then monthly. Combine reserved base capacity with on-demand for burst headroom.",
+      "constraints": {
+        "applies_when": {
+          "budget": "cost_conscious",
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp",
+          "timeline": "weeks"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_cost_spot_fault_tolerant",
+      "name": "Spot Instances for Fault-Tolerant Workloads",
+      "category": "cost",
+      "structural_signals": [
+        "fault-tolerant batch processing",
+        "checkpointable workloads",
+        "flexible execution timeline",
+        "60-90% cost reduction desired"
+      ],
+      "recommended_patterns": ["spot_instances", "checkpointing", "work_stealing"],
+      "alternatives": ["serverless_functions", "reserved_instances"],
+      "rationale": "Spot or preemptible instances offer 60-90% cost savings for workloads that can tolerate interruption. Batch processing, CI/CD builds, and data processing pipelines with checkpointing are ideal candidates. Design for interruption: save state frequently, use work-stealing queues so other instances pick up interrupted work, and mix spot with on-demand for baseline capacity.",
+      "constraints": {
+        "applies_when": {
+          "budget": "cost_conscious",
+          "scale": "growth"
+        },
+        "avoid_when": {
+          "latency": "sub-second",
+          "compliance": "high_availability"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_cost_managed_services",
+      "name": "Managed Services over Self-Hosted",
+      "category": "cost",
+      "structural_signals": [
+        "small operations team",
+        "undifferentiated heavy lifting",
+        "no competitive advantage in self-hosting",
+        "reliability more important than customization"
+      ],
+      "recommended_patterns": ["managed_database", "managed_message_queue", "platform_as_service"],
+      "alternatives": ["self_hosted", "container_orchestration"],
+      "rationale": "Self-hosting databases, message queues, and search engines is only justified when you have dedicated infrastructure engineers and the customization needs exceed what managed services offer. For most teams, the operational cost of running Postgres, Kafka, or Elasticsearch yourself exceeds the managed service premium. Your engineers should build product features, not patch database engines at 2am.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "1-20",
+          "budget": "moderate"
+        },
+        "avoid_when": {
+          "team_size": "50+",
+          "budget": "unlimited"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_cost_architecture_total_cost",
+      "name": "Total Cost of Ownership Architecture Review",
+      "category": "cost",
+      "structural_signals": [
+        "cloud bill growing faster than revenue",
+        "multiple underutilized services",
+        "architectural complexity increasing costs",
+        "no cost attribution per team or feature"
+      ],
+      "recommended_patterns": ["finops_practice", "cost_allocation_tagging", "right_sizing"],
+      "alternatives": ["reserved_instances", "architecture_simplification"],
+      "rationale": "Architecture directly determines cost structure. Each additional service, database, or queue adds fixed operational cost regardless of traffic. FinOps practices (cost allocation, showback/chargeback, anomaly detection) make costs visible to engineering teams. Often the cheapest optimization is architectural simplification: merging underutilized services, eliminating redundant data stores, and reducing the number of distinct technologies in the stack.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth",
+          "budget": "cost_conscious"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_cost_egress_optimization",
+      "name": "Data Egress Cost Optimization",
+      "category": "cost",
+      "structural_signals": [
+        "high cross-region data transfer",
+        "significant egress bandwidth",
+        "multi-cloud data movement",
+        "CDN serving large media files"
+      ],
+      "recommended_patterns": ["edge_caching", "data_locality", "compression"],
+      "alternatives": ["cdn_edge_caching", "multi_region_deployment"],
+      "rationale": "Cloud egress charges are often the fastest-growing cost component and the least visible. Data transferred between regions, zones, or out to the internet accumulates quietly. Optimize by co-locating compute with data (data locality), caching at the edge to reduce origin egress, compressing payloads, and batching cross-region synchronization. Audit egress costs monthly; they reveal architectural inefficiencies.",
+      "constraints": {
+        "applies_when": {
+          "scale": "growth",
+          "budget": "cost_conscious"
+        },
+        "avoid_when": {
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_small_team_no_k8s",
+      "name": "Small Team Deployment Simplicity",
+      "category": "team-scale",
+      "structural_signals": [
+        "team of 1-5 engineers",
+        "no dedicated DevOps engineer",
+        "deployment complexity concerns",
+        "PaaS or simple deployment preferred"
+      ],
+      "recommended_patterns": ["platform_as_service", "monolith", "simple_deployment"],
+      "alternatives": ["serverless_functions", "container_single_host"],
+      "rationale": "Small teams without dedicated DevOps should use PaaS platforms (Railway, Fly.io, Render, Heroku) that abstract infrastructure management. Kubernetes requires a dedicated platform team to operate safely; a team of 1-5 running Kubernetes will spend more time on infrastructure than product. A single Docker container on a PaaS gives you portability without orchestration complexity.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        },
+        "avoid_when": {
+          "team_size": "20+",
+          "scale": "enterprise"
+        }
+      },
+      "priority": "high"
+    },
+    {
+      "id": "rule_data_cqrs_read_write_split",
+      "name": "CQRS Read-Write Separation",
+      "category": "data",
+      "structural_signals": [
+        "drastically different read and write models",
+        "complex domain with simple query views",
+        "read and write scaling independently",
+        "event-driven projections needed"
+      ],
+      "recommended_patterns": ["cqrs", "materialized_views", "event_driven_architecture"],
+      "alternatives": ["read_replicas", "cache_aside"],
+      "rationale": "CQRS separates the command (write) model from the query (read) model, allowing each to be optimized independently. This is valuable when the write model is a complex domain aggregate but reads are simple flat projections. It adds complexity through eventual consistency between write and read stores. Only adopt CQRS when the read/write asymmetry is dramatic and the team understands eventual consistency implications.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "10+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_resilience_timeout_budget",
+      "name": "Timeout Budget Allocation",
+      "category": "resilience",
+      "structural_signals": [
+        "chained service calls",
+        "end-to-end latency SLA",
+        "timeout cascades observed",
+        "request deadline propagation needed"
+      ],
+      "recommended_patterns": ["timeout_pattern", "deadline_propagation", "request_hedging"],
+      "alternatives": ["circuit_breaker", "fallback_pattern"],
+      "rationale": "In a call chain A -> B -> C, if each service has a 30s timeout, a failure at C can block A for 60 seconds. Deadline propagation passes the remaining time budget through the chain so downstream services can fail fast when the budget is exhausted. Request hedging sends parallel requests to multiple instances and uses the first response. Both patterns require system-wide coordination on timeout budgets.",
+      "constraints": {
+        "applies_when": {
+          "scale": "enterprise",
+          "latency": "sub-second"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    },
+    {
+      "id": "rule_evolution_contract_testing",
+      "name": "Consumer-Driven Contract Testing",
+      "category": "evolution",
+      "structural_signals": [
+        "multiple services with API dependencies",
+        "breaking changes discovered in production",
+        "independent service deployment needed",
+        "provider and consumer teams separate"
+      ],
+      "recommended_patterns": ["consumer_driven_contracts", "contract_testing", "schema_registry"],
+      "alternatives": ["integration_testing", "api_versioning"],
+      "rationale": "Integration tests between services are slow, flaky, and test the wrong thing (infrastructure, not contracts). Consumer-driven contracts let each consumer declare what it needs from a provider. The provider runs these contracts in CI, catching breaking changes before deployment. This enables independent deployment without coordination while guaranteeing compatibility. Pact or Schema Registry are the standard tools.",
+      "constraints": {
+        "applies_when": {
+          "team_size": "15+",
+          "scale": "enterprise"
+        },
+        "avoid_when": {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
+      },
+      "priority": "medium"
+    }
+  ]
+}

@@ -1,0 +1,2539 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-03-21",
+  "source": "api-data-knowledge-primer + authored",
+  "patterns": [
+    {
+      "id": "rest_resource_oriented",
+      "name": "REST Resource-Oriented API",
+      "category": "api-rest",
+      "description": "Design APIs around resources (nouns) rather than actions (verbs), using HTTP methods to express operations. Each resource has a stable URI and supports standard CRUD semantics through GET, POST, PUT, PATCH, and DELETE. This is the foundational pattern for RESTful service design.",
+      "principles": [
+        "Resources are identified by URIs, not actions",
+        "HTTP methods convey operation semantics",
+        "Representations are decoupled from internal storage",
+        "Statelessness: each request contains all context needed",
+        "Uniform interface reduces coupling between client and server",
+        "Resources may contain links to related resources"
+      ],
+      "when_to_use": [
+        "Building public-facing APIs consumed by third parties",
+        "CRUD-dominant workloads with well-defined domain entities",
+        "Systems where cacheability of GET responses is valuable",
+        "Microservices exposing domain aggregates to other services",
+        "Mobile and web clients needing a predictable contract"
+      ],
+      "avoid_when": [
+        "Operations are inherently action-oriented (e.g., batch computation triggers)",
+        "Real-time bidirectional communication is required",
+        "Client needs to fetch deeply nested related data in a single call",
+        "Extremely low-latency binary protocols are needed"
+      ],
+      "signals": [
+        "Domain model has clearly identifiable nouns (users, orders, products)",
+        "Most operations map cleanly to CRUD verbs",
+        "Clients are diverse (browser, mobile, third-party)",
+        "HTTP caching headers would meaningfully reduce load",
+        "API documentation references resource lifecycles",
+        "Existing OpenAPI or Swagger specs describe the surface"
+      ],
+      "key_concepts": [
+        "Resource URI design (/users/{id}/orders)",
+        "Content negotiation via Accept headers",
+        "Idempotency of PUT and DELETE",
+        "Status code semantics (201 Created, 204 No Content, 404 Not Found)",
+        "ETag and conditional requests for concurrency control",
+        "HATEOAS links for discoverability"
+      ],
+      "related_patterns": ["rest_maturity_levels", "hateoas", "rest_pagination", "rest_versioning_url"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "rest_maturity_levels",
+      "name": "Richardson REST Maturity Model",
+      "category": "api-rest",
+      "description": "A four-level model (0-3) that classifies API maturity from plain RPC-over-HTTP to full hypermedia-driven REST. Level 0 uses HTTP as a tunnel, Level 1 introduces resources, Level 2 adds HTTP verbs, and Level 3 adds hypermedia controls. Most production APIs target Level 2.",
+      "principles": [
+        "Each maturity level builds on the previous one",
+        "Level 2 (HTTP verbs + resources) is the pragmatic sweet spot",
+        "Level 3 (HATEOAS) maximises evolvability but increases complexity",
+        "Maturity level choice should match team capability and client needs",
+        "Higher maturity does not always mean better fitness for purpose"
+      ],
+      "when_to_use": [
+        "Evaluating an existing API's design quality",
+        "Setting architectural guidelines for a new API platform",
+        "Deciding whether to invest in hypermedia controls",
+        "Training teams on REST design principles",
+        "Auditing API consistency across an organisation"
+      ],
+      "avoid_when": [
+        "The API is internal-only and RPC semantics are simpler",
+        "Team lacks experience to maintain hypermedia contracts",
+        "Performance constraints make Level 3 overhead unjustifiable"
+      ],
+      "signals": [
+        "API review checklist references maturity levels",
+        "Design documents mention Richardson model explicitly",
+        "Existing APIs mix verbs and nouns inconsistently",
+        "API gateway enforces verb-based routing rules",
+        "Style guide mandates specific HTTP method usage"
+      ],
+      "key_concepts": [
+        "Level 0: single URI, single HTTP method (POST tunnel)",
+        "Level 1: multiple URIs, one verb (resource identification)",
+        "Level 2: multiple URIs, correct HTTP verbs (verb semantics)",
+        "Level 3: hypermedia controls embedded in responses",
+        "Content-type negotiation at higher levels",
+        "Link relations for state transitions"
+      ],
+      "related_patterns": ["rest_resource_oriented", "hateoas", "rest_versioning_url"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "hateoas",
+      "name": "HATEOAS (Hypermedia as the Engine of Application State)",
+      "category": "api-rest",
+      "description": "Responses include hypermedia links that tell clients what actions are available from the current state, eliminating the need for out-of-band knowledge of the API surface. Clients navigate the API by following links rather than constructing URIs. This is Richardson Level 3 REST.",
+      "principles": [
+        "Clients discover available actions from response links, not documentation",
+        "Server controls state transitions through link presence or absence",
+        "URI structure can change without breaking compliant clients",
+        "Link relations use standard or custom relation types",
+        "Entry point URI is the only URI a client needs to know"
+      ],
+      "when_to_use": [
+        "APIs that must evolve without breaking existing clients",
+        "Workflow-driven domains where available actions depend on state",
+        "Long-lived public APIs with diverse unknown consumers",
+        "APIs where server-driven navigation improves security",
+        "Domain models with complex state machines"
+      ],
+      "avoid_when": [
+        "Clients are tightly coupled internal services with shared contracts",
+        "Performance-sensitive paths where link overhead is unacceptable",
+        "Team lacks tooling to generate and consume hypermedia formats",
+        "API surface is simple CRUD with no workflow transitions"
+      ],
+      "signals": [
+        "Responses contain _links or links objects with rel and href",
+        "Clients follow link relations rather than building URIs",
+        "Content types include application/hal+json or similar",
+        "State-dependent actions appear/disappear in responses",
+        "API documentation describes link relations, not URI templates"
+      ],
+      "key_concepts": [
+        "HAL (Hypertext Application Language) format",
+        "JSON:API link objects",
+        "Link relation types (self, next, prev, related)",
+        "Affordances: embedding available methods in links",
+        "Siren entity/action model",
+        "Spring HATEOAS and similar server-side libraries"
+      ],
+      "related_patterns": ["rest_resource_oriented", "rest_maturity_levels", "rest_pagination"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "rest_pagination",
+      "name": "REST Pagination Patterns",
+      "category": "api-rest",
+      "description": "Strategies for breaking large result sets into pages: offset-based, cursor-based, and keyset pagination. Each approach trades off simplicity, consistency, and performance differently. Cursor-based pagination is preferred for large or frequently-changing datasets.",
+      "principles": [
+        "Never return unbounded result sets from list endpoints",
+        "Include total count only when the query cost is acceptable",
+        "Cursor-based pagination avoids offset drift on inserts/deletes",
+        "Page size should have a sensible default and a maximum cap",
+        "Pagination metadata belongs in response body or Link headers"
+      ],
+      "when_to_use": [
+        "Any list endpoint returning more than ~50 items",
+        "Feed-style data where new items are continuously inserted",
+        "Search result pages with forward/backward navigation",
+        "APIs consumed by infinite-scroll UIs",
+        "Data exports requiring stable iteration over large datasets"
+      ],
+      "avoid_when": [
+        "Result sets are always small and bounded (e.g., enum lookups)",
+        "Clients always need the complete set for local computation",
+        "Data is append-only and a simple timestamp filter suffices"
+      ],
+      "signals": [
+        "List endpoints accept limit and offset or cursor parameters",
+        "Responses include next_cursor or next_page_token fields",
+        "Link headers contain rel=next and rel=prev",
+        "API documentation warns about maximum page sizes",
+        "Database queries use LIMIT/OFFSET or WHERE id > cursor",
+        "UI implements infinite scroll or load-more buttons"
+      ],
+      "key_concepts": [
+        "Offset pagination: page number + page size",
+        "Cursor pagination: opaque token encoding position",
+        "Keyset pagination: WHERE clause on indexed column",
+        "Total count: expensive on large tables, consider omitting",
+        "Stable sort order required for consistent pagination",
+        "RFC 5988 Link header for page navigation"
+      ],
+      "related_patterns": ["rest_resource_oriented", "rest_filtering", "graphql_cursor_pagination"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "rest_filtering",
+      "name": "REST Filtering and Query Parameters",
+      "category": "api-rest",
+      "description": "Conventions for filtering, sorting, and field selection on REST list endpoints using query parameters. Well-designed filtering reduces over-fetching and avoids the need for custom endpoints per use case. Common approaches include LHS/RHS bracket notation, dedicated filter query languages, and sparse fieldsets.",
+      "principles": [
+        "Filters are query parameters, not path segments",
+        "Support compound filters without custom DSLs where possible",
+        "Field selection (sparse fieldsets) reduces payload size",
+        "Sorting parameters should support multi-field and direction",
+        "Filter parameters should map to indexed database columns"
+      ],
+      "when_to_use": [
+        "List endpoints with heterogeneous consumer query needs",
+        "Dashboards requiring server-side filtering and sorting",
+        "APIs where bandwidth matters (mobile clients)",
+        "Replacing multiple bespoke query endpoints with one generic one",
+        "Admin panels with dynamic table filtering"
+      ],
+      "avoid_when": [
+        "Queries are complex enough to warrant GraphQL",
+        "Filtering logic requires joins across multiple aggregates",
+        "Full-text search is the primary use case (use a search endpoint instead)"
+      ],
+      "signals": [
+        "Query strings contain filter[status]=active or status=active",
+        "Endpoints accept sort=created_at,-name parameters",
+        "Fields parameter like fields=id,name,email in requests",
+        "API documentation lists filterable and sortable fields",
+        "Backend translates query params to WHERE clauses",
+        "Response metadata includes applied filters"
+      ],
+      "key_concepts": [
+        "LHS bracket notation: filter[field]=value",
+        "RHS colon notation: field=gte:100",
+        "Sparse fieldsets: fields[type]=field1,field2",
+        "Multi-sort: sort=field1,-field2 (minus for descending)",
+        "Filter operators: eq, ne, gt, gte, lt, lte, in, like",
+        "JSON:API filter specification"
+      ],
+      "related_patterns": ["rest_pagination", "rest_resource_oriented", "graphql_schema_first"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "rest_versioning_url",
+      "name": "URL-Based API Versioning",
+      "category": "api-rest",
+      "description": "Embedding the API version in the URL path (e.g., /v1/users, /v2/users). This is the most visible and straightforward versioning strategy, making version differences explicit in routing. Trade-off is URI pollution and potential resource identity confusion across versions.",
+      "principles": [
+        "Version number appears as the first path segment after the base URL",
+        "Major versions only; minor/patch changes are backward-compatible",
+        "Old versions must have a documented sunset timeline",
+        "Routing infrastructure directs traffic by version prefix",
+        "Resource identity should remain stable across versions where possible"
+      ],
+      "when_to_use": [
+        "Public APIs where version visibility aids developer experience",
+        "APIs with infrequent breaking changes (yearly or less)",
+        "Organisations with simple routing infrastructure",
+        "APIs where multiple versions must coexist for extended periods",
+        "Brownfield systems migrating from legacy to modern contracts"
+      ],
+      "avoid_when": [
+        "Breaking changes are frequent and fine-grained",
+        "Versioning individual resources independently is needed",
+        "API gateway supports header-based routing natively",
+        "Hypermedia-driven clients that follow links rather than construct URIs"
+      ],
+      "signals": [
+        "URLs contain /v1/, /v2/ path segments",
+        "API gateway routing rules match version prefixes",
+        "Deployment manifests reference version-specific service instances",
+        "Client SDKs expose version as a constructor parameter",
+        "Changelog documents version-to-version migration steps"
+      ],
+      "key_concepts": [
+        "Major version in path: /v1/resource",
+        "Semantic versioning for API contracts",
+        "Version sunset policy and deprecation headers",
+        "Parallel deployment of multiple versions",
+        "API gateway version routing",
+        "Version-specific documentation generation"
+      ],
+      "related_patterns": ["rest_versioning_header", "rest_resource_oriented", "rest_maturity_levels"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "rest_versioning_header",
+      "name": "Header-Based API Versioning",
+      "category": "api-rest",
+      "description": "Using custom headers (e.g., X-API-Version) or the Accept header with vendor media types (e.g., application/vnd.company.v2+json) to specify API version. Keeps URIs clean and allows version negotiation at the content type level. Requires more sophisticated routing infrastructure.",
+      "principles": [
+        "Version is a content negotiation concern, not an addressing concern",
+        "Accept header with vendor media types is the most RESTful approach",
+        "Custom version headers are simpler but less standards-compliant",
+        "Default version should be specified when no version header is sent",
+        "API gateway or middleware must parse headers for routing"
+      ],
+      "when_to_use": [
+        "APIs striving for RESTful purity with clean URIs",
+        "Organisations with API gateways that support header-based routing",
+        "Versioning at the representation level rather than the resource level",
+        "Internal APIs where clients can be updated to send headers",
+        "APIs with fine-grained versioning needs per resource"
+      ],
+      "avoid_when": [
+        "Clients cannot easily set custom headers (e.g., simple browser links)",
+        "Developer experience priorities favour visible version in URL",
+        "Infrastructure lacks header-based routing capability",
+        "API is public-facing with many unsophisticated consumers"
+      ],
+      "signals": [
+        "Requests include Accept: application/vnd.company.v2+json",
+        "Custom X-API-Version header in request/response",
+        "API gateway routing rules inspect Accept or custom headers",
+        "Content-Type response includes vendor media type",
+        "API documentation specifies supported media type versions",
+        "Middleware extracts version from headers before handler dispatch"
+      ],
+      "key_concepts": [
+        "Vendor media types: application/vnd.company.resource.v2+json",
+        "Accept header content negotiation",
+        "Custom X-API-Version header convention",
+        "Default version fallback policy",
+        "Header-based API gateway routing",
+        "Vary header for cache correctness with versioned responses"
+      ],
+      "related_patterns": ["rest_versioning_url", "rest_resource_oriented", "hateoas"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "rest_bulk_operations",
+      "name": "REST Bulk Operations",
+      "category": "api-rest",
+      "description": "Patterns for creating, updating, or deleting multiple resources in a single HTTP request to reduce round-trips and improve throughput. Approaches include batch endpoints, JSON arrays in request bodies, and multipart requests. Must handle partial failures explicitly.",
+      "principles": [
+        "Batch endpoint accepts an array of operations or resources",
+        "Response reports per-item success/failure status",
+        "Partial success must be clearly communicated (e.g., 207 Multi-Status)",
+        "Batch size limits prevent memory exhaustion and timeout issues",
+        "Idempotency keys enable safe retry of failed batch items"
+      ],
+      "when_to_use": [
+        "Importing or syncing data from external systems",
+        "Clients that need to create/update many records at once",
+        "Network-constrained environments where round-trip reduction matters",
+        "Admin operations that apply changes to multiple entities",
+        "ETL pipelines writing transformed data via API"
+      ],
+      "avoid_when": [
+        "Individual operations have complex validation requiring separate handling",
+        "Transactional atomicity across all items is required (use a saga instead)",
+        "Batch sizes are unpredictable and could cause timeouts"
+      ],
+      "signals": [
+        "Endpoint path includes /batch or /bulk suffix",
+        "Request body is a JSON array of resource objects",
+        "Response includes per-item status codes and error details",
+        "API documentation specifies maximum batch size",
+        "Idempotency-Key header required for batch requests",
+        "207 Multi-Status response code in API specification"
+      ],
+      "key_concepts": [
+        "Batch endpoint: POST /resources/batch",
+        "Per-item result reporting with individual status codes",
+        "207 Multi-Status HTTP response",
+        "Idempotency keys for retry safety",
+        "Maximum batch size limits and chunking",
+        "Asynchronous batch processing with status polling"
+      ],
+      "related_patterns": ["rest_resource_oriented", "rest_partial_updates", "webhook_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "rest_partial_updates",
+      "name": "REST Partial Updates (PATCH)",
+      "category": "api-rest",
+      "description": "Using HTTP PATCH with structured patch documents to update only specific fields of a resource, avoiding the need to send the full representation. JSON Merge Patch (RFC 7396) and JSON Patch (RFC 6902) are the two dominant formats. PATCH reduces bandwidth and avoids accidental field overwrites.",
+      "principles": [
+        "PATCH updates only the fields specified in the request body",
+        "JSON Merge Patch is simpler but cannot set fields to null unambiguously",
+        "JSON Patch provides operation-level precision (add, remove, replace, move)",
+        "Content-Type header must specify the patch format used",
+        "Concurrent PATCH operations need optimistic locking via ETag/If-Match"
+      ],
+      "when_to_use": [
+        "Updating a few fields on a large resource without sending the full body",
+        "Collaborative editing where multiple clients modify different fields",
+        "Mobile clients on constrained networks minimising payload size",
+        "Resources with many optional fields where PUT would require all fields",
+        "Form-based UIs that submit only changed fields"
+      ],
+      "avoid_when": [
+        "The resource is small enough that PUT is equally efficient",
+        "All updates are full replacements by design",
+        "Clients cannot reliably produce patch documents"
+      ],
+      "signals": [
+        "API accepts PATCH method on resource URIs",
+        "Content-Type is application/merge-patch+json or application/json-patch+json",
+        "Request body contains only changed fields",
+        "ETag and If-Match headers used for concurrent modification control",
+        "API documentation distinguishes PUT (full replace) from PATCH (partial)",
+        "Validation runs only on submitted fields, not the entire resource"
+      ],
+      "key_concepts": [
+        "JSON Merge Patch (RFC 7396): partial JSON object merge",
+        "JSON Patch (RFC 6902): array of operations (op, path, value)",
+        "Content-Type negotiation for patch format",
+        "Optimistic concurrency with ETag/If-Match",
+        "Idempotency considerations for PATCH",
+        "Validation scoping to patched fields only"
+      ],
+      "related_patterns": ["rest_resource_oriented", "rest_bulk_operations", "rest_versioning_header"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "graphql_schema_first",
+      "name": "Schema-First GraphQL Design",
+      "category": "api-graphql",
+      "description": "Define the GraphQL schema (SDL) before implementing resolvers, treating the schema as the contract between frontend and backend. The schema serves as documentation, type system, and API specification simultaneously. This approach promotes API-first design and clear team boundaries.",
+      "principles": [
+        "Schema definition drives resolver implementation, not the reverse",
+        "Schema is the single source of truth for the API contract",
+        "Types model the domain, not the database schema",
+        "Nullability decisions are intentional and documented",
+        "Deprecation directives maintain backward compatibility",
+        "Input types are separate from output types"
+      ],
+      "when_to_use": [
+        "Frontend and backend teams work in parallel on different schedules",
+        "API serves multiple clients with varying data requirements",
+        "Domain model is complex with many relationships",
+        "Strong typing and introspection are valued for developer tooling",
+        "Reducing over-fetching is a priority for mobile clients"
+      ],
+      "avoid_when": [
+        "API surface is simple CRUD with few relationships",
+        "Team lacks GraphQL schema design experience",
+        "File uploads or binary streaming are primary use cases",
+        "Real-time requirements exceed subscription capabilities"
+      ],
+      "signals": [
+        "Project contains .graphql or .gql schema files",
+        "Schema-first codegen tools (graphql-codegen, Apollo codegen) in build pipeline",
+        "Type definitions precede resolver implementations",
+        "Schema review is part of the pull request process",
+        "Mock servers generated from schema for frontend development",
+        "Schema registry or schema stitching infrastructure exists"
+      ],
+      "key_concepts": [
+        "Schema Definition Language (SDL)",
+        "Type system: scalar, object, enum, union, interface, input",
+        "Resolver chain: root -> type -> field resolution",
+        "Schema directives (@deprecated, @auth, custom)",
+        "Schema-first codegen for type-safe resolvers",
+        "Schema linting and breaking change detection"
+      ],
+      "related_patterns": ["graphql_federation", "graphql_dataloader", "graphql_cursor_pagination"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "graphql_federation",
+      "name": "GraphQL Federation",
+      "category": "api-graphql",
+      "description": "Compose a single GraphQL supergraph from multiple independently deployed subgraphs, each owning a portion of the schema. A gateway/router merges schemas and routes queries to the appropriate subgraphs. Enables team autonomy while presenting a unified API to consumers.",
+      "principles": [
+        "Each subgraph owns its types and fields exclusively",
+        "Entity references (@key) enable cross-subgraph type extension",
+        "The gateway performs query planning and execution across subgraphs",
+        "Subgraphs are independently deployable and testable",
+        "Schema composition must detect and prevent conflicts at build time",
+        "Performance depends on efficient query plan optimisation"
+      ],
+      "when_to_use": [
+        "Multiple teams own different domains within a single API surface",
+        "Monolithic GraphQL server is becoming a bottleneck for deployment",
+        "Domains have clear ownership boundaries (users, products, orders)",
+        "Organisation is adopting microservices with GraphQL",
+        "Independent scaling of different domain subgraphs is needed"
+      ],
+      "avoid_when": [
+        "Single team owns the entire API",
+        "Schema is small enough that a monolithic server is simpler",
+        "Subgraph boundaries are unclear or frequently shifting",
+        "Latency overhead of gateway query planning is unacceptable"
+      ],
+      "signals": [
+        "Schema contains @key, @external, @provides, @requires directives",
+        "Apollo Router, Apollo Gateway, or similar federation runtime in infrastructure",
+        "Subgraph services register with a schema registry",
+        "CI/CD pipeline includes schema composition checks",
+        "Supergraph manifest or rover commands in build scripts",
+        "Multiple GraphQL services deployed independently"
+      ],
+      "key_concepts": [
+        "Subgraph: independently deployed GraphQL service",
+        "Supergraph: composed schema from all subgraphs",
+        "Entity and @key directive for cross-subgraph references",
+        "Query planning: gateway decomposes queries across subgraphs",
+        "Schema composition and conflict detection",
+        "Federated tracing for cross-subgraph observability"
+      ],
+      "related_patterns": ["graphql_schema_first", "graphql_dataloader", "graphql_persisted_queries"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "graphql_subscriptions",
+      "name": "GraphQL Subscriptions",
+      "category": "api-graphql",
+      "description": "Server-push mechanism in GraphQL for real-time data delivery over persistent connections, typically WebSockets. Clients subscribe to events matching specific criteria and receive updates as they occur. Useful for live dashboards, chat, and collaborative features.",
+      "principles": [
+        "Subscriptions use the same type system as queries and mutations",
+        "Transport is typically WebSocket (graphql-ws or subscriptions-transport-ws protocol)",
+        "Server-side pub/sub backs subscription resolution",
+        "Subscription lifecycle must handle connection drops and reconnection",
+        "Filtering subscriptions server-side reduces unnecessary data transfer"
+      ],
+      "when_to_use": [
+        "Live dashboards showing real-time metrics or status updates",
+        "Chat or messaging features requiring push notifications",
+        "Collaborative editing where changes must propagate to all viewers",
+        "Order tracking or delivery status updates",
+        "Notification feeds that update without polling"
+      ],
+      "avoid_when": [
+        "Data changes infrequently and polling is sufficient",
+        "Clients are behind proxies that do not support WebSockets",
+        "Scale requires millions of concurrent persistent connections",
+        "SSE would suffice and WebSocket complexity is not justified"
+      ],
+      "signals": [
+        "Schema defines Subscription root type with event fields",
+        "WebSocket endpoint configured alongside HTTP endpoint",
+        "PubSub system (Redis, Kafka) backs subscription events",
+        "Client code uses useSubscription hook or subscribe() method",
+        "Connection protocol is graphql-ws or subscriptions-transport-ws",
+        "Infrastructure supports sticky sessions or WebSocket-aware load balancing"
+      ],
+      "key_concepts": [
+        "Subscription root type in SDL",
+        "graphql-ws protocol (successor to subscriptions-transport-ws)",
+        "AsyncIterator-based resolver pattern",
+        "PubSub engine for event distribution",
+        "Subscription filtering arguments",
+        "Connection lifecycle: init, ack, data, complete, error"
+      ],
+      "related_patterns": ["graphql_schema_first", "websocket_pattern", "server_sent_events", "pub_sub_messaging"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "graphql_dataloader",
+      "name": "GraphQL DataLoader Pattern",
+      "category": "api-graphql",
+      "description": "Batching and caching mechanism that solves the N+1 query problem in GraphQL resolvers. DataLoader collects individual load requests within a single execution tick and issues one batched query. Per-request caching ensures the same entity is fetched only once per query execution.",
+      "principles": [
+        "Batch individual loads into a single query per execution tick",
+        "Cache results per request to eliminate duplicate fetches",
+        "DataLoader instances are created per request, not globally",
+        "Batch function must return results in the same order as keys",
+        "Loader key design must match the underlying data access pattern"
+      ],
+      "when_to_use": [
+        "GraphQL resolvers fetch related entities that cause N+1 queries",
+        "List fields resolve child entities individually in a loop",
+        "Multiple resolvers in a single query need the same entity",
+        "Database query count must be minimised for performance",
+        "API calls to downstream services should be batched"
+      ],
+      "avoid_when": [
+        "Resolvers already perform batch fetches natively",
+        "Query depth is shallow with no nested entity resolution",
+        "Data source does not support batch lookups"
+      ],
+      "signals": [
+        "Resolver functions call loader.load(id) instead of direct DB queries",
+        "DataLoader instances created in request context/middleware",
+        "Batch functions accept arrays of keys and return arrays of results",
+        "Query execution logs show reduced database round-trips",
+        "Performance profiling identifies N+1 patterns in resolver chains",
+        "Context object passed to resolvers contains loader instances"
+      ],
+      "key_concepts": [
+        "Batching: coalesce loads within a single tick",
+        "Per-request caching: avoid duplicate fetches in one query",
+        "Batch function contract: keys in, ordered results out",
+        "Loader-per-resource pattern (userLoader, orderLoader)",
+        "Priming: manually populating cache from known data",
+        "Error handling: return Error objects in result array positions"
+      ],
+      "related_patterns": ["graphql_schema_first", "graphql_federation", "graphql_persisted_queries"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "graphql_persisted_queries",
+      "name": "GraphQL Persisted Queries",
+      "category": "api-graphql",
+      "description": "Pre-register GraphQL queries on the server and reference them by hash or ID at runtime, eliminating the need to send full query strings over the network. Reduces bandwidth, improves security by restricting executable queries, and enables query-level caching and optimisation.",
+      "principles": [
+        "Query text is replaced by a compact identifier (hash or ID)",
+        "Server maintains a registry of allowed queries",
+        "Automatic persisted queries (APQ) register on first use via hash negotiation",
+        "Persisted queries enable CDN caching of GET-based GraphQL requests",
+        "Query allowlisting prevents arbitrary query execution in production"
+      ],
+      "when_to_use": [
+        "Reducing payload size for mobile clients on constrained networks",
+        "Preventing query injection or denial-of-service via complex queries",
+        "Enabling HTTP GET semantics for GraphQL query caching at CDN edge",
+        "Production environments where only approved queries should execute",
+        "Build pipelines that extract and register queries at deploy time"
+      ],
+      "avoid_when": [
+        "API is in rapid prototyping phase with constantly changing queries",
+        "Introspection and ad-hoc queries are required for developer tooling",
+        "Clients need to construct dynamic queries at runtime"
+      ],
+      "signals": [
+        "Client sends query hash (SHA-256) instead of query text",
+        "Server returns PersistedQueryNotFound error triggering registration",
+        "Build pipeline includes query extraction and manifest generation",
+        "CDN configuration caches GraphQL GET requests by query hash",
+        "Query allowlist enforced in production but not in development",
+        "Apollo or Relay persisted query plugin configured"
+      ],
+      "key_concepts": [
+        "Automatic Persisted Queries (APQ): hash-based negotiation",
+        "Static persisted queries: build-time extraction and registration",
+        "Query manifest: mapping of hash to query text",
+        "CDN caching with GET-based persisted queries",
+        "Query allowlisting for security hardening",
+        "SHA-256 query hashing"
+      ],
+      "related_patterns": ["graphql_schema_first", "graphql_federation", "graphql_dataloader"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "graphql_cursor_pagination",
+      "name": "GraphQL Cursor-Based Pagination (Connections)",
+      "category": "api-graphql",
+      "description": "The Relay-style connection specification for paginating through lists in GraphQL. Uses cursors (opaque strings) rather than offsets, with edges containing nodes and cursors, and pageInfo providing hasNextPage/hasPreviousPage. This is the community-standard approach for GraphQL pagination.",
+      "principles": [
+        "Cursors are opaque strings, not page numbers or offsets",
+        "Connection type wraps edges, each edge has a node and cursor",
+        "PageInfo includes hasNextPage, hasPreviousPage, startCursor, endCursor",
+        "Forward pagination uses first + after, backward uses last + before",
+        "Total count is optional and should be omitted if expensive to compute"
+      ],
+      "when_to_use": [
+        "Any GraphQL list field that may return many items",
+        "Infinite scroll UIs consuming GraphQL APIs",
+        "Relay-based frontend applications requiring connection-compliant schema",
+        "Datasets where items are inserted or deleted frequently",
+        "APIs needing stable pagination that does not skip or duplicate items"
+      ],
+      "avoid_when": [
+        "Simple lists that are always small and complete",
+        "Offset-based pagination is explicitly required by client design",
+        "Schema simplicity is prioritised over pagination correctness"
+      ],
+      "signals": [
+        "Schema types named *Connection and *Edge",
+        "Fields accept first, after, last, before arguments",
+        "PageInfo type with hasNextPage, hasPreviousPage, startCursor, endCursor",
+        "Edge type contains node and cursor fields",
+        "Relay compiler or relay-style pagination hooks in client code",
+        "Database queries use keyset pagination to back cursor resolution"
+      ],
+      "key_concepts": [
+        "Connection type: edges + pageInfo",
+        "Edge type: node + cursor",
+        "PageInfo: hasNextPage, hasPreviousPage, startCursor, endCursor",
+        "Forward pagination: first N after cursor",
+        "Backward pagination: last N before cursor",
+        "Cursor encoding: typically base64(type:id) but opaque to client"
+      ],
+      "related_patterns": ["graphql_schema_first", "rest_pagination", "graphql_dataloader"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "grpc_unary",
+      "name": "gRPC Unary RPC",
+      "category": "api-grpc",
+      "description": "The simplest gRPC pattern: client sends a single request message and receives a single response message, similar to a function call over the network. Built on HTTP/2 with Protocol Buffers for serialization. Provides strong typing, code generation, and efficient binary transport.",
+      "principles": [
+        "One request, one response per RPC call",
+        "Protocol Buffers define message and service contracts",
+        "Generated client stubs provide type-safe RPC invocation",
+        "Deadlines and cancellation propagate across service boundaries",
+        "Metadata (headers/trailers) carry cross-cutting concerns",
+        "Status codes are gRPC-specific (OK, NOT_FOUND, INTERNAL, etc.)"
+      ],
+      "when_to_use": [
+        "Synchronous request-response communication between microservices",
+        "High-throughput internal service-to-service communication",
+        "Polyglot environments needing cross-language type-safe contracts",
+        "Latency-sensitive paths where binary serialization matters",
+        "Services with well-defined request/response message shapes"
+      ],
+      "avoid_when": [
+        "Clients are web browsers without a gRPC-Web proxy",
+        "Human readability of messages is important for debugging",
+        "API consumers need a simple REST/JSON interface",
+        "Network infrastructure does not support HTTP/2"
+      ],
+      "signals": [
+        "Proto files define service with rpc methods returning single messages",
+        "Generated _grpc.pb files in build output",
+        "Client code calls stub methods with request objects",
+        "gRPC interceptors in the middleware chain",
+        "Health check service implements grpc.health.v1.Health",
+        "Deadline/timeout propagation in call options"
+      ],
+      "key_concepts": [
+        "Protocol Buffers (protobuf) message and service definition",
+        "Code generation: protoc compiler with language-specific plugins",
+        "Channel and stub abstractions",
+        "Deadline propagation across service calls",
+        "gRPC status codes and error model",
+        "Interceptors for logging, auth, and metrics"
+      ],
+      "related_patterns": ["grpc_service_definition", "protobuf_schema_evolution", "grpc_server_streaming"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "grpc_server_streaming",
+      "name": "gRPC Server Streaming RPC",
+      "category": "api-grpc",
+      "description": "Client sends a single request and the server returns a stream of response messages. The client reads from the stream until there are no more messages. Useful for large result sets, real-time feeds, and download-style operations where the server pushes data progressively.",
+      "principles": [
+        "Server sends multiple messages in response to a single client request",
+        "Client reads messages sequentially from the response stream",
+        "Stream ends when server sends a trailing status",
+        "Flow control is managed by HTTP/2 at the transport level",
+        "Server can send status and trailers to signal completion or error"
+      ],
+      "when_to_use": [
+        "Streaming large datasets that would be inefficient as a single response",
+        "Real-time event feeds (price tickers, log streams, status updates)",
+        "Progressive data loading (e.g., search results as they are found)",
+        "File or data download with progress tracking",
+        "Subscribe-once patterns where client receives continuous updates"
+      ],
+      "avoid_when": [
+        "Response is small enough for a unary RPC",
+        "Client needs to send data during the stream (use bidirectional instead)",
+        "Load balancers cannot handle long-lived HTTP/2 streams"
+      ],
+      "signals": [
+        "Proto file defines rpc Method(Request) returns (stream Response)",
+        "Server code uses response_observer.on_next() or stream.send_message()",
+        "Client iterates over response stream in a loop",
+        "Connection duration is significantly longer than typical request-response",
+        "gRPC keepalive settings configured for long-lived streams",
+        "Retry logic handles stream interruption and reconnection"
+      ],
+      "key_concepts": [
+        "Server streaming RPC: single request, multiple responses",
+        "Stream lifecycle: open, data flow, half-close, completion",
+        "HTTP/2 flow control for backpressure",
+        "Keepalive pings to maintain long-lived streams",
+        "Stream cancellation from client side",
+        "Error handling: status codes on stream termination"
+      ],
+      "related_patterns": ["grpc_unary", "grpc_bidirectional", "server_sent_events", "grpc_client_streaming"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "grpc_client_streaming",
+      "name": "gRPC Client Streaming RPC",
+      "category": "api-grpc",
+      "description": "Client sends a stream of messages to the server and receives a single response after the server has processed all client messages. Used for upload-style operations, aggregation, and collecting a sequence of inputs before producing a result.",
+      "principles": [
+        "Client sends multiple messages, server returns one response",
+        "Server waits for all client messages before responding (or responds early)",
+        "Client signals completion by half-closing the stream",
+        "Flow control ensures the server is not overwhelmed by fast clients",
+        "Server can send an early error status before reading all messages"
+      ],
+      "when_to_use": [
+        "File upload or chunked data ingestion",
+        "Aggregating sensor data or time-series readings for batch processing",
+        "Collecting a set of inputs before running a computation",
+        "Client sends a variable-length sequence of items for server-side storage",
+        "Telemetry collection from client agents"
+      ],
+      "avoid_when": [
+        "Client has a fixed single message to send (use unary)",
+        "Server needs to respond to each message individually (use bidirectional)",
+        "Stream reliability requirements exceed what gRPC retry provides"
+      ],
+      "signals": [
+        "Proto file defines rpc Method(stream Request) returns (Response)",
+        "Client code calls stream.send() in a loop then stream.close()",
+        "Server accumulates messages before returning a single response",
+        "Upload progress tracked by counting sent messages",
+        "Retry logic must handle partial stream resend on failure",
+        "Buffering configuration set for client-side message batching"
+      ],
+      "key_concepts": [
+        "Client streaming RPC: multiple requests, single response",
+        "Half-close: client signals no more messages",
+        "Server-side accumulation and aggregation",
+        "Client-side flow control and buffering",
+        "Chunked upload patterns",
+        "Early termination: server responds before reading all messages"
+      ],
+      "related_patterns": ["grpc_unary", "grpc_server_streaming", "grpc_bidirectional"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "grpc_bidirectional",
+      "name": "gRPC Bidirectional Streaming RPC",
+      "category": "api-grpc",
+      "description": "Both client and server send streams of messages independently over a single RPC call. Messages can be sent in any order; the two streams operate independently. This is the most flexible gRPC pattern, suitable for chat, collaborative editing, and interactive protocols.",
+      "principles": [
+        "Both client and server send message streams independently",
+        "Message ordering is preserved within each stream direction",
+        "Either side can finish sending without closing the connection",
+        "Full-duplex communication over a single HTTP/2 connection",
+        "Complex interaction protocols can be modelled as message sequences"
+      ],
+      "when_to_use": [
+        "Chat or messaging systems requiring full-duplex communication",
+        "Interactive protocols where client and server exchange messages freely",
+        "Real-time collaboration (cursor tracking, shared editing)",
+        "Game server communication with simultaneous input and state updates",
+        "Negotiation protocols requiring multiple rounds of exchange"
+      ],
+      "avoid_when": [
+        "Interaction is strictly request-response (use unary)",
+        "Only one direction needs streaming (use server or client streaming)",
+        "Infrastructure does not support long-lived HTTP/2 connections",
+        "Operational complexity of bidirectional streams is not justified"
+      ],
+      "signals": [
+        "Proto file defines rpc Method(stream Request) returns (stream Response)",
+        "Both client and server have send/receive loops running concurrently",
+        "Connection stays open for extended periods with messages in both directions",
+        "Application-level protocol defines message sequencing and acknowledgement",
+        "Keepalive and reconnection logic more complex than unary RPCs",
+        "Load balancing requires stream-aware (L7) infrastructure"
+      ],
+      "key_concepts": [
+        "Bidirectional streaming: both sides send message streams",
+        "Independent streams: send and receive operate separately",
+        "Message ordering guarantees per direction",
+        "Concurrent send/receive loops",
+        "Stream-aware load balancing requirements",
+        "Connection lifecycle management and reconnection"
+      ],
+      "related_patterns": ["grpc_server_streaming", "grpc_client_streaming", "websocket_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "grpc_service_definition",
+      "name": "gRPC Service Definition and Interface Design",
+      "category": "api-grpc",
+      "description": "Best practices for designing gRPC service interfaces in Protocol Buffer files: naming conventions, method design, error handling, and API evolution. A well-designed service definition is the cornerstone of a maintainable gRPC ecosystem, serving as both documentation and code generation source.",
+      "principles": [
+        "Service names use PascalCase, method names use PascalCase verbs",
+        "Request and response messages are named after the method (GetUserRequest/GetUserResponse)",
+        "Every RPC has its own request/response types (no reuse across methods)",
+        "Use wrapper types for optional fields in proto3",
+        "Error details use google.rpc.Status with typed detail messages",
+        "API design guides (e.g., Google AIP) provide consistent patterns"
+      ],
+      "when_to_use": [
+        "Starting a new gRPC service from scratch",
+        "Reviewing or refactoring existing proto definitions",
+        "Establishing organisational API design standards for gRPC",
+        "Training teams on Protocol Buffer best practices",
+        "Designing APIs that will be consumed by generated clients in multiple languages"
+      ],
+      "avoid_when": [
+        "Prototyping with JSON/REST is faster for initial exploration",
+        "Service interface is trivial and design rigour is overkill",
+        "Team is not familiar with Protocol Buffers"
+      ],
+      "signals": [
+        "Proto files follow consistent naming conventions",
+        "Dedicated request/response message per RPC method",
+        "Proto linting tools (buf, protolint) in CI pipeline",
+        "API design guide referenced in contribution documentation",
+        "Field numbers managed carefully to preserve backward compatibility",
+        "Google AIP patterns referenced in proto comments"
+      ],
+      "key_concepts": [
+        "Naming: PascalCase services, PascalCase methods, snake_case fields",
+        "Per-method request/response types",
+        "google.rpc.Status and error details for rich error responses",
+        "google.protobuf wrappers for nullable fields",
+        "Method options and custom annotations",
+        "API design guides (Google AIP, Buf style guide)"
+      ],
+      "related_patterns": ["grpc_unary", "protobuf_schema_evolution", "grpc_server_streaming"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "protobuf_schema_evolution",
+      "name": "Protocol Buffer Schema Evolution",
+      "category": "api-grpc",
+      "description": "Rules and strategies for evolving Protocol Buffer schemas without breaking existing clients or servers. Covers field number management, backward/forward compatibility, and migration from proto2 to proto3. Proper schema evolution is critical for independently deployable services.",
+      "principles": [
+        "Never reuse or change the type of a field number",
+        "Removing a field should reserve its number to prevent accidental reuse",
+        "Adding fields is always backward-compatible in proto3",
+        "Renaming fields does not break wire compatibility (numbers matter, not names)",
+        "Use oneof for mutually exclusive fields, not for evolution",
+        "Default values for missing fields must be safe for all consumers"
+      ],
+      "when_to_use": [
+        "Adding new fields to existing messages",
+        "Deprecating and removing fields from proto definitions",
+        "Migrating between proto2 and proto3 syntax",
+        "Ensuring independent deployment of producer and consumer services",
+        "Managing proto schemas across a large organisation"
+      ],
+      "avoid_when": [
+        "Schema changes require atomic deployment of all services (use a shared binary)",
+        "Wire format is not Protocol Buffers (JSON evolution rules differ)",
+        "Proto files are used only for code generation with no wire compatibility needs"
+      ],
+      "signals": [
+        "Proto files contain reserved field numbers or names",
+        "Buf breaking change detection in CI pipeline",
+        "Field numbers are monotonically increasing with no gaps from removal",
+        "Migration guides accompany major schema changes",
+        "Proto file version history tracked in source control",
+        "Compatibility testing between old and new schema versions"
+      ],
+      "key_concepts": [
+        "Field numbers: never reuse, reserve deprecated numbers",
+        "Wire compatibility: numbers and types matter, names do not",
+        "Reserved keyword: prevents accidental reuse of numbers/names",
+        "Backward compatibility: old readers can read new messages",
+        "Forward compatibility: new readers can read old messages",
+        "Buf CLI for schema linting and breaking change detection"
+      ],
+      "related_patterns": ["grpc_service_definition", "grpc_unary", "schema_registry"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "websocket_pattern",
+      "name": "WebSocket Communication Pattern",
+      "category": "api-async",
+      "description": "Full-duplex, persistent connection protocol over a single TCP connection, enabling real-time bidirectional communication between client and server. Initiated via HTTP upgrade handshake. Ideal for low-latency interactive applications where both client and server need to push messages independently.",
+      "principles": [
+        "Full-duplex: both sides send messages independently at any time",
+        "Persistent connection reduces per-message overhead versus HTTP polling",
+        "Binary and text frame types support different payload formats",
+        "Ping/pong frames provide built-in keepalive mechanism",
+        "Connection state must be managed explicitly (open, closing, closed)",
+        "Horizontal scaling requires sticky sessions or external pub/sub"
+      ],
+      "when_to_use": [
+        "Real-time interactive applications (chat, gaming, collaborative editing)",
+        "Live data feeds requiring sub-second latency (trading, sports)",
+        "Applications needing bidirectional communication (not just server push)",
+        "Replacing long-polling where connection overhead is unacceptable",
+        "IoT device communication requiring persistent connections"
+      ],
+      "avoid_when": [
+        "Server-to-client push only is needed (SSE is simpler)",
+        "Client is behind restrictive proxies that block WebSocket upgrades",
+        "Stateless request-response semantics suffice",
+        "Scale requires millions of connections without infrastructure investment"
+      ],
+      "signals": [
+        "HTTP 101 Switching Protocols response in network traffic",
+        "ws:// or wss:// URLs in client configuration",
+        "WebSocket server library (ws, socket.io, websockets) in dependencies",
+        "Connection upgrade headers in initial HTTP handshake",
+        "Heartbeat/ping-pong implementation in application code",
+        "Connection manager tracking active WebSocket sessions"
+      ],
+      "key_concepts": [
+        "HTTP upgrade handshake (Connection: Upgrade, Upgrade: websocket)",
+        "Frame types: text, binary, ping, pong, close",
+        "Sub-protocols for application-level message contracts",
+        "Connection lifecycle: open, message, error, close events",
+        "Scaling: sticky sessions, Redis pub/sub for multi-instance",
+        "Reconnection strategies with exponential backoff"
+      ],
+      "related_patterns": ["server_sent_events", "long_polling", "graphql_subscriptions", "grpc_bidirectional"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "server_sent_events",
+      "name": "Server-Sent Events (SSE)",
+      "category": "api-async",
+      "description": "Unidirectional server-to-client streaming over standard HTTP, using the text/event-stream content type. Simpler than WebSockets for server push scenarios, with built-in browser support via EventSource API. Supports automatic reconnection and event ID tracking for resumption.",
+      "principles": [
+        "Server pushes events to client over a long-lived HTTP response",
+        "Text-based protocol with event type, data, and ID fields",
+        "Built-in reconnection with Last-Event-ID header for resumption",
+        "Works through HTTP proxies and load balancers without special configuration",
+        "Unidirectional: client cannot send data over the same connection"
+      ],
+      "when_to_use": [
+        "Live notifications, alerts, or status updates to web clients",
+        "Dashboard widgets showing real-time metrics",
+        "Progress updates for long-running server operations",
+        "News or social media feed updates",
+        "Any server-push scenario where client-to-server messaging is not needed"
+      ],
+      "avoid_when": [
+        "Bidirectional communication is required",
+        "Binary data streaming is needed (SSE is text-only)",
+        "Thousands of concurrent connections per client are needed",
+        "Client must send frequent messages to the server"
+      ],
+      "signals": [
+        "Response Content-Type is text/event-stream",
+        "Client uses EventSource API or equivalent library",
+        "Event data lines prefixed with data:, event:, id:, retry:",
+        "Last-Event-ID header sent on reconnection",
+        "Server keeps response connection open with periodic events",
+        "CORS headers configured for cross-origin event streams"
+      ],
+      "key_concepts": [
+        "EventSource browser API with onmessage, onerror, onopen",
+        "Event stream format: data, event, id, retry fields",
+        "Automatic reconnection with Last-Event-ID resumption",
+        "Named events for routing to different handlers",
+        "Connection timeout and keepalive comment lines",
+        "Polyfill libraries for environments without native EventSource"
+      ],
+      "related_patterns": ["websocket_pattern", "long_polling", "graphql_subscriptions"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "webhook_pattern",
+      "name": "Webhook Event Delivery",
+      "category": "api-async",
+      "description": "Server-initiated HTTP callbacks to a client-specified URL when events occur. The event producer POSTs event payloads to registered subscriber endpoints. Webhooks invert the polling relationship, enabling event-driven integration without persistent connections.",
+      "principles": [
+        "Producer sends HTTP POST to subscriber-registered callback URLs",
+        "Payload includes event type, timestamp, and relevant data",
+        "Subscribers must respond with 2xx status to acknowledge receipt",
+        "Retry with exponential backoff on delivery failure",
+        "Webhook signatures (HMAC) verify payload authenticity",
+        "Idempotency: subscribers must handle duplicate deliveries gracefully"
+      ],
+      "when_to_use": [
+        "Integrating with third-party services that need to react to your events",
+        "Payment processing notifications (charge succeeded, refund issued)",
+        "CI/CD pipeline triggers from source control events",
+        "SaaS platforms notifying customer systems of data changes",
+        "Event-driven architectures across organisational boundaries"
+      ],
+      "avoid_when": [
+        "Consumer is not reachable via public URL (use polling or message queue)",
+        "Low-latency delivery is critical (network variability adds delay)",
+        "Event volume is very high (message queue is more efficient)",
+        "Delivery ordering guarantees are required"
+      ],
+      "signals": [
+        "API documentation describes webhook registration endpoints",
+        "Subscriber stores callback URL and secret in configuration",
+        "X-Webhook-Signature or similar HMAC header in event requests",
+        "Retry queue and dead letter storage for failed deliveries",
+        "Event payload includes event_type and idempotency_key fields",
+        "Webhook management UI for subscribers to register/test endpoints"
+      ],
+      "key_concepts": [
+        "Callback URL registration and management",
+        "HMAC signature verification for payload authenticity",
+        "Retry strategy with exponential backoff and jitter",
+        "Dead letter queue for permanently failed deliveries",
+        "Event payload envelope: type, timestamp, data, idempotency key",
+        "Webhook testing tools and event replay"
+      ],
+      "related_patterns": ["pub_sub_messaging", "server_sent_events", "dead_letter_queue_api"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "long_polling",
+      "name": "Long Polling Pattern",
+      "category": "api-async",
+      "description": "Client sends an HTTP request that the server holds open until new data is available or a timeout expires, then responds. The client immediately sends another request, creating a near-real-time push effect over standard HTTP. A pragmatic fallback when WebSockets or SSE are unavailable.",
+      "principles": [
+        "Server delays response until data is available or timeout is reached",
+        "Client immediately reconnects after receiving a response",
+        "Timeout prevents indefinitely held connections",
+        "Each response can include multiple accumulated events",
+        "Standard HTTP semantics: works through all proxies and firewalls"
+      ],
+      "when_to_use": [
+        "Near-real-time updates when WebSocket/SSE are not supported",
+        "Browser environments behind restrictive corporate proxies",
+        "Fallback transport for WebSocket libraries (e.g., Socket.IO)",
+        "Simple notification systems without infrastructure for push protocols",
+        "Legacy system integration where only HTTP is available"
+      ],
+      "avoid_when": [
+        "WebSockets or SSE are available and supported",
+        "Very high frequency updates make reconnection overhead prohibitive",
+        "Bidirectional communication is needed",
+        "Server resource consumption from held connections is a concern"
+      ],
+      "signals": [
+        "Client makes repeated HTTP requests in a loop with minimal delay",
+        "Server response times are highly variable (some instant, some timeout)",
+        "Request includes a version token or timestamp for change detection",
+        "Connection timeout configured between 20-60 seconds",
+        "Server holds request handlers in a pending queue awaiting data"
+      ],
+      "key_concepts": [
+        "Hold-until-data-or-timeout response pattern",
+        "Immediate reconnection after response",
+        "ETag or version token for change detection",
+        "Connection timeout tuning (balance between latency and resource usage)",
+        "Comet pattern (historical term for long polling)",
+        "Comparison with short polling, SSE, and WebSocket"
+      ],
+      "related_patterns": ["websocket_pattern", "server_sent_events", "webhook_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "pub_sub_messaging",
+      "name": "Publish-Subscribe Messaging",
+      "category": "api-async",
+      "description": "Decoupled messaging pattern where publishers send messages to topics without knowledge of subscribers, and subscribers receive messages from topics they have registered interest in. The message broker handles routing, buffering, and delivery. Foundation of event-driven architectures.",
+      "principles": [
+        "Publishers and subscribers are decoupled through topics/channels",
+        "Messages are delivered to all subscribers of a topic (fan-out)",
+        "Broker handles buffering, routing, and delivery guarantees",
+        "Topic-based or content-based filtering determines message routing",
+        "Subscription can be durable (survives disconnection) or ephemeral",
+        "Message ordering guarantees vary by broker and configuration"
+      ],
+      "when_to_use": [
+        "Multiple services need to react to the same event independently",
+        "Event-driven microservice architectures with loose coupling",
+        "Broadcasting state changes across system components",
+        "Notification systems with multiple delivery channels",
+        "Integration patterns where new consumers can be added without producer changes"
+      ],
+      "avoid_when": [
+        "Point-to-point communication between two known services",
+        "Strong ordering or exactly-once delivery is required without broker support",
+        "Request-response semantics are needed",
+        "Message volume does not justify broker infrastructure overhead"
+      ],
+      "signals": [
+        "Message broker (Kafka, RabbitMQ, SNS, Pub/Sub) in infrastructure",
+        "Services publish events without referencing consumer names",
+        "Topic/channel names in configuration or code (e.g., orders.created)",
+        "Multiple services subscribe to the same event topic",
+        "Subscription management (subscribe, unsubscribe) in service startup",
+        "Fan-out delivery pattern visible in message flow diagrams"
+      ],
+      "key_concepts": [
+        "Topic: named channel for message routing",
+        "Publisher: sends messages to a topic without knowing subscribers",
+        "Subscriber: registers interest in a topic and receives messages",
+        "Fan-out: one message delivered to all subscribers",
+        "Durable subscriptions: messages buffered during subscriber downtime",
+        "Message filtering: topic-based, attribute-based, or content-based"
+      ],
+      "related_patterns": ["competing_consumers", "fan_out_pattern", "kafka_streaming", "webhook_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "competing_consumers",
+      "name": "Competing Consumers Pattern",
+      "category": "api-async",
+      "description": "Multiple consumer instances read from the same message queue, with each message delivered to exactly one consumer. This enables horizontal scaling of message processing by adding more consumer instances. The broker ensures each message is processed once through acknowledgement protocols.",
+      "principles": [
+        "Each message is delivered to exactly one consumer in the group",
+        "Adding consumers increases processing throughput linearly",
+        "Message acknowledgement prevents loss on consumer failure",
+        "Failed messages are retried or moved to a dead letter queue",
+        "Consumer group coordination handled by the broker",
+        "Message ordering may be sacrificed for parallelism"
+      ],
+      "when_to_use": [
+        "Processing workload exceeds a single consumer's capacity",
+        "Work items are independent and can be processed in any order",
+        "Horizontal scaling of background job processing",
+        "Rate-limited API calls distributed across worker pool",
+        "CPU-intensive message processing that benefits from parallelism"
+      ],
+      "avoid_when": [
+        "Strict message ordering is required across all messages",
+        "Every consumer needs every message (use pub/sub fan-out instead)",
+        "Processing is already fast enough with a single consumer",
+        "Message interdependencies require coordinated processing"
+      ],
+      "signals": [
+        "Consumer group configuration in message broker settings",
+        "Multiple instances of the same service reading from one queue",
+        "Message visibility timeout or acknowledgement configuration",
+        "Auto-scaling rules based on queue depth",
+        "Dead letter queue for messages exceeding retry limits",
+        "Partition assignment in Kafka consumer groups"
+      ],
+      "key_concepts": [
+        "Consumer group: set of consumers sharing work from a queue",
+        "Message acknowledgement (ack/nack) for delivery guarantees",
+        "Visibility timeout: message hidden from other consumers during processing",
+        "Rebalancing: partition reassignment when consumers join/leave",
+        "At-least-once delivery: message redelivered on ack timeout",
+        "Idempotent processing: handle duplicate deliveries safely"
+      ],
+      "related_patterns": ["pub_sub_messaging", "dead_letter_queue_api", "message_ordering", "kafka_streaming"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "dead_letter_queue_api",
+      "name": "Dead Letter Queue",
+      "category": "api-async",
+      "description": "A secondary queue that receives messages which cannot be successfully processed after a configured number of retry attempts. Prevents poison messages from blocking the main queue while preserving them for investigation, manual replay, or automated remediation.",
+      "principles": [
+        "Messages move to DLQ after exceeding maximum retry count",
+        "Original message metadata (headers, timestamps, error details) is preserved",
+        "DLQ messages are inspectable for debugging and root cause analysis",
+        "Replay mechanisms allow reprocessing after fixing the underlying issue",
+        "DLQ depth is a key operational metric and alert trigger",
+        "DLQ messages should have a retention policy to prevent unbounded growth"
+      ],
+      "when_to_use": [
+        "Message processing can fail due to transient or permanent errors",
+        "Poison messages must not block processing of subsequent messages",
+        "Failed message investigation and replay is an operational requirement",
+        "Compliance requires preserving evidence of processing failures",
+        "Background job systems need visibility into permanently failed work items"
+      ],
+      "avoid_when": [
+        "Message loss is acceptable and monitoring retries is sufficient",
+        "All messages must be processed in strict order (DLQ breaks ordering)",
+        "System has no operational tooling to inspect or replay DLQ messages"
+      ],
+      "signals": [
+        "Queue configuration includes maxReceiveCount or max_delivery_attempts",
+        "Secondary queue named *-dlq or *-dead-letter in infrastructure",
+        "Monitoring dashboards show DLQ depth as a key metric",
+        "Operational runbooks describe DLQ investigation and replay procedures",
+        "Message broker configuration links main queue to dead letter queue",
+        "Error details attached as message attributes before DLQ routing"
+      ],
+      "key_concepts": [
+        "Maximum retry count: threshold before DLQ routing",
+        "Message metadata preservation (original headers, error traces)",
+        "DLQ inspection tooling for root cause analysis",
+        "Message replay: reprocessing DLQ messages after fixing issues",
+        "DLQ depth monitoring and alerting",
+        "Retention policy to bound DLQ storage"
+      ],
+      "related_patterns": ["competing_consumers", "webhook_pattern", "pub_sub_messaging"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "message_ordering",
+      "name": "Message Ordering Guarantees",
+      "category": "api-async",
+      "description": "Strategies for maintaining message order in asynchronous messaging systems. Full ordering, partition-level ordering, and causal ordering offer different trade-offs between correctness and throughput. Most systems achieve partition-key ordering, where messages sharing a key are processed in order.",
+      "principles": [
+        "Total ordering across all messages is expensive and rarely needed",
+        "Partition-key ordering (all messages with same key go to same partition) is the pragmatic default",
+        "Causal ordering ensures dependent messages are processed in sequence",
+        "Ordering and parallelism are inherently in tension",
+        "Consumer group rebalancing can temporarily disrupt ordering",
+        "Sequence numbers enable gap detection and reordering at the consumer"
+      ],
+      "when_to_use": [
+        "State machine transitions that must be applied in sequence",
+        "Event sourcing where aggregate events must be replayed in order",
+        "Financial transactions for the same account or instrument",
+        "User activity streams where action order matters for correctness",
+        "Change data capture events for the same database row"
+      ],
+      "avoid_when": [
+        "Messages are independent and processing order does not affect outcome",
+        "Throughput is prioritised over ordering correctness",
+        "Consumer-side reordering buffers add unacceptable latency"
+      ],
+      "signals": [
+        "Partition key or message key set to entity ID (user_id, order_id)",
+        "Single-partition topics used for strict ordering (limiting throughput)",
+        "Sequence number field in message payload",
+        "Consumer processes messages sequentially without parallel dispatch",
+        "Rebalancing events trigger flush-before-reassign logic",
+        "Ordering tests verify message sequence in integration suites"
+      ],
+      "key_concepts": [
+        "Partition-key ordering: same key -> same partition -> same consumer",
+        "Total ordering: single partition, single consumer (low throughput)",
+        "Causal ordering: happened-before relationships respected",
+        "Sequence numbers for gap detection",
+        "Consumer-side reordering buffer",
+        "Ordering vs parallelism trade-off"
+      ],
+      "related_patterns": ["competing_consumers", "kafka_streaming", "event_log", "exactly_once_semantics"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "fan_out_pattern",
+      "name": "Fan-Out Messaging Pattern",
+      "category": "api-async",
+      "description": "A single message or event is duplicated and delivered to multiple downstream consumers or queues simultaneously. Used to trigger parallel processing pipelines, broadcast notifications, or replicate data to multiple systems. The broker or routing layer handles the duplication.",
+      "principles": [
+        "One input message produces multiple output copies",
+        "Each downstream consumer receives an independent copy",
+        "Fan-out can be topic-based (pub/sub) or explicit (exchange routing)",
+        "Downstream consumers process independently and may fail independently",
+        "Fan-out increases total message volume multiplicatively",
+        "Consider eventual consistency across fan-out targets"
+      ],
+      "when_to_use": [
+        "One event triggers processing in multiple independent systems",
+        "Broadcasting notifications to multiple channels (email, SMS, push)",
+        "Replicating data to multiple data stores or caches",
+        "Feeding the same event to analytics, audit, and operational pipelines",
+        "Triggering parallel workflows from a single trigger event"
+      ],
+      "avoid_when": [
+        "Only one consumer needs each message (use point-to-point queue)",
+        "Fan-out volume overwhelms downstream systems",
+        "Transactional consistency across all fan-out targets is required"
+      ],
+      "signals": [
+        "SNS topic publishing to multiple SQS queues (cloud-specific: AWS fan-out)",
+        "RabbitMQ fanout exchange type in broker configuration",
+        "Kafka topic consumed by multiple independent consumer groups",
+        "Event router component with multiple downstream destinations",
+        "Same event type appears in logs of multiple independent services",
+        "Infrastructure diagram shows one-to-many message flow arrows"
+      ],
+      "key_concepts": [
+        "Fan-out exchange: broker duplicates messages to all bound queues",
+        "Topic-based fan-out: all subscribers to a topic receive the message",
+        "SNS-to-SQS fan-out (AWS pattern)",
+        "Independent failure handling per downstream consumer",
+        "Fan-out factor: number of copies per input message",
+        "Back-pressure propagation across fan-out targets"
+      ],
+      "related_patterns": ["pub_sub_messaging", "competing_consumers", "webhook_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "relational_db_selection",
+      "name": "Relational Database Selection",
+      "category": "data-storage",
+      "description": "Guidelines for choosing relational (SQL) databases as the primary data store. RDBMS provides ACID transactions, normalised schema, referential integrity, and a mature query language. Suitable for structured data with well-defined relationships and consistency requirements.",
+      "principles": [
+        "ACID transactions guarantee consistency for multi-statement operations",
+        "Normalised schemas reduce data redundancy and update anomalies",
+        "Foreign keys enforce referential integrity at the storage level",
+        "SQL is a widely understood, declarative query language",
+        "Indexing strategies are critical for query performance at scale",
+        "Vertical scaling is natural; horizontal scaling requires sharding or read replicas"
+      ],
+      "when_to_use": [
+        "Transactional workloads requiring strong consistency (finance, inventory)",
+        "Data with well-defined schemas and stable relationships",
+        "Complex queries involving joins, aggregations, and subqueries",
+        "Regulatory environments requiring ACID compliance",
+        "Applications where the schema is known at design time"
+      ],
+      "avoid_when": [
+        "Schema is highly variable or unknown at design time",
+        "Write throughput exceeds vertical scaling limits",
+        "Data is naturally hierarchical or document-shaped",
+        "Graph traversal queries dominate the workload",
+        "Eventual consistency is acceptable and horizontal scale is paramount"
+      ],
+      "signals": [
+        "Domain model has entities with clear foreign key relationships",
+        "Transactions span multiple tables (e.g., debit account, credit account)",
+        "Reporting queries require multi-table joins and aggregations",
+        "Schema migration tools (Flyway, Alembic, Liquibase) in the project",
+        "Data access layer uses an ORM (SQLAlchemy, Hibernate, Prisma)",
+        "Compliance requirements reference ACID or transaction isolation levels"
+      ],
+      "key_concepts": [
+        "ACID: Atomicity, Consistency, Isolation, Durability",
+        "Normalisation: 1NF through BCNF for schema design",
+        "Indexing: B-tree, hash, GIN, GiST for query optimisation",
+        "Transaction isolation levels: read committed, repeatable read, serializable",
+        "Connection pooling for concurrent access management",
+        "Read replicas for scaling read-heavy workloads"
+      ],
+      "related_patterns": ["document_db_selection", "graph_db_selection", "polyglot_persistence"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "document_db_selection",
+      "name": "Document Database Selection",
+      "category": "data-storage",
+      "description": "Guidelines for choosing document databases (e.g., MongoDB, CouchDB) where data is stored as self-contained JSON/BSON documents. Documents can have nested structures and variable schemas, making them suitable for content management, catalogs, and applications with evolving data models.",
+      "principles": [
+        "Documents are self-contained units of data with nested structures",
+        "Schema flexibility allows different documents to have different shapes",
+        "Queries operate on document fields, including nested paths",
+        "Denormalisation is expected; embed related data for read performance",
+        "Horizontal scaling via sharding is a first-class capability",
+        "Transactions across documents are possible but more expensive than in RDBMS"
+      ],
+      "when_to_use": [
+        "Content management systems with variable content types",
+        "Product catalogs where items have different attribute sets",
+        "User profiles with varying fields and preferences",
+        "Rapid prototyping where schema is evolving frequently",
+        "Read-heavy workloads where denormalised documents reduce joins"
+      ],
+      "avoid_when": [
+        "Data requires multi-document transactions frequently",
+        "Strong referential integrity across entities is critical",
+        "Complex analytical queries with multi-collection joins",
+        "Write patterns update the same document from many concurrent writers",
+        "Regulatory requirements mandate strict schema enforcement"
+      ],
+      "signals": [
+        "Data naturally maps to JSON documents with nested objects and arrays",
+        "Different records of the same type have different fields",
+        "Read patterns fetch entire documents rather than individual fields",
+        "Application code works with document/object structures natively",
+        "Sharding key design discussions in architecture documents",
+        "MongoDB, CouchDB, or DynamoDB (document mode) in tech stack"
+      ],
+      "key_concepts": [
+        "Document: self-contained JSON/BSON data unit",
+        "Collection: group of documents (analogous to table)",
+        "Embedded documents vs references (embed vs link trade-off)",
+        "Flexible schema: schema validation optional, not enforced by default",
+        "Sharding: distribute documents across nodes by shard key",
+        "Change streams for real-time document change notifications"
+      ],
+      "related_patterns": ["relational_db_selection", "key_value_store", "polyglot_persistence"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "graph_db_selection",
+      "name": "Graph Database Selection",
+      "category": "data-storage",
+      "description": "Guidelines for choosing graph databases where data is modelled as nodes and edges with properties. Graph databases excel at relationship-heavy queries like social networks, fraud detection, and knowledge graphs. They provide index-free adjacency for traversal performance independent of total dataset size.",
+      "principles": [
+        "Data is modelled as nodes (entities) and edges (relationships) with properties",
+        "Index-free adjacency enables constant-time relationship traversal",
+        "Graph queries express path patterns, not join operations",
+        "Schema-on-read allows flexible relationship modelling",
+        "Traversal depth is bounded by query, not by schema design",
+        "Graph visualisation aids understanding of complex relationship structures"
+      ],
+      "when_to_use": [
+        "Social network analysis (friends, followers, influence paths)",
+        "Fraud detection requiring multi-hop relationship analysis",
+        "Knowledge graphs and recommendation engines",
+        "Network topology and dependency mapping",
+        "Access control with complex hierarchical or role-based structures"
+      ],
+      "avoid_when": [
+        "Data is primarily tabular with few relationships",
+        "Aggregate queries (sum, count, average) dominate the workload",
+        "Write throughput is extremely high and graph integrity overhead is costly",
+        "Simple key-value lookups are the primary access pattern"
+      ],
+      "signals": [
+        "Domain model diagrams show dense interconnections between entities",
+        "Queries ask about paths, shortest routes, or transitive relationships",
+        "Requirements mention 'degrees of separation' or 'connected to'",
+        "Cypher, Gremlin, or SPARQL queries in the codebase",
+        "Graph visualisation tools used for data exploration",
+        "Relationship types are first-class domain concepts, not join tables"
+      ],
+      "key_concepts": [
+        "Node: entity with labels and properties",
+        "Edge: typed, directed relationship with properties",
+        "Cypher query language (Neo4j, Kuzu)",
+        "Index-free adjacency for O(1) traversal per hop",
+        "Property graph model vs RDF triple model",
+        "Graph algorithms: shortest path, PageRank, community detection"
+      ],
+      "related_patterns": ["relational_db_selection", "polyglot_persistence", "multi_model_db"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "key_value_store",
+      "name": "Key-Value Store Selection",
+      "category": "data-storage",
+      "description": "Guidelines for choosing key-value stores (e.g., Redis, DynamoDB, etcd) where data is accessed by a unique key with no inherent structure imposed on the value. Offers the simplest data model with the highest read/write throughput and lowest latency. Suitable for caching, session storage, and configuration.",
+      "principles": [
+        "Data is accessed exclusively by primary key (no secondary indexes by default)",
+        "Values are opaque blobs from the store's perspective",
+        "Reads and writes are O(1) by design",
+        "Horizontal scaling via consistent hashing or partitioning",
+        "TTL (time-to-live) enables automatic expiration for cache use cases",
+        "Simplest possible data model minimises operational complexity"
+      ],
+      "when_to_use": [
+        "Caching layers requiring sub-millisecond reads",
+        "Session storage for web applications",
+        "Feature flags and configuration management",
+        "Rate limiting counters and leaderboards",
+        "Distributed locking and coordination"
+      ],
+      "avoid_when": [
+        "Queries need to filter or search by non-key attributes",
+        "Data has complex relationships requiring joins",
+        "Transactions across multiple keys are frequently needed",
+        "Full-text search capabilities are required"
+      ],
+      "signals": [
+        "Access patterns are exclusively get-by-key and put-by-key",
+        "Sub-millisecond latency requirements in SLA documents",
+        "Cache-aside or cache-through patterns in application architecture",
+        "TTL configuration on stored values",
+        "Redis, Memcached, or DynamoDB in infrastructure",
+        "Session store configuration in web framework settings"
+      ],
+      "key_concepts": [
+        "Key design: hierarchical keys (user:123:session) for namespace organisation",
+        "TTL: automatic expiration for cache and ephemeral data",
+        "Consistent hashing for distributed key-value partitioning",
+        "Cache-aside pattern: check cache, miss falls through to primary store",
+        "Atomic operations: increment, compare-and-swap",
+        "Eviction policies: LRU, LFU, random for memory-bounded stores"
+      ],
+      "related_patterns": ["document_db_selection", "relational_db_selection", "polyglot_persistence"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "time_series_db",
+      "name": "Time-Series Database Selection",
+      "category": "data-storage",
+      "description": "Guidelines for choosing time-series databases (e.g., InfluxDB, TimescaleDB, Prometheus) optimised for storing and querying timestamped data points. These databases provide specialised storage engines, compression, and query capabilities for metrics, IoT telemetry, and financial tick data.",
+      "principles": [
+        "Data is organised by time, with timestamp as the primary dimension",
+        "Write-optimised: high-throughput append-only ingestion",
+        "Time-based queries (last hour, last 7 days) are first-class operations",
+        "Downsampling and retention policies manage storage growth",
+        "Specialised compression exploits temporal patterns in data",
+        "Tag-based indexing enables efficient filtering of series"
+      ],
+      "when_to_use": [
+        "Infrastructure monitoring and metrics collection",
+        "IoT sensor data ingestion and analysis",
+        "Financial market data (tick data, OHLCV)",
+        "Application performance monitoring (APM) data",
+        "Energy consumption or environmental monitoring"
+      ],
+      "avoid_when": [
+        "Data is not primarily time-indexed",
+        "Complex relational queries across non-temporal dimensions are needed",
+        "Update and delete operations on historical data are frequent",
+        "Dataset is small enough for a general-purpose database"
+      ],
+      "signals": [
+        "Data arrives as continuous streams of timestamped measurements",
+        "Queries filter primarily by time range and secondarily by tags",
+        "Dashboards show time-series charts (Grafana, Kibana)",
+        "Data retention policies define rollup and expiration rules",
+        "Write rates measured in millions of points per second",
+        "InfluxDB, TimescaleDB, or Prometheus in tech stack"
+      ],
+      "key_concepts": [
+        "Measurement/metric: named time series (cpu_usage, temperature)",
+        "Tags: indexed metadata for filtering (host, region, sensor_id)",
+        "Fields: non-indexed values (the actual measurement data)",
+        "Retention policies: auto-delete data older than threshold",
+        "Downsampling: aggregate high-resolution data into coarser intervals",
+        "Continuous queries/materialized views for pre-computed aggregations"
+      ],
+      "related_patterns": ["wide_column_store", "stream_processing", "polyglot_persistence"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "wide_column_store",
+      "name": "Wide-Column Store Selection",
+      "category": "data-storage",
+      "description": "Guidelines for choosing wide-column stores (e.g., Apache Cassandra, HBase, ScyllaDB) that organise data into rows and column families, allowing sparse and wide rows. Designed for extreme write throughput, horizontal scalability, and multi-datacenter replication at massive scale.",
+      "principles": [
+        "Data is partitioned by row key across a cluster of nodes",
+        "Column families group related columns with independent storage settings",
+        "Schema design is driven by query patterns, not normalisation",
+        "Tunable consistency: choose consistency level per operation",
+        "Linear horizontal scaling by adding nodes to the cluster",
+        "Write path is optimised: append-only log + memtable + SSTable"
+      ],
+      "when_to_use": [
+        "Write-heavy workloads at massive scale (millions of writes/second)",
+        "Time-series or event logging where data is append-mostly",
+        "Multi-datacenter replication with tunable consistency",
+        "Applications with well-known query patterns that guide table design",
+        "IoT data ingestion across globally distributed clusters"
+      ],
+      "avoid_when": [
+        "Ad-hoc analytical queries are common (no flexible joins or aggregations)",
+        "Strong consistency across all operations is required",
+        "Data model requires complex relationships and foreign keys",
+        "Dataset is small enough that a single-node database suffices"
+      ],
+      "signals": [
+        "Table design documents start with query patterns, not entity relationships",
+        "Partition key and clustering key design discussed extensively",
+        "Consistency level (ONE, QUORUM, ALL) specified per query",
+        "Multi-datacenter replication topology in infrastructure",
+        "Cassandra, HBase, or ScyllaDB in tech stack",
+        "Compaction strategy selection in table DDL"
+      ],
+      "key_concepts": [
+        "Partition key: determines data distribution across nodes",
+        "Clustering key: determines sort order within a partition",
+        "Column family: group of columns stored together",
+        "Tunable consistency: choose consistency vs availability per operation",
+        "SSTable compaction strategies (size-tiered, leveled)",
+        "Anti-patterns: large partitions, tombstone accumulation"
+      ],
+      "related_patterns": ["time_series_db", "key_value_store", "polyglot_persistence"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "search_engine_db",
+      "name": "Search Engine Database Selection",
+      "category": "data-storage",
+      "description": "Guidelines for choosing search engine databases (e.g., Elasticsearch, OpenSearch, Typesense, Meilisearch) optimised for full-text search, faceted navigation, and ranked relevance queries. These systems use inverted indexes and analysers to enable fast, flexible text search across large document collections.",
+      "principles": [
+        "Inverted index enables fast full-text search across large corpora",
+        "Analysers (tokenisers + filters) control how text is indexed and searched",
+        "Relevance scoring (TF-IDF, BM25) ranks results by match quality",
+        "Faceted search provides aggregated counts for filter navigation",
+        "Near-real-time indexing: documents searchable within seconds of ingestion",
+        "Horizontal scaling via sharding and replication"
+      ],
+      "when_to_use": [
+        "Full-text search across large collections of text documents",
+        "E-commerce product search with faceted filtering",
+        "Log aggregation and analysis (ELK/OpenSearch stack)",
+        "Autocomplete and typeahead search suggestions",
+        "Geospatial search queries (nearby, within radius)"
+      ],
+      "avoid_when": [
+        "Primary data store with ACID transaction requirements",
+        "Simple key-value lookups without text search",
+        "Data requiring strong consistency guarantees",
+        "Small datasets where database LIKE queries suffice"
+      ],
+      "signals": [
+        "Search bar is a primary UI element in the application",
+        "Requirements mention relevance ranking, facets, or fuzzy matching",
+        "Elasticsearch, OpenSearch, Solr, Typesense, or Meilisearch in tech stack",
+        "Index mapping definitions in configuration files",
+        "Query DSL with bool, match, term, range queries in code",
+        "Log aggregation pipeline feeding into search cluster"
+      ],
+      "key_concepts": [
+        "Inverted index: token -> document ID mapping for fast lookup",
+        "Analyser pipeline: character filter -> tokeniser -> token filter",
+        "BM25 scoring: term frequency, inverse document frequency, length normalisation",
+        "Sharding: distribute index across multiple nodes",
+        "Mappings: field type definitions (text, keyword, date, geo_point)",
+        "Aggregations: bucket, metric, and pipeline aggregations for analytics"
+      ],
+      "related_patterns": ["document_db_selection", "polyglot_persistence", "data_lake_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "multi_model_db",
+      "name": "Multi-Model Database",
+      "category": "data-storage",
+      "description": "Databases that support multiple data models (document, graph, key-value, relational) within a single engine, reducing operational complexity of running separate databases. Examples include ArangoDB, Cosmos DB, and SurrealDB. Trade-off is that specialised workloads may perform better on purpose-built engines.",
+      "principles": [
+        "Single database engine supports multiple data models and query patterns",
+        "Reduces operational overhead of managing multiple database systems",
+        "Unified query language or API covers different data model operations",
+        "Cross-model queries possible within a single transaction",
+        "Jack-of-all-trades trade-off: may not match specialised database performance",
+        "Licensing and vendor lock-in considerations vary significantly"
+      ],
+      "when_to_use": [
+        "Application needs both document and graph queries on the same data",
+        "Startup or small team wanting to minimise infrastructure complexity",
+        "Prototyping where the optimal data model is not yet determined",
+        "Cross-model transactions are required without distributed coordination",
+        "Polyglot persistence overhead is unjustifiable for the team size"
+      ],
+      "avoid_when": [
+        "Workload is dominated by a single data model that a specialised DB handles better",
+        "Scale requirements exceed multi-model engine capabilities",
+        "Team has expertise in and infrastructure for specialised databases",
+        "Vendor lock-in to a specific multi-model platform is unacceptable"
+      ],
+      "signals": [
+        "Application queries data as both documents and graphs",
+        "Infrastructure team prefers managing fewer database systems",
+        "ArangoDB, Cosmos DB, SurrealDB, or similar in tech evaluation",
+        "Query language supports graph traversal and document retrieval",
+        "Data model requirements span multiple paradigms simultaneously",
+        "Architecture decision records cite operational simplicity as a driver"
+      ],
+      "key_concepts": [
+        "Multi-model engine: single system, multiple data paradigms",
+        "Unified query language (AQL, SQL-like with graph extensions)",
+        "Cross-model indexing and query optimisation",
+        "Operational simplification vs specialised performance trade-off",
+        "Consistency model across different data model operations",
+        "Migration path to specialised databases if needed"
+      ],
+      "related_patterns": ["graph_db_selection", "document_db_selection", "polyglot_persistence"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "polyglot_persistence",
+      "name": "Polyglot Persistence",
+      "category": "data-storage",
+      "description": "Using different database technologies for different data storage needs within the same application or system, choosing the best tool for each job. For example, a relational DB for transactions, a document DB for product catalog, and a search engine for full-text queries. Requires managing consistency across stores.",
+      "principles": [
+        "Each data store is chosen for its strengths against specific access patterns",
+        "No single database is optimal for all query patterns",
+        "Data consistency across stores requires explicit synchronisation strategies",
+        "Operational complexity scales with the number of different systems",
+        "Service boundaries often align with data store boundaries",
+        "Eventually consistent synchronisation between stores is common"
+      ],
+      "when_to_use": [
+        "Application has fundamentally different data access patterns",
+        "Search, caching, transactions, and analytics each need optimised storage",
+        "Microservice architecture where each service owns its data store",
+        "Performance requirements vary dramatically across different data types",
+        "Team has expertise to operate multiple database technologies"
+      ],
+      "avoid_when": [
+        "Team lacks operational capacity for multiple database systems",
+        "Data model is homogeneous and a single database suffices",
+        "Consistency requirements make cross-store synchronisation too complex",
+        "Application scale does not justify infrastructure complexity"
+      ],
+      "signals": [
+        "Infrastructure includes multiple database technologies",
+        "Different services or modules use different data stores",
+        "Synchronisation jobs or CDC pipelines move data between stores",
+        "Architecture diagrams show data flowing to multiple storage systems",
+        "Database selection criteria documents weigh trade-offs per use case",
+        "Operational runbooks cover multiple database administration procedures"
+      ],
+      "key_concepts": [
+        "Right tool for the right job: match DB to access pattern",
+        "Data synchronisation: CDC, dual-write, or event-driven propagation",
+        "Operational overhead: monitoring, backup, and scaling for each system",
+        "Consistency challenges: eventual consistency between heterogeneous stores",
+        "Service-per-database alignment in microservice architecture",
+        "Migration and data gravity considerations"
+      ],
+      "related_patterns": ["relational_db_selection", "document_db_selection", "graph_db_selection", "search_engine_db", "change_data_capture"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "etl_pipeline",
+      "name": "ETL (Extract, Transform, Load) Pipeline",
+      "category": "data-processing",
+      "description": "Data integration pattern that extracts data from source systems, transforms it (cleaning, enriching, aggregating) in a staging area, and loads the transformed data into a target system (typically a data warehouse). Transformation happens before loading, ensuring only clean, structured data enters the target.",
+      "principles": [
+        "Extract from heterogeneous sources without modifying them",
+        "Transform in a staging area before loading into the target",
+        "Load transformed data in bulk into the destination system",
+        "Idempotent pipeline runs enable safe re-execution",
+        "Schema-on-write: data must conform to target schema before loading",
+        "Pipeline orchestration manages dependencies and scheduling"
+      ],
+      "when_to_use": [
+        "Loading data into a data warehouse with strict schema requirements",
+        "Integrating data from multiple source systems into a unified model",
+        "Data quality enforcement before loading (validation, deduplication)",
+        "Batch reporting and business intelligence data preparation",
+        "Regulatory reporting requiring auditable data transformations"
+      ],
+      "avoid_when": [
+        "Real-time or near-real-time data processing is required",
+        "Schema-on-read flexibility is preferred (use ELT instead)",
+        "Transformation logic is simple enough to do in the target system",
+        "Data volume is too large for batch transformation in staging"
+      ],
+      "signals": [
+        "Pipeline code has distinct extract, transform, and load stages",
+        "Staging tables or files hold intermediate transformation results",
+        "Scheduled batch jobs (cron, Airflow, Prefect) orchestrate pipelines",
+        "Data validation and quality checks between stages",
+        "Target system has a fixed star or snowflake schema",
+        "Tools like Apache NiFi, Talend, or dbt in the data stack"
+      ],
+      "key_concepts": [
+        "Extract: pull data from sources (APIs, databases, files)",
+        "Transform: clean, enrich, aggregate, join in staging",
+        "Load: write transformed data to target in bulk",
+        "Staging area: temporary storage for in-progress transformations",
+        "Orchestration: DAG-based pipeline dependency management",
+        "Idempotency: re-runnable pipelines producing the same result"
+      ],
+      "related_patterns": ["elt_pipeline", "batch_processing", "data_warehouse", "change_data_capture"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "elt_pipeline",
+      "name": "ELT (Extract, Load, Transform) Pipeline",
+      "category": "data-processing",
+      "description": "Data integration pattern that extracts raw data from sources, loads it directly into the target system (data warehouse or lakehouse), and then transforms it using the target's compute engine. Modern cloud data warehouses (Snowflake, BigQuery) make this efficient by providing scalable compute for in-place transformation.",
+      "principles": [
+        "Load raw data first, transform later using target system compute",
+        "Schema-on-read: raw data is preserved, transformations are views or tables",
+        "Target system provides the compute power for transformation",
+        "Raw data preservation enables reprocessing with new transformation logic",
+        "Separation of ingestion and transformation concerns",
+        "Transformation logic is version-controlled SQL or similar"
+      ],
+      "when_to_use": [
+        "Cloud data warehouses with elastic compute (Snowflake, BigQuery, Redshift)",
+        "Raw data preservation is required for auditability or reprocessing",
+        "Transformation logic evolves frequently and reprocessing is common",
+        "Data analysts own transformation logic in SQL using tools like dbt",
+        "Data volume is large and staging area storage is expensive"
+      ],
+      "avoid_when": [
+        "Target system lacks compute power for transformation at scale",
+        "Data must be cleaned before loading due to compliance requirements",
+        "Target system charges per query and transformation cost is a concern",
+        "On-premises systems with limited compute for post-load transformation"
+      ],
+      "signals": [
+        "Raw data tables or staging schemas in the data warehouse",
+        "dbt (data build tool) models defining transformations in SQL",
+        "Ingestion pipelines (Fivetran, Airbyte, Stitch) loading raw data",
+        "Transformation DAGs separate from ingestion pipeline configuration",
+        "Data warehouse costs dominated by transformation queries",
+        "Version-controlled SQL models in a dbt project structure"
+      ],
+      "key_concepts": [
+        "Extract: pull raw data from sources",
+        "Load: write raw data directly to target system",
+        "Transform: use target system compute (SQL) to shape data",
+        "dbt: SQL-first transformation framework for ELT",
+        "Raw layer -> staging layer -> mart layer data modelling",
+        "Reprocessing: re-run transformations on preserved raw data"
+      ],
+      "related_patterns": ["etl_pipeline", "data_warehouse", "data_lakehouse", "batch_processing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "change_data_capture",
+      "name": "Change Data Capture (CDC)",
+      "category": "data-processing",
+      "description": "Capturing row-level changes (inserts, updates, deletes) from a database's transaction log and propagating them as events to downstream consumers. CDC enables near-real-time data synchronisation without polling or application-level dual-writes. Debezium is the most widely used open-source CDC platform.",
+      "principles": [
+        "Changes are captured from the database transaction log, not by polling",
+        "Each change event includes before and after state of the row",
+        "CDC does not impact source database performance significantly",
+        "Events are ordered by transaction commit order",
+        "Schema changes in the source must be handled gracefully",
+        "Exactly-once semantics require coordination between CDC and consumer"
+      ],
+      "when_to_use": [
+        "Synchronising data between operational database and analytics systems",
+        "Building materialised views or search indexes from database changes",
+        "Event sourcing retrofit: derive events from an existing database",
+        "Cache invalidation triggered by database changes",
+        "Microservice data replication without application-level dual-write"
+      ],
+      "avoid_when": [
+        "Source database does not expose a transaction log (or access is restricted)",
+        "Application-level events already capture all relevant state changes",
+        "Data synchronisation latency of hours is acceptable (batch ETL is simpler)",
+        "Schema changes are so frequent that CDC event evolution is unmanageable"
+      ],
+      "signals": [
+        "Debezium connectors configured for source databases",
+        "Database binary log (MySQL binlog, PostgreSQL WAL) access enabled",
+        "Kafka topics named with database.schema.table naming convention",
+        "CDC event payloads include before/after snapshots of rows",
+        "Connector status monitoring in operational dashboards",
+        "Schema registry storing CDC event schemas"
+      ],
+      "key_concepts": [
+        "Transaction log tailing: reading database WAL/binlog",
+        "Change event: operation type + before/after row state",
+        "Debezium: open-source CDC platform on Kafka Connect",
+        "Snapshot: initial full load before streaming incremental changes",
+        "Schema evolution: handling source schema changes in CDC events",
+        "Outbox pattern: reliable event publishing via CDC on an outbox table"
+      ],
+      "related_patterns": ["event_log", "kafka_streaming", "polyglot_persistence", "etl_pipeline"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "batch_processing",
+      "name": "Batch Processing Pattern",
+      "category": "data-processing",
+      "description": "Processing large volumes of data in discrete, scheduled batches rather than continuously. Data is collected over a period, then processed as a complete set. Suitable for workloads where latency of minutes to hours is acceptable and throughput efficiency matters more than responsiveness.",
+      "principles": [
+        "Process bounded datasets at scheduled intervals",
+        "Optimise for throughput rather than latency",
+        "Checkpoint and restart capabilities for fault tolerance",
+        "Partition data for parallel processing across workers",
+        "Input data is immutable during batch execution",
+        "Results are atomic: all-or-nothing for consistency"
+      ],
+      "when_to_use": [
+        "Nightly reports, billing calculations, or statement generation",
+        "Large-scale data transformations (ETL, model training)",
+        "Processing accumulated events or logs periodically",
+        "Data migration and backfill operations",
+        "Regulatory reporting with end-of-day deadlines"
+      ],
+      "avoid_when": [
+        "Sub-second or real-time response is required",
+        "Data must be processed as it arrives",
+        "Batch window is too short for the volume of data",
+        "Users expect immediate reflection of their actions"
+      ],
+      "signals": [
+        "Cron schedules or orchestrator DAGs trigger processing jobs",
+        "Processing operates on date-partitioned data sets",
+        "Job logs show start time, end time, and records processed",
+        "Spark, Hadoop MapReduce, or batch frameworks in the stack",
+        "SLA defined in terms of batch completion time, not latency",
+        "Data files land in staging directories before processing"
+      ],
+      "key_concepts": [
+        "Batch window: time period allocated for processing",
+        "Partitioning: divide data for parallel processing",
+        "Checkpointing: save progress for restart after failure",
+        "Idempotent batches: re-running produces same result",
+        "Batch scheduling: cron, Airflow, Step Functions",
+        "Batch vs micro-batch vs stream processing spectrum"
+      ],
+      "related_patterns": ["stream_processing", "micro_batch", "etl_pipeline", "data_warehouse"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "stream_processing",
+      "name": "Stream Processing Pattern",
+      "category": "data-processing",
+      "description": "Processing data continuously as it arrives, record by record or in small windows, with low latency. Stream processing engines (Flink, Kafka Streams, Spark Structured Streaming) maintain state across events and produce results incrementally. Enables real-time analytics, alerting, and event-driven computation.",
+      "principles": [
+        "Process each event as it arrives, not in batches",
+        "Maintain state across events for aggregation and windowing",
+        "Event time vs processing time distinction is critical for correctness",
+        "Exactly-once or at-least-once processing semantics must be configured",
+        "Backpressure mechanisms prevent consumer overwhelm",
+        "Late-arriving events require watermark and allowed lateness configuration"
+      ],
+      "when_to_use": [
+        "Real-time dashboards and monitoring with sub-second latency",
+        "Fraud detection requiring immediate analysis of transaction patterns",
+        "IoT sensor data processing with continuous alerting",
+        "Real-time recommendation or personalisation engines",
+        "Event-driven microservice coordination"
+      ],
+      "avoid_when": [
+        "Processing latency of minutes or hours is acceptable",
+        "Data arrives in infrequent large batches",
+        "Computation requires full dataset access (not incremental)",
+        "Team lacks experience with stream processing complexity"
+      ],
+      "signals": [
+        "Apache Flink, Kafka Streams, or Spark Structured Streaming in stack",
+        "Processing code references windows, watermarks, or event time",
+        "Metrics show end-to-end latency in milliseconds or seconds",
+        "Consumer lag monitoring on streaming topics",
+        "State stores (RocksDB, changelog topics) in processor configuration",
+        "Exactly-once or at-least-once guarantees discussed in design docs"
+      ],
+      "key_concepts": [
+        "Event time vs processing time",
+        "Windowing: tumbling, sliding, session windows",
+        "Watermarks: tracking event time progress for late data handling",
+        "State management: local state stores with changelog backup",
+        "Exactly-once semantics: transactional source-to-sink processing",
+        "Backpressure: flow control when consumers are slower than producers"
+      ],
+      "related_patterns": ["batch_processing", "micro_batch", "kafka_streaming", "windowed_aggregation"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "micro_batch",
+      "name": "Micro-Batch Processing",
+      "category": "data-processing",
+      "description": "Processing data in very small, frequent batches (seconds to minutes) rather than true record-at-a-time streaming or large periodic batches. Provides a pragmatic middle ground with near-real-time latency, simpler exactly-once semantics than true streaming, and batch-like operational simplicity. Spark Structured Streaming uses this approach.",
+      "principles": [
+        "Small time-bounded batches provide near-real-time results",
+        "Batch semantics simplify exactly-once processing guarantees",
+        "Trigger interval controls the latency-throughput trade-off",
+        "Checkpoint-based recovery reprocesses only the failed micro-batch",
+        "Compatible with batch processing frameworks and operators",
+        "Easier to reason about than continuous stream processing"
+      ],
+      "when_to_use": [
+        "Near-real-time processing where seconds of latency is acceptable",
+        "Teams experienced with batch processing adopting streaming",
+        "Exactly-once semantics needed without stream processing complexity",
+        "Spark-based data platform extending to near-real-time workloads",
+        "Transitioning from batch to streaming incrementally"
+      ],
+      "avoid_when": [
+        "True sub-second latency is required (use true streaming)",
+        "Event-at-a-time processing semantics are needed",
+        "Batch interval overhead is significant for small data volumes",
+        "Stateful stream processing with complex windowing is required"
+      ],
+      "signals": [
+        "Spark Structured Streaming with trigger interval configuration",
+        "Processing logs show batch-like execution every few seconds",
+        "Checkpoint directories with batch-numbered metadata",
+        "Latency measured in seconds rather than milliseconds",
+        "Batch-oriented monitoring (batch duration, records per batch)",
+        "Trigger.ProcessingTime or similar interval configuration"
+      ],
+      "key_concepts": [
+        "Trigger interval: time between micro-batch executions",
+        "Checkpoint: persistent state for exactly-once recovery",
+        "Micro-batch boundary: time-based or size-based",
+        "Latency-throughput trade-off via trigger interval tuning",
+        "Batch-compatible APIs for familiar programming model",
+        "Continuous processing mode as an alternative (Spark)"
+      ],
+      "related_patterns": ["stream_processing", "batch_processing", "kafka_streaming"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "data_lake_pattern",
+      "name": "Data Lake Pattern",
+      "category": "data-processing",
+      "description": "Centralised repository that stores raw data in its native format (structured, semi-structured, unstructured) at any scale, using schema-on-read rather than schema-on-write. Built on object storage (S3, GCS, ADLS) with a catalog layer for discoverability. Enables diverse analytics without upfront schema design.",
+      "principles": [
+        "Store raw data in native format without upfront transformation",
+        "Schema-on-read: structure is applied at query time, not ingestion",
+        "Object storage provides virtually unlimited, cost-effective storage",
+        "Metadata catalog (Hive, Glue, Unity) enables data discoverability",
+        "Data governance prevents the lake from becoming a data swamp",
+        "Zone architecture: raw -> curated -> consumption layers"
+      ],
+      "when_to_use": [
+        "Collecting diverse data types for future, not-yet-known analytics",
+        "Machine learning pipelines requiring access to raw feature data",
+        "Centralising data from many heterogeneous source systems",
+        "Cost-effective storage of large volumes of rarely-queried data",
+        "Data science exploration requiring flexible access to raw data"
+      ],
+      "avoid_when": [
+        "All data is structured and schema-on-write suffices",
+        "Data governance maturity is insufficient (risk of data swamp)",
+        "Query latency requirements demand pre-structured data",
+        "Organisation lacks data engineering capacity to manage the lake"
+      ],
+      "signals": [
+        "Data stored in S3, GCS, or ADLS buckets with folder-based partitioning",
+        "Hive metastore, AWS Glue Catalog, or Unity Catalog for metadata",
+        "Multiple file formats: Parquet, ORC, JSON, CSV, Avro in the lake",
+        "Data zones: bronze/raw, silver/curated, gold/consumption",
+        "Spark, Presto, or Trino used for querying data in the lake",
+        "Data governance tools (Great Expectations, dbt tests) validating lake data"
+      ],
+      "key_concepts": [
+        "Object storage: S3, GCS, ADLS as the storage layer",
+        "Schema-on-read: apply schema at query time via external tables",
+        "Metadata catalog: centralised table/schema registry for discovery",
+        "Zone architecture: raw -> curated -> consumption data layers",
+        "File formats: Parquet (columnar), ORC, Avro (row-based)",
+        "Data swamp anti-pattern: ungoverned lake with no metadata"
+      ],
+      "related_patterns": ["data_warehouse", "data_lakehouse", "etl_pipeline", "elt_pipeline"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "data_warehouse",
+      "name": "Data Warehouse Pattern",
+      "category": "data-processing",
+      "description": "Centralised, schema-on-write analytical data store optimised for complex queries, aggregations, and reporting. Data is transformed and loaded into dimensional models (star/snowflake schemas) for fast analytical query performance. Cloud warehouses (Snowflake, BigQuery, Redshift) provide elastic compute separated from storage.",
+      "principles": [
+        "Schema-on-write: data conforms to the target schema before loading",
+        "Dimensional modelling (star/snowflake) optimises analytical queries",
+        "Separation of storage and compute enables independent scaling",
+        "Columnar storage format accelerates aggregation and scan queries",
+        "Historical data preserved for trend analysis and time-series comparison",
+        "Access control and governance enforce data security policies"
+      ],
+      "when_to_use": [
+        "Business intelligence dashboards and ad-hoc analytical queries",
+        "Centralised reporting across multiple operational systems",
+        "Historical trend analysis and forecasting",
+        "Data-driven decision making requiring complex aggregations",
+        "Regulatory reporting with auditable, structured data"
+      ],
+      "avoid_when": [
+        "Real-time operational queries are the primary use case",
+        "Data is primarily unstructured (images, video, free text)",
+        "Write-heavy transactional workloads",
+        "Schema is unknown or changes too frequently for dimensional modelling"
+      ],
+      "signals": [
+        "Star or snowflake schema with fact and dimension tables",
+        "Snowflake, BigQuery, Redshift, or Synapse in tech stack",
+        "BI tools (Looker, Tableau, Power BI) connected to the warehouse",
+        "dbt models or ETL pipelines loading dimensional tables",
+        "Warehouse costs tracked by compute credits or query bytes scanned",
+        "Data governance policies and access control on warehouse schemas"
+      ],
+      "key_concepts": [
+        "Star schema: fact tables surrounded by dimension tables",
+        "Snowflake schema: normalised dimension tables",
+        "Slowly changing dimensions (SCD): Type 1, 2, 3 for historical tracking",
+        "Columnar storage: column-oriented format for analytical performance",
+        "Compute-storage separation: scale query compute independently",
+        "Materialised views for pre-computed query acceleration"
+      ],
+      "related_patterns": ["data_lake_pattern", "data_lakehouse", "etl_pipeline", "elt_pipeline"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "data_lakehouse",
+      "name": "Data Lakehouse Pattern",
+      "category": "data-processing",
+      "description": "Architecture combining data lake flexibility (open formats, schema-on-read, raw data storage) with data warehouse reliability (ACID transactions, schema enforcement, governance). Implemented via table formats like Delta Lake, Apache Iceberg, or Apache Hudi on top of object storage.",
+      "principles": [
+        "ACID transactions on data lake storage (object store files)",
+        "Open table formats (Delta, Iceberg, Hudi) provide warehouse features",
+        "Schema evolution without full data rewrite",
+        "Time travel: query data as of a previous version or timestamp",
+        "Unified batch and streaming data processing on the same tables",
+        "Metadata layer enables partition pruning and data skipping"
+      ],
+      "when_to_use": [
+        "Unifying data lake and data warehouse into a single architecture",
+        "Requiring ACID transactions on data stored in object storage",
+        "Both BI/SQL analytics and ML workloads on the same data",
+        "Streaming and batch data landing in the same tables",
+        "Organisations wanting to avoid data duplication between lake and warehouse"
+      ],
+      "avoid_when": [
+        "Simple data lake without transaction or consistency needs",
+        "Existing data warehouse meets all requirements without lake flexibility",
+        "Team lacks experience with lakehouse table formats",
+        "Data volume is small enough that a traditional warehouse suffices"
+      ],
+      "signals": [
+        "Delta Lake, Apache Iceberg, or Apache Hudi table format in use",
+        "Transaction log (delta_log, metadata) alongside data files in object storage",
+        "Time travel queries (VERSION AS OF, TIMESTAMP AS OF) in SQL",
+        "Unified Spark/Trino/Presto queries over lakehouse tables",
+        "Schema evolution operations (add column, rename) without data rewrite",
+        "Databricks, Tabular, or Onehouse in the platform stack"
+      ],
+      "key_concepts": [
+        "Table format: Delta Lake, Iceberg, Hudi metadata layer on files",
+        "ACID on object storage: transaction log ensures consistency",
+        "Time travel: query historical versions of data",
+        "Schema evolution: add, rename, reorder columns safely",
+        "Partition evolution: change partitioning without data rewrite (Iceberg)",
+        "Merge-on-read vs copy-on-write update strategies"
+      ],
+      "related_patterns": ["data_lake_pattern", "data_warehouse", "stream_processing", "batch_processing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "kafka_streaming",
+      "name": "Apache Kafka Streaming Platform",
+      "category": "data-streaming",
+      "description": "Distributed event streaming platform providing durable, ordered, partitioned logs of events. Kafka serves as the backbone for event-driven architectures, enabling publish-subscribe, stream processing, and event sourcing at scale. Its append-only log model provides replay capability and decouples producers from consumers.",
+      "principles": [
+        "Append-only log: events are immutable once written",
+        "Partitioning enables parallel production and consumption",
+        "Consumer groups provide competing consumer semantics",
+        "Retention policy determines how long events are available for replay",
+        "Ordering guaranteed within a partition, not across partitions",
+        "Producers are decoupled from consumers through topic abstraction"
+      ],
+      "when_to_use": [
+        "Event-driven microservice architectures requiring durable messaging",
+        "High-throughput event ingestion (millions of events per second)",
+        "Event sourcing requiring an immutable, replayable event log",
+        "Stream processing pipelines (Kafka Streams, ksqlDB, Flink on Kafka)",
+        "Data integration backbone connecting multiple systems"
+      ],
+      "avoid_when": [
+        "Message volume is low and a simpler message broker suffices",
+        "Request-response communication patterns dominate",
+        "Operational complexity of Kafka cluster management is unjustifiable",
+        "Messages are transient and replay/durability is not needed"
+      ],
+      "signals": [
+        "Kafka brokers and ZooKeeper/KRaft in infrastructure",
+        "Topic names following domain.event.version naming convention",
+        "Producer and consumer client libraries in service dependencies",
+        "Consumer group IDs in application configuration",
+        "Kafka Connect connectors for data integration",
+        "Schema Registry (Confluent or Apicurio) managing event schemas"
+      ],
+      "key_concepts": [
+        "Topic: named category for organising events",
+        "Partition: ordered, immutable sequence of events within a topic",
+        "Consumer group: set of consumers sharing partition assignments",
+        "Offset: position of a consumer within a partition",
+        "Retention: time-based or size-based event retention policy",
+        "Compacted topic: keeps latest value per key (table semantics)"
+      ],
+      "related_patterns": ["event_log", "pub_sub_messaging", "competing_consumers", "schema_registry"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "event_log",
+      "name": "Event Log / Event Store Pattern",
+      "category": "data-streaming",
+      "description": "Persisting all state changes as an immutable, append-only sequence of events rather than storing only current state. The event log is the source of truth; current state is derived by replaying events. Enables audit trails, temporal queries, and rebuilding state from any point in history.",
+      "principles": [
+        "Events are immutable facts: something that happened, not something to do",
+        "Current state is derived by replaying events from the log",
+        "Append-only: events are never updated or deleted",
+        "Event log provides complete audit trail by construction",
+        "Projections build read-optimised views from the event stream",
+        "Snapshots prevent unbounded replay time for long-lived aggregates"
+      ],
+      "when_to_use": [
+        "Audit trail requirements where every change must be recorded",
+        "Event sourcing architectures deriving state from events",
+        "Systems requiring temporal queries (what was the state at time T?)",
+        "Debugging production issues by replaying exact event sequences",
+        "Building multiple read models from the same event stream"
+      ],
+      "avoid_when": [
+        "Simple CRUD operations where current state is sufficient",
+        "Event schema evolution complexity is unacceptable",
+        "Team lacks experience with event sourcing patterns",
+        "Storage costs for unbounded event history are prohibitive"
+      ],
+      "signals": [
+        "Database table or stream storing events with sequence numbers",
+        "Event types named in past tense (OrderPlaced, PaymentReceived)",
+        "State reconstruction code that replays events sequentially",
+        "Snapshot mechanism for long-lived aggregates",
+        "EventStore, Kafka compacted topics, or custom event tables",
+        "Multiple read models (projections) built from the same events"
+      ],
+      "key_concepts": [
+        "Event: immutable fact with type, timestamp, and payload",
+        "Event stream: ordered sequence of events for an aggregate",
+        "Projection: read model derived from replaying events",
+        "Snapshot: cached state at a point to avoid full replay",
+        "Event versioning and upcasting for schema evolution",
+        "Idempotent event handlers for safe replay"
+      ],
+      "related_patterns": ["kafka_streaming", "replay_pattern", "change_data_capture", "exactly_once_semantics"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "replay_pattern",
+      "name": "Event Replay Pattern",
+      "category": "data-streaming",
+      "description": "Re-processing historical events from an event log or stream to rebuild state, backfill new projections, or recover from errors. Replay leverages the immutability of event logs to reconstruct any past state or build new derived views without affecting the live system.",
+      "principles": [
+        "Events are replayed from a known starting position (offset, timestamp, or sequence number)",
+        "Replay consumers are isolated from live processing pipelines",
+        "Idempotent processing ensures replay produces correct results",
+        "Replay speed depends on event volume and processing complexity",
+        "New projections or read models can be built by replaying the full log",
+        "Replay must handle schema evolution across historical events"
+      ],
+      "when_to_use": [
+        "Building a new read model or projection from existing events",
+        "Recovering from a bug that corrupted derived state",
+        "Backfilling data after deploying a new feature",
+        "Testing new processing logic against historical event data",
+        "Migrating from one system to another using historical events"
+      ],
+      "avoid_when": [
+        "Event log is not retained long enough for the required replay window",
+        "Events contain side effects that should not be repeated (e.g., sending emails)",
+        "Replay processing time exceeds the available maintenance window",
+        "Events are not idempotent and deduplication is impractical"
+      ],
+      "signals": [
+        "Consumer offset reset to earliest or specific timestamp",
+        "Separate consumer group created for replay processing",
+        "Replay job configuration specifies start/end offsets or timestamps",
+        "Event handlers check idempotency keys before applying side effects",
+        "Documentation describes replay procedures for building new projections",
+        "Schema evolution handling (upcasters) in event processing code"
+      ],
+      "key_concepts": [
+        "Offset reset: rewind consumer to a specific position",
+        "Isolated replay consumer: separate from live processing",
+        "Idempotent processing: handle re-delivered events safely",
+        "Upcasting: transforming old event versions to current schema",
+        "Side-effect isolation: skip external calls during replay",
+        "Replay throughput: optimisations for fast historical reprocessing"
+      ],
+      "related_patterns": ["event_log", "kafka_streaming", "exactly_once_semantics"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "stream_join",
+      "name": "Stream Join Pattern",
+      "category": "data-streaming",
+      "description": "Joining two or more event streams in real-time based on a common key within a time window. Stream joins combine events from different sources (e.g., clicks and impressions, orders and payments) to produce enriched output events. Windowed joins handle the temporal nature of streaming data.",
+      "principles": [
+        "Join events from different streams by a shared key within a time window",
+        "Window size determines how long to wait for matching events",
+        "Inner, left, outer join semantics apply to stream joins",
+        "State stores hold buffered events waiting for join matches",
+        "Late arrivals beyond the window are either dropped or handled specially",
+        "Stream-table joins enrich stream events with static reference data"
+      ],
+      "when_to_use": [
+        "Correlating events from two different systems (clicks + conversions)",
+        "Enriching transaction streams with customer profile data",
+        "Matching order events with corresponding payment events",
+        "Combining sensor readings from co-located devices",
+        "Real-time fraud detection requiring cross-stream correlation"
+      ],
+      "avoid_when": [
+        "Events to join arrive days apart (window state becomes too large)",
+        "Simple lookup enrichment suffices (use stream-table join instead)",
+        "Join key cardinality is extremely high, causing state explosion",
+        "Batch processing can perform the join with acceptable latency"
+      ],
+      "signals": [
+        "Stream processing code uses join operations with window specifications",
+        "Two or more input topics joined by a common key field",
+        "Window duration configuration (e.g., 5 minutes, 1 hour) in join logic",
+        "State store size monitoring for join buffers",
+        "Unmatched event handling (left join, timeout callbacks)",
+        "Stream-table join using KTable, GlobalKTable, or similar abstractions"
+      ],
+      "key_concepts": [
+        "Windowed join: match events within a time window",
+        "Stream-stream join: both sides are unbounded event streams",
+        "Stream-table join: enrich stream with latest state from a table",
+        "Join key: field used to match events across streams",
+        "Window types for joins: sliding, tumbling, session",
+        "State management for buffered unmatched events"
+      ],
+      "related_patterns": ["windowed_aggregation", "kafka_streaming", "stream_processing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "windowed_aggregation",
+      "name": "Windowed Aggregation Pattern",
+      "category": "data-streaming",
+      "description": "Grouping streaming events into time-based or count-based windows and computing aggregate functions (count, sum, average, min, max) over each window. Windows can be tumbling (fixed, non-overlapping), sliding (fixed, overlapping), or session-based (gap-driven). Core primitive for real-time analytics.",
+      "principles": [
+        "Windows bound unbounded streams into finite, computable groups",
+        "Event time windowing provides deterministic results regardless of processing delay",
+        "Watermarks determine when a window is considered complete",
+        "Late events can trigger window re-computation or be discarded",
+        "Window state must be managed and expired to prevent unbounded growth",
+        "Aggregation results emitted on window close or incrementally"
+      ],
+      "when_to_use": [
+        "Real-time metrics: requests per second, average response time",
+        "Anomaly detection: unusual patterns within a time window",
+        "Session analysis: user activity grouped by session gaps",
+        "Rate limiting: counting events per key within a sliding window",
+        "IoT: sensor reading aggregations over fixed time intervals"
+      ],
+      "avoid_when": [
+        "Aggregation over the entire history is needed (not windowed)",
+        "Events have no meaningful temporal ordering",
+        "Batch aggregation meets latency requirements",
+        "Window state memory exceeds available resources"
+      ],
+      "signals": [
+        "Stream processing code defines tumbling, sliding, or session windows",
+        "Window duration and slide interval parameters in configuration",
+        "Watermark strategy configuration for late event handling",
+        "Aggregate functions (count, sum, avg) applied within window context",
+        "Window state store size monitoring and expiration settings",
+        "Allowed lateness configuration for late-arriving events"
+      ],
+      "key_concepts": [
+        "Tumbling window: fixed-size, non-overlapping time intervals",
+        "Sliding window: fixed-size, overlapping intervals with slide step",
+        "Session window: gap-driven, per-key grouping by inactivity timeout",
+        "Watermark: tracks progress of event time for window completion",
+        "Allowed lateness: grace period for late events after watermark",
+        "Window trigger: when to emit results (on close, early, late)"
+      ],
+      "related_patterns": ["stream_processing", "stream_join", "kafka_streaming", "exactly_once_semantics"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "exactly_once_semantics",
+      "name": "Exactly-Once Processing Semantics",
+      "category": "data-streaming",
+      "description": "Guaranteeing that each event in a stream is processed exactly once, producing the correct result even in the presence of failures, retries, and redelivery. Achieved through a combination of idempotent producers, transactional writes, and consumer offset management. The hardest delivery guarantee to implement correctly.",
+      "principles": [
+        "Exactly-once is achieved end-to-end, not just at one layer",
+        "Idempotent producers prevent duplicate writes on retry",
+        "Transactional processing coordinates offset commits with output writes",
+        "Consumer-side deduplication handles at-least-once delivery from the broker",
+        "Exactly-once adds latency and throughput overhead",
+        "Simpler at-least-once with idempotent consumers is often sufficient"
+      ],
+      "when_to_use": [
+        "Financial transactions where double-processing has monetary impact",
+        "Aggregation counters that must be precisely accurate",
+        "Event sourcing systems where duplicate events corrupt state",
+        "Billing or metering systems where overcounting is unacceptable",
+        "Regulatory reporting requiring provably correct data processing"
+      ],
+      "avoid_when": [
+        "At-least-once with idempotent consumers is good enough",
+        "Throughput and latency requirements conflict with transactional overhead",
+        "System complexity budget cannot accommodate exactly-once mechanisms",
+        "Processing is naturally idempotent (e.g., overwriting a cache entry)"
+      ],
+      "signals": [
+        "Kafka transactional producer configuration (transactional.id, enable.idempotence)",
+        "Consumer-side deduplication using event ID or offset tracking",
+        "Read-process-write transactions spanning input and output topics",
+        "Isolation level read_committed configured on consumers",
+        "Flink checkpointing with exactly-once sink configuration",
+        "Idempotency key fields in event payloads"
+      ],
+      "key_concepts": [
+        "Idempotent producer: broker deduplicates retried writes",
+        "Transactional producer: atomic write of messages + offset commit",
+        "Consumer isolation level: read_committed skips uncommitted messages",
+        "End-to-end exactly-once: source -> processing -> sink coordination",
+        "Flink two-phase commit for exactly-once sinks",
+        "Trade-off: correctness vs throughput and complexity"
+      ],
+      "related_patterns": ["kafka_streaming", "event_log", "message_ordering", "replay_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "data_contract",
+      "name": "Data Contract Pattern",
+      "category": "data-streaming",
+      "description": "Formal agreement between data producers and consumers specifying the schema, semantics, quality guarantees, and SLAs of a data product. Data contracts make data dependencies explicit, enabling independent evolution of producer and consumer while maintaining compatibility. Essential for data mesh and large-scale data platforms.",
+      "principles": [
+        "Contract defines schema, semantics, quality rules, and SLAs explicitly",
+        "Producer owns the contract and is responsible for compliance",
+        "Breaking changes require contract versioning and consumer notification",
+        "Automated validation enforces contract compliance in CI/CD",
+        "Contracts are discoverable through a central catalog or registry",
+        "Quality metrics (freshness, completeness, accuracy) are part of the contract"
+      ],
+      "when_to_use": [
+        "Multiple teams consume data produced by a single team",
+        "Data quality issues have caused production incidents",
+        "Data mesh architecture requires explicit data product interfaces",
+        "Schema evolution must be managed without breaking consumers",
+        "Data governance requires documentation of data flows and ownership"
+      ],
+      "avoid_when": [
+        "Single team produces and consumes all data",
+        "Data schema is trivial and unlikely to change",
+        "Organisation lacks maturity for contract enforcement processes",
+        "Overhead of contract management exceeds the benefit"
+      ],
+      "signals": [
+        "YAML or JSON contract definitions in source control",
+        "Schema validation in CI/CD pipeline (contract tests)",
+        "Data catalog entries reference contract specifications",
+        "SLA dashboards tracking contract compliance metrics",
+        "Contract versioning following semantic versioning principles",
+        "Producer/consumer communication channels for contract changes"
+      ],
+      "key_concepts": [
+        "Schema specification: field names, types, nullability, constraints",
+        "Semantic specification: business meaning of fields and values",
+        "Quality guarantees: freshness, completeness, accuracy thresholds",
+        "SLA: availability, latency, and throughput commitments",
+        "Contract versioning: breaking vs non-breaking changes",
+        "Automated compliance testing in CI/CD"
+      ],
+      "related_patterns": ["schema_registry", "data_mesh_pattern", "protobuf_schema_evolution"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "schema_registry",
+      "name": "Schema Registry Pattern",
+      "category": "data-streaming",
+      "description": "Centralised service that stores, versions, and validates schemas for streaming data (Avro, Protobuf, JSON Schema). Producers register schemas before publishing, and consumers fetch schemas for deserialization. The registry enforces compatibility rules (backward, forward, full) to prevent breaking changes.",
+      "principles": [
+        "Schemas are registered before data is produced",
+        "Compatibility checking prevents breaking schema changes",
+        "Schema ID embedded in message enables consumer-side deserialization",
+        "Backward compatibility: new schema can read old data",
+        "Forward compatibility: old schema can read new data",
+        "Subject naming strategy ties schemas to topics or record types"
+      ],
+      "when_to_use": [
+        "Kafka or other streaming platforms with schema evolution needs",
+        "Multiple producers and consumers sharing event schemas",
+        "Preventing schema-incompatible messages from entering topics",
+        "Automated schema validation in CI/CD pipelines",
+        "Centralised schema documentation and discovery"
+      ],
+      "avoid_when": [
+        "All producers and consumers are deployed atomically",
+        "Schema changes are extremely rare and manual coordination suffices",
+        "Message format is self-describing (JSON with no schema enforcement)",
+        "Operational overhead of running a schema registry is unjustifiable"
+      ],
+      "signals": [
+        "Confluent Schema Registry, Apicurio, or AWS Glue Schema Registry in stack",
+        "Avro, Protobuf, or JSON Schema definitions in source control",
+        "Schema ID bytes prepended to serialized messages",
+        "Compatibility mode (BACKWARD, FORWARD, FULL) configured per subject",
+        "CI pipeline validates schema compatibility before merge",
+        "Schema registry URL in producer and consumer configuration"
+      ],
+      "key_concepts": [
+        "Schema subject: named scope for schema versions (topic-value, record name)",
+        "Compatibility modes: BACKWARD, FORWARD, FULL, NONE",
+        "Schema ID: unique identifier embedded in serialized messages",
+        "Schema evolution: adding/removing fields within compatibility rules",
+        "Serializer/deserializer integration with messaging clients",
+        "Schema registry REST API for registration and retrieval"
+      ],
+      "related_patterns": ["kafka_streaming", "data_contract", "protobuf_schema_evolution", "event_log"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "data_mesh_pattern",
+      "name": "Data Mesh Architecture Pattern",
+      "category": "data-streaming",
+      "description": "Decentralised data architecture where domain teams own, produce, and serve their data as products. Shifts from centralised data teams to federated ownership with self-serve data infrastructure and federated computational governance. Data products are discoverable, addressable, and governed through interoperable standards.",
+      "principles": [
+        "Domain-oriented data ownership: teams own their data products",
+        "Data as a product: data has discoverability, quality, SLAs, and documentation",
+        "Self-serve data platform: infrastructure enables teams to publish and consume data autonomously",
+        "Federated computational governance: automated policies replace centralised gatekeeping",
+        "Interoperability standards ensure cross-domain data consumption",
+        "Data product thinking: treat data consumers as customers"
+      ],
+      "when_to_use": [
+        "Large organisations where centralised data teams are bottlenecks",
+        "Multiple domains produce data consumed across organisational boundaries",
+        "Domain teams have engineering capacity to own their data products",
+        "Centralised data warehouse has become an unmaintainable monolith",
+        "Data quality suffers because producers have no skin in the game"
+      ],
+      "avoid_when": [
+        "Organisation is small enough for a centralised data team to work effectively",
+        "Domain teams lack data engineering skills or capacity",
+        "Data governance maturity is insufficient for federated model",
+        "Organisational structure does not align with domain-oriented ownership",
+        "Investment in self-serve data platform is not feasible"
+      ],
+      "signals": [
+        "Data products registered in a central data catalog with ownership metadata",
+        "Domain teams publish data with documented schemas and SLAs",
+        "Self-serve data infrastructure for provisioning pipelines and storage",
+        "Federated governance policies automated through platform tooling",
+        "Data product interfaces defined as contracts with versioning",
+        "Cross-domain data consumption through standardised protocols"
+      ],
+      "key_concepts": [
+        "Data product: a domain's curated, documented, governed data offering",
+        "Domain ownership: the team producing data owns it as a product",
+        "Self-serve data platform: infrastructure abstractions for data teams",
+        "Federated computational governance: policy as code, not gatekeeping",
+        "Data product catalog: discovery layer for available data products",
+        "Interoperability: standardised formats, protocols, and metadata"
+      ],
+      "related_patterns": ["data_contract", "schema_registry", "polyglot_persistence", "data_lakehouse"],
+      "last_reviewed": "2026-03-21"
+    }
+  ]
+}

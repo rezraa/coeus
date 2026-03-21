@@ -1,0 +1,2723 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-03-21",
+  "source": "architecture-knowledge-primer + authored",
+  "patterns": [
+    {
+      "id": "monolith",
+      "name": "Monolith",
+      "category": "structural",
+      "description": "A single deployable unit containing all application logic, data access, and UI in one process. The original default architecture pattern, predating distributed systems. The key insight is that co-location of code eliminates network boundaries but couples deployment.",
+      "principles": [
+        "Single deployable artifact",
+        "Shared memory space for all components",
+        "Unified data model and schema",
+        "Single build and release pipeline",
+        "In-process function calls between modules"
+      ],
+      "when_to_use": [
+        "Greenfield project with a small team (fewer than 8 developers)",
+        "Domain boundaries are not yet well understood",
+        "Low operational maturity — team lacks experience running distributed systems",
+        "Latency-sensitive operations that benefit from in-process calls",
+        "Rapid prototyping where speed of iteration matters more than scalability"
+      ],
+      "avoid_when": [
+        "Multiple teams need to deploy independently on different cadences",
+        "Parts of the system have fundamentally different scaling requirements",
+        "Regulatory or compliance requirements mandate isolation between subsystems",
+        "The codebase has grown beyond 500k LOC and build times exceed 20 minutes"
+      ],
+      "signals": [
+        "All business logic resides in a single repository with a single build output",
+        "Database schema is shared across all features with no schema boundaries",
+        "Deployment requires redeploying the entire application even for a one-line change",
+        "All modules share the same runtime process and memory space",
+        "Feature teams must coordinate releases because of shared deployment"
+      ],
+      "key_concepts": [
+        "Single process architecture",
+        "Shared database",
+        "Tight coupling",
+        "Big bang deployment",
+        "Unified codebase"
+      ],
+      "related_patterns": ["modular_monolith", "layered", "monolith_to_microservices"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "modular_monolith",
+      "name": "Modular Monolith",
+      "category": "structural",
+      "description": "A monolith deliberately structured into well-defined modules with explicit boundaries, enforced interfaces, and independent internal data stores. Popularized by Shopify and others as a pragmatic middle ground. The key insight is that modularity is an architectural property, not a deployment property.",
+      "principles": [
+        "Explicit module boundaries enforced at compile time",
+        "Each module owns its data and exposes it only through defined interfaces",
+        "Modules communicate via well-defined contracts, not direct database access",
+        "Single deployment unit but logically separated domains",
+        "Module dependency graph is acyclic and enforced by tooling"
+      ],
+      "when_to_use": [
+        "Team wants the simplicity of a monolith with clear domain separation",
+        "Preparing for a potential future migration to microservices",
+        "Domain boundaries are known but operational overhead of distribution is not justified",
+        "Organization has fewer than 20 developers working on the same product",
+        "Need strong consistency guarantees that are easier in-process"
+      ],
+      "avoid_when": [
+        "Teams need independent deployment and release cycles today",
+        "Modules have fundamentally different runtime requirements (e.g., GPU vs CPU)",
+        "Organization has more than 50 developers and coordination cost is already high",
+        "Different modules need different technology stacks"
+      ],
+      "signals": [
+        "Codebase has clearly defined module directories with enforced import restrictions",
+        "Each module has its own database schema or schema namespace",
+        "Inter-module communication goes through defined API surfaces, not shared tables",
+        "Build system enforces module dependency rules and rejects circular dependencies",
+        "Modules can be tested independently with their own test suites"
+      ],
+      "key_concepts": [
+        "Module boundaries",
+        "Internal APIs",
+        "Schema ownership",
+        "Dependency inversion between modules",
+        "Bounded contexts within a monolith",
+        "Compile-time boundary enforcement"
+      ],
+      "related_patterns": ["monolith", "hexagonal", "monolith_to_microservices", "vertical_slice"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "microservices",
+      "name": "Microservices",
+      "category": "structural",
+      "description": "An architecture where the application is composed of small, independently deployable services, each owning its own data and running in its own process. Formalized by James Lewis and Martin Fowler in 2014. The key insight is that organizational autonomy and independent deployability are the primary drivers, not service size.",
+      "principles": [
+        "Each service is independently deployable and replaceable",
+        "Services own their data — no shared databases",
+        "Smart endpoints and dumb pipes",
+        "Decentralized governance and polyglot persistence",
+        "Design for failure with circuit breakers and bulkheads",
+        "Each service is organized around a business capability"
+      ],
+      "when_to_use": [
+        "Multiple autonomous teams need to deploy independently on different cadences",
+        "Different parts of the system have fundamentally different scaling profiles",
+        "Organization has mature DevOps practices including CI/CD, monitoring, and container orchestration",
+        "Business domains are well understood and stable enough to define service boundaries",
+        "Need to adopt different technology stacks for different problem domains"
+      ],
+      "avoid_when": [
+        "Team lacks operational maturity for distributed systems debugging",
+        "Domain boundaries are not yet understood — premature decomposition creates distributed monoliths",
+        "Organization has fewer than 15 developers total",
+        "Strong consistency across services is a hard requirement",
+        "Network latency between services is unacceptable for the use case"
+      ],
+      "signals": [
+        "Independent teams deploying different business domains on different release cycles",
+        "Each service has its own repository, CI pipeline, and data store",
+        "Services communicate over network protocols (HTTP, gRPC, messaging)",
+        "Failure in one service does not cascade to bring down the entire system",
+        "Different services use different technology stacks suited to their problem domain",
+        "Service discovery and API gateway infrastructure is in place"
+      ],
+      "key_concepts": [
+        "Service boundaries",
+        "Independent deployment",
+        "Data sovereignty",
+        "API contracts",
+        "Service mesh",
+        "Eventual consistency"
+      ],
+      "related_patterns": ["mini_services", "service_oriented", "saga_orchestration", "saga_choreography", "backends_for_frontends"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "mini_services",
+      "name": "Mini Services",
+      "category": "structural",
+      "description": "A pragmatic middle ground between monolith and microservices where services are larger than microservices, typically encompassing a subdomain rather than a single bounded context. Emerged as teams realized many microservice deployments were over-decomposed. The key insight is that service granularity should match team structure and deployment needs, not an arbitrary size metric.",
+      "principles": [
+        "Services align to subdomains containing multiple bounded contexts",
+        "Fewer services reduce operational overhead while maintaining deployment independence",
+        "Shared libraries within a service are acceptable",
+        "Team owns one or two services rather than a dozen",
+        "Pragmatic data sharing within a service boundary is allowed"
+      ],
+      "when_to_use": [
+        "Organization wants independent deployment but not the overhead of hundreds of microservices",
+        "Teams are structured around subdomains rather than individual bounded contexts",
+        "Operational maturity is moderate — can handle some distributed systems but not extreme fragmentation",
+        "The system has 10-30 natural service boundaries based on business capability mapping"
+      ],
+      "avoid_when": [
+        "Teams need fully independent technology stacks per bounded context",
+        "Individual bounded contexts have vastly different scaling requirements",
+        "Organization has the operational maturity and team count to support true microservices"
+      ],
+      "signals": [
+        "Services contain multiple related bounded contexts within a single subdomain",
+        "Team count is 5-15 and each team owns 1-3 services",
+        "Services share a technology stack within the organization",
+        "Deployment units are coarser than bounded contexts but finer than the entire application",
+        "Internal complexity within a service is managed through modular code, not further decomposition"
+      ],
+      "key_concepts": [
+        "Subdomain alignment",
+        "Right-sized services",
+        "Reduced operational overhead",
+        "Team-service alignment",
+        "Pragmatic decomposition"
+      ],
+      "related_patterns": ["microservices", "modular_monolith", "service_oriented"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "nanoservices",
+      "name": "Nanoservices",
+      "category": "structural",
+      "description": "Extremely fine-grained services where each service handles a single operation or function, often deployed as individual serverless functions. Generally considered an anti-pattern when taken to extremes. The key insight is that over-decomposition creates distributed complexity that exceeds the complexity it was meant to solve.",
+      "principles": [
+        "One function per deployable unit",
+        "Stateless execution",
+        "Event-triggered invocation",
+        "Extreme isolation at the cost of coordination complexity",
+        "Each function has its own deployment lifecycle"
+      ],
+      "when_to_use": [
+        "Individual operations have wildly different invocation frequencies and scaling needs",
+        "Functions are truly independent with no coordination requirements",
+        "Cost optimization through pay-per-invocation pricing is a primary driver",
+        "Processing is embarrassingly parallel with no shared state"
+      ],
+      "avoid_when": [
+        "Operations require coordination or sequencing — orchestration overhead dominates",
+        "Cold start latency is unacceptable for the use case",
+        "Debugging distributed traces across dozens of functions is beyond team capability",
+        "The system requires transactional consistency across operations",
+        "Total cost of observability infrastructure exceeds compute savings"
+      ],
+      "signals": [
+        "Each deployable unit contains a single function or operation",
+        "Functions are triggered by events with no direct inter-function calls",
+        "System has hundreds of independently deployed function units",
+        "Tracing a single business transaction requires correlating logs across many function invocations",
+        "Cold start latency appears in production metrics"
+      ],
+      "key_concepts": [
+        "Function-level deployment",
+        "Event triggers",
+        "Cold starts",
+        "Distributed tracing complexity",
+        "Over-decomposition anti-pattern"
+      ],
+      "related_patterns": ["microservices", "serverless", "pipeline"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "service_oriented",
+      "name": "Service-Oriented Architecture (SOA)",
+      "category": "structural",
+      "description": "An architectural style where application components provide services to other components via a communications protocol over a network, typically mediated by an enterprise service bus (ESB). Formalized in the early 2000s by enterprise vendors. The key insight is reusability of business services across the enterprise, though the ESB often became a centralized bottleneck.",
+      "principles": [
+        "Services are reusable business capabilities",
+        "Standardized service contracts (often WSDL/SOAP)",
+        "Service abstraction hides implementation details",
+        "Service composability enables building higher-order processes",
+        "Enterprise service bus mediates communication",
+        "Canonical data models for interoperability"
+      ],
+      "when_to_use": [
+        "Enterprise integration across multiple legacy systems and vendors",
+        "Need to expose business capabilities as reusable services across departments",
+        "Existing investment in ESB infrastructure and middleware",
+        "Regulatory requirements mandate centralized message auditing and transformation"
+      ],
+      "avoid_when": [
+        "Building a new greenfield application — microservices or modular monolith are simpler",
+        "Team is small and does not need enterprise-grade service governance",
+        "ESB becomes a bottleneck and single point of failure",
+        "Canonical data model creates coupling across all services"
+      ],
+      "signals": [
+        "Enterprise service bus sits between all service communications",
+        "Services expose WSDL or similar formal contract definitions",
+        "Canonical data model is enforced across service boundaries",
+        "Service registry and governance tooling is in place",
+        "Message transformation and routing happens in middleware, not endpoints"
+      ],
+      "key_concepts": [
+        "Enterprise service bus",
+        "Service contracts",
+        "Canonical data model",
+        "Service registry",
+        "Message-oriented middleware",
+        "Service governance"
+      ],
+      "related_patterns": ["microservices", "mini_services", "mediator"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "hexagonal",
+      "name": "Hexagonal Architecture (Ports and Adapters)",
+      "category": "structural",
+      "description": "An architecture where the application core is isolated from external concerns through ports (interfaces) and adapters (implementations). Proposed by Alistair Cockburn in 2005. The key insight is that the application should be equally drivable by users, programs, automated tests, or batch scripts, and equally developable and testable in isolation from its runtime devices and databases.",
+      "principles": [
+        "Application core has no dependencies on frameworks or infrastructure",
+        "Ports define the interfaces the application exposes and requires",
+        "Adapters implement ports for specific technologies",
+        "Dependency rule: all dependencies point inward toward the core",
+        "The application is testable without any external infrastructure"
+      ],
+      "when_to_use": [
+        "Business logic is complex and must be protected from infrastructure churn",
+        "Multiple inbound channels (REST, CLI, events) drive the same business logic",
+        "Infrastructure components (databases, message brokers) are likely to change over time",
+        "Testability of business logic in isolation is a high priority",
+        "Team wants to defer infrastructure decisions without blocking domain development"
+      ],
+      "avoid_when": [
+        "Application is primarily CRUD with minimal business logic",
+        "The indirection overhead is not justified for simple data-pass-through services",
+        "Team is unfamiliar with dependency inversion and the added abstraction layers cause confusion"
+      ],
+      "signals": [
+        "Core domain code has zero imports from framework or infrastructure packages",
+        "Interface definitions (ports) exist at the boundary of the domain layer",
+        "Multiple adapter implementations exist for the same port (e.g., SQL adapter and in-memory adapter)",
+        "Tests run against the domain layer using in-memory adapters with no database or network",
+        "Changing the database requires modifying only the adapter, not the domain"
+      ],
+      "key_concepts": [
+        "Ports (driving and driven)",
+        "Adapters (primary and secondary)",
+        "Application core isolation",
+        "Dependency inversion",
+        "Technology-agnostic domain",
+        "Testable architecture"
+      ],
+      "related_patterns": ["clean_architecture", "onion", "modular_monolith"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "clean_architecture",
+      "name": "Clean Architecture",
+      "category": "structural",
+      "description": "A layered architecture where dependencies point inward from frameworks and drivers through interface adapters and use cases to the innermost entities layer. Proposed by Robert C. Martin in 2012 as a synthesis of hexagonal, onion, and DCI architectures. The key insight is the dependency rule: source code dependencies must only point inward, toward higher-level policies.",
+      "principles": [
+        "Dependency rule: inner layers know nothing about outer layers",
+        "Entities encapsulate enterprise-wide business rules",
+        "Use cases encapsulate application-specific business rules",
+        "Interface adapters convert data between use case and external formats",
+        "Frameworks and drivers are details in the outermost ring"
+      ],
+      "when_to_use": [
+        "Long-lived enterprise application where business rules must survive technology changes",
+        "Multiple delivery mechanisms (web, mobile, CLI) share the same business logic",
+        "Team values testability and wants to test business rules without UI or database",
+        "Application has rich domain logic that justifies the layering overhead"
+      ],
+      "avoid_when": [
+        "Simple CRUD applications where the layering adds unnecessary complexity",
+        "Short-lived applications or prototypes where speed of delivery matters most",
+        "Team is small and the ceremony of multiple layers slows them down"
+      ],
+      "signals": [
+        "Concentric dependency layers where inner layers have no knowledge of outer layers",
+        "Entity classes contain only business rules with no framework annotations",
+        "Use case classes orchestrate entities and define application-specific workflows",
+        "Data crosses layer boundaries through DTOs or simple data structures, not entity objects",
+        "Framework code (controllers, repositories) lives in the outermost layer only"
+      ],
+      "key_concepts": [
+        "Dependency rule",
+        "Entities layer",
+        "Use cases layer",
+        "Interface adapters layer",
+        "Frameworks and drivers layer",
+        "Boundary crossing with DTOs"
+      ],
+      "related_patterns": ["hexagonal", "onion", "layered"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "onion",
+      "name": "Onion Architecture",
+      "category": "structural",
+      "description": "A layered architecture with the domain model at the center, surrounded by domain services, application services, and infrastructure at the outermost layer. Proposed by Jeffrey Palermo in 2008. The key insight is that infrastructure is a detail that wraps around the domain, inverting the traditional dependency direction where domain depended on data access.",
+      "principles": [
+        "Domain model at the center with no outward dependencies",
+        "Layers wrap around the domain like an onion",
+        "Outer layers depend on inner layers, never the reverse",
+        "Infrastructure concerns live at the outermost ring",
+        "Interfaces defined in inner layers are implemented in outer layers"
+      ],
+      "when_to_use": [
+        "Domain-driven design is the primary modeling approach",
+        "Infrastructure persistence strategy is expected to change over the application lifetime",
+        "Team needs clear separation between domain logic and application orchestration",
+        "Rich domain model with complex invariants needs protection from infrastructure coupling"
+      ],
+      "avoid_when": [
+        "Application is data-centric with thin business logic",
+        "Team does not practice domain-driven design and the layers feel artificial",
+        "Rapid prototyping where layering slows iteration speed"
+      ],
+      "signals": [
+        "Domain model classes have no references to persistence, UI, or framework packages",
+        "Repository interfaces defined in the domain layer with implementations in infrastructure",
+        "Application services orchestrate domain objects and define transaction boundaries",
+        "Infrastructure layer contains ORM configurations, external API clients, and messaging adapters",
+        "Unit tests for domain logic require no infrastructure setup"
+      ],
+      "key_concepts": [
+        "Domain model core",
+        "Domain services",
+        "Application services",
+        "Infrastructure ring",
+        "Dependency inversion",
+        "Repository pattern"
+      ],
+      "related_patterns": ["hexagonal", "clean_architecture", "layered"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "layered",
+      "name": "Layered Architecture (N-Tier)",
+      "category": "structural",
+      "description": "The classic architecture dividing an application into horizontal layers — typically presentation, business logic, and data access — where each layer may only communicate with the layer directly below it. One of the oldest and most widely used patterns. The key insight is separation of concerns through horizontal partitioning, though it often leads to changes requiring modifications across all layers.",
+      "principles": [
+        "Each layer has a distinct responsibility",
+        "Layers communicate only with adjacent layers",
+        "Upper layers depend on lower layers",
+        "Each layer can be developed and tested somewhat independently",
+        "Layers can be physically distributed across tiers"
+      ],
+      "when_to_use": [
+        "Simple business applications with straightforward CRUD operations",
+        "Team is familiar with traditional three-tier development",
+        "Application requirements map naturally to presentation-logic-data separation",
+        "Quick start needed with well-understood patterns and abundant tooling support"
+      ],
+      "avoid_when": [
+        "Changes consistently require modifications across all layers (the 'layer tax')",
+        "Business logic is complex and does not fit neatly into a single horizontal layer",
+        "Cross-cutting concerns like caching or logging create layer-spanning complexity",
+        "Feature development is slowed by the need to touch every layer for each change"
+      ],
+      "signals": [
+        "Codebase is organized into presentation, service/business, and data access directories",
+        "Each layer has its own set of models or DTOs that map data between layers",
+        "Controllers call services, services call repositories — strict call hierarchy",
+        "Database access is isolated to the data access layer with no SQL in business logic",
+        "A new feature requires creating files in each layer (controller, service, repository)"
+      ],
+      "key_concepts": [
+        "Presentation layer",
+        "Business logic layer",
+        "Data access layer",
+        "Layer isolation",
+        "Strict vs relaxed layering",
+        "Cross-cutting concerns"
+      ],
+      "related_patterns": ["clean_architecture", "vertical_slice", "monolith"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "vertical_slice",
+      "name": "Vertical Slice Architecture",
+      "category": "structural",
+      "description": "An architecture organized around features rather than technical layers, where each feature (or slice) contains all the code needed from UI to database. Popularized by Jimmy Bogard. The key insight is that coupling within a feature is acceptable and natural, while coupling between features should be minimized — the opposite of layered architecture's priorities.",
+      "principles": [
+        "Each feature is a self-contained vertical slice through all layers",
+        "Minimize coupling between slices, not between layers within a slice",
+        "Each slice can use whatever internal pattern is appropriate for its complexity",
+        "No shared abstractions forced across features",
+        "New features add new slices without modifying existing ones"
+      ],
+      "when_to_use": [
+        "Features have different complexity levels and forcing uniform layering wastes effort",
+        "Team wants to minimize the blast radius of changes to a single feature",
+        "CQRS or mediator patterns are already in use, providing natural slice boundaries",
+        "Product development is feature-driven with features rarely sharing business logic"
+      ],
+      "avoid_when": [
+        "Significant business logic is genuinely shared across many features",
+        "Team is unfamiliar with the pattern and defaults to inconsistent internal structures",
+        "Application is primarily CRUD where slices would all look identical"
+      ],
+      "signals": [
+        "Code is organized by feature directory rather than by technical layer",
+        "Each feature directory contains its own handler, validator, model, and persistence logic",
+        "Adding a new feature means adding a new directory, not modifying existing code",
+        "Different features use different internal patterns based on their complexity",
+        "Mediator or command/query dispatcher routes requests to feature handlers"
+      ],
+      "key_concepts": [
+        "Feature-based organization",
+        "Slice independence",
+        "Mediator dispatch",
+        "Per-feature complexity decisions",
+        "Minimal cross-feature coupling"
+      ],
+      "related_patterns": ["cqrs", "mediator", "modular_monolith", "command_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "plugin",
+      "name": "Plugin Architecture",
+      "category": "structural",
+      "description": "An architecture where a core application provides extension points that third-party or internal plugins can hook into to add functionality without modifying the core. Examples include Eclipse, VS Code, and webpack. The key insight is that the core defines the contracts and lifecycle, while plugins provide the variability — enabling an ecosystem of extensions without core instability.",
+      "principles": [
+        "Core application defines stable extension points and plugin lifecycle",
+        "Plugins implement defined interfaces to extend functionality",
+        "Plugins are discovered and loaded at runtime",
+        "Core is stable and deployable without any plugins",
+        "Plugin isolation prevents one plugin from destabilizing another"
+      ],
+      "when_to_use": [
+        "Application needs to support third-party extensions without core modification",
+        "Different deployments need different feature sets composed from available plugins",
+        "Core product must remain stable while extension development moves independently",
+        "Building a platform or framework where extensibility is a primary value proposition"
+      ],
+      "avoid_when": [
+        "Extension points are not well defined and change frequently",
+        "Plugin isolation is hard to enforce and plugins can corrupt shared state",
+        "The overhead of plugin discovery, loading, and lifecycle management is not justified"
+      ],
+      "signals": [
+        "Formal plugin interface or abstract base class that all extensions must implement",
+        "Plugin discovery mechanism scans directories or registries at startup",
+        "Core application functions fully without any plugins installed",
+        "Plugin manifest files declare capabilities, dependencies, and version compatibility",
+        "Extension points are documented as a public API contract"
+      ],
+      "key_concepts": [
+        "Extension points",
+        "Plugin interface contract",
+        "Plugin discovery and loading",
+        "Plugin lifecycle management",
+        "Plugin isolation",
+        "Dependency resolution"
+      ],
+      "related_patterns": ["component_based", "microservices", "hexagonal"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "component_based",
+      "name": "Component-Based Architecture",
+      "category": "structural",
+      "description": "An architecture where the system is decomposed into reusable, self-contained components with well-defined interfaces, encapsulating both behavior and data. Rooted in component-oriented programming from the 1990s (COM, JavaBeans, CORBA). The key insight is that components are units of composition — independently developed, versioned, and replaceable pieces that can be assembled into different configurations.",
+      "principles": [
+        "Components are self-contained units with explicit interfaces",
+        "Components are independently replaceable and upgradeable",
+        "Component interactions happen only through defined interfaces",
+        "Components encapsulate their internal state and behavior",
+        "Components are reusable across different systems and contexts"
+      ],
+      "when_to_use": [
+        "System can be naturally decomposed into reusable units with clear interfaces",
+        "Multiple products or configurations need to be assembled from shared components",
+        "Different teams own different components and need clear interface contracts",
+        "Component marketplace or catalog is part of the business model"
+      ],
+      "avoid_when": [
+        "Component boundaries are unclear and interfaces change frequently",
+        "Overhead of formal interface definitions exceeds the benefit of reusability",
+        "Components are so tightly coupled that independent versioning is impractical"
+      ],
+      "signals": [
+        "System is assembled from independently versioned component packages",
+        "Each component exposes a public interface and hides its implementation",
+        "Components are published to and consumed from a component registry",
+        "Different system configurations use different combinations of the same components",
+        "Interface compatibility is checked at build time or deployment time"
+      ],
+      "key_concepts": [
+        "Component interface",
+        "Component composition",
+        "Independent versioning",
+        "Interface compatibility",
+        "Component registry",
+        "Encapsulation"
+      ],
+      "related_patterns": ["plugin", "microservices", "modular_monolith"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "event_driven",
+      "name": "Event-Driven Architecture",
+      "category": "behavioral",
+      "description": "An architecture where the flow of the program is determined by events — significant changes in state that are produced, detected, and consumed by loosely coupled components. Encompasses both event notification and event-carried state transfer patterns. The key insight is temporal decoupling: producers and consumers do not need to be active at the same time or know about each other.",
+      "principles": [
+        "Components communicate by producing and consuming events",
+        "Producers do not know or care who consumes their events",
+        "Events are immutable facts representing something that happened",
+        "Temporal decoupling: producer and consumer lifecycles are independent",
+        "Event ordering and delivery guarantees are explicit architectural decisions",
+        "Events are the system's source of truth for what happened"
+      ],
+      "when_to_use": [
+        "Multiple independent consumers need to react to the same business event",
+        "System requires temporal decoupling — producers should not wait for consumers",
+        "Audit trail of all state changes is a business requirement",
+        "Real-time reactions to business events (notifications, analytics, cascading updates)",
+        "System spans multiple bounded contexts that should remain loosely coupled"
+      ],
+      "avoid_when": [
+        "Request-response semantics are needed and async event flows add unnecessary complexity",
+        "Debugging distributed event flows exceeds team capability",
+        "Event ordering is critical but the event infrastructure cannot guarantee it",
+        "System requires synchronous consistency and eventual consistency is unacceptable"
+      ],
+      "signals": [
+        "Message broker or event bus sits at the center of the architecture",
+        "Components publish events without knowledge of subscribers",
+        "Business processes are triggered by events rather than direct API calls",
+        "Event schema registry defines and versions event contracts",
+        "Dead letter queues handle failed event processing",
+        "Correlation IDs trace business transactions across event-driven flows"
+      ],
+      "key_concepts": [
+        "Event producers and consumers",
+        "Event broker/bus",
+        "Event schema and versioning",
+        "At-least-once vs exactly-once delivery",
+        "Event ordering",
+        "Dead letter queues"
+      ],
+      "related_patterns": ["event_sourcing", "cqrs", "saga_choreography", "observer_pattern", "streaming"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "cqrs",
+      "name": "Command Query Responsibility Segregation (CQRS)",
+      "category": "behavioral",
+      "description": "A pattern that separates read and write operations into different models, potentially backed by different data stores optimized for their respective access patterns. Introduced by Greg Young, building on Bertrand Meyer's CQS principle. The key insight is that read and write workloads have fundamentally different optimization needs and should not be forced into a single model.",
+      "principles": [
+        "Commands (writes) and queries (reads) use separate models",
+        "Write model is optimized for consistency and business rule enforcement",
+        "Read model is optimized for query performance and denormalization",
+        "Read and write stores may be different technologies",
+        "Synchronization between models is eventually consistent via events"
+      ],
+      "when_to_use": [
+        "Read and write workloads have vastly different scaling requirements",
+        "Read model requires denormalized views that would be expensive to maintain in a normalized write model",
+        "Business logic on the write side is complex but reads are simple projections",
+        "Multiple read representations of the same data are needed for different consumers",
+        "Event sourcing is already in use and projections naturally separate reads from writes"
+      ],
+      "avoid_when": [
+        "Application is simple CRUD where read and write models would be nearly identical",
+        "Strong consistency between reads and writes is a hard requirement",
+        "Team is not prepared to handle eventual consistency and its edge cases",
+        "The additional complexity of maintaining two models is not justified by the workload difference"
+      ],
+      "signals": [
+        "Separate code paths for handling commands (mutations) and queries (reads)",
+        "Write model uses normalized schema while read model uses denormalized views",
+        "Events propagate changes from write store to read store asynchronously",
+        "Read endpoints return data from a different store than where writes are persisted",
+        "Query models are rebuilt or updated from event streams"
+      ],
+      "key_concepts": [
+        "Command model",
+        "Query model",
+        "Event-based synchronization",
+        "Read store projections",
+        "Eventual consistency",
+        "Task-based UI"
+      ],
+      "related_patterns": ["event_sourcing", "event_driven", "materialized_view", "vertical_slice"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "event_sourcing",
+      "name": "Event Sourcing",
+      "category": "behavioral",
+      "description": "A pattern where state changes are stored as an immutable sequence of events rather than storing current state directly. The current state is derived by replaying events from the beginning. Popularized by Greg Young and closely associated with CQRS. The key insight is that events are facts — they capture not just what the state is, but how it got there, enabling full auditability, temporal queries, and state reconstruction.",
+      "principles": [
+        "State is stored as an ordered sequence of immutable events",
+        "Current state is derived by replaying events",
+        "Events represent business facts that have occurred",
+        "Event store is append-only — events are never modified or deleted",
+        "Snapshots optimize replay performance for long event streams",
+        "Events are the single source of truth"
+      ],
+      "when_to_use": [
+        "Complete audit trail of all state changes is a regulatory or business requirement",
+        "Need to reconstruct state at any point in time for debugging or compliance",
+        "Business domain naturally models processes as sequences of events",
+        "Multiple read models need to be built from the same event stream",
+        "Temporal queries (what was the state on date X) are a requirement"
+      ],
+      "avoid_when": [
+        "Simple CRUD where current state is all that matters",
+        "Event schema evolution is complex and team lacks experience with schema migration",
+        "Event replay for long-lived aggregates becomes prohibitively slow without snapshot management",
+        "Team is unfamiliar with eventual consistency and debugging event-sourced systems"
+      ],
+      "signals": [
+        "Append-only event store is the primary persistence mechanism",
+        "Aggregate state is reconstructed by replaying events from the store",
+        "Snapshot mechanism exists to optimize replay for long-lived aggregates",
+        "Event upcasters or schema evolution tooling handles event versioning",
+        "Projections build read-optimized views from the event stream",
+        "Business logic validates commands against current state derived from events"
+      ],
+      "key_concepts": [
+        "Event store",
+        "Event replay",
+        "Aggregate reconstruction",
+        "Snapshots",
+        "Event upcasting",
+        "Projections"
+      ],
+      "related_patterns": ["cqrs", "event_driven", "write_ahead_log", "saga_orchestration"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "saga_orchestration",
+      "name": "Saga Pattern (Orchestration)",
+      "category": "behavioral",
+      "description": "A pattern for managing distributed transactions across multiple services using a central orchestrator that coordinates the sequence of local transactions and compensating actions. Based on the original saga concept by Garcia-Molina and Salem (1987). The key insight is that distributed transactions can be decomposed into a sequence of local transactions with compensating actions for rollback, coordinated by a single orchestrator.",
+      "principles": [
+        "Central orchestrator defines and coordinates the saga flow",
+        "Each step is a local transaction within a single service",
+        "Compensating transactions undo completed steps on failure",
+        "Orchestrator maintains saga state and handles retries",
+        "Each participant service exposes both forward and compensating operations"
+      ],
+      "when_to_use": [
+        "Multi-service business process requires atomicity guarantees across services",
+        "Saga flow is complex with conditional branching and parallel steps",
+        "Central visibility into the state of long-running business processes is needed",
+        "New services are frequently added to the saga and the flow needs explicit management",
+        "Team prefers explicit flow definition over implicit choreography"
+      ],
+      "avoid_when": [
+        "Saga has only 2-3 simple sequential steps — choreography is simpler",
+        "Central orchestrator becomes a bottleneck or single point of failure",
+        "Services are owned by different organizations and a central orchestrator creates coupling"
+      ],
+      "signals": [
+        "Central saga orchestrator service defines step sequences and compensation logic",
+        "Saga state machine tracks the current step and status of each saga instance",
+        "Compensating transaction endpoints exist alongside forward transaction endpoints",
+        "Orchestrator persists saga state for crash recovery and observability",
+        "Saga execution logs show the ordered sequence of steps and their outcomes"
+      ],
+      "key_concepts": [
+        "Saga orchestrator",
+        "Local transactions",
+        "Compensating transactions",
+        "Saga state machine",
+        "Idempotency",
+        "Forward recovery vs backward recovery"
+      ],
+      "related_patterns": ["saga_choreography", "event_driven", "state_machine", "microservices"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "saga_choreography",
+      "name": "Saga Pattern (Choreography)",
+      "category": "behavioral",
+      "description": "A pattern for managing distributed transactions where each service publishes events that trigger the next step in the saga, with no central coordinator. Each service knows its own compensating action and listens for failure events. The key insight is that decentralized coordination through events avoids the single point of failure and coupling of a central orchestrator, at the cost of harder-to-trace saga flows.",
+      "principles": [
+        "No central coordinator — each service reacts to events from other services",
+        "Each service publishes domain events after completing its local transaction",
+        "Services subscribe to relevant events and execute their part of the saga",
+        "Each service implements its own compensating logic triggered by failure events",
+        "The saga flow emerges from the event subscriptions rather than being explicitly defined"
+      ],
+      "when_to_use": [
+        "Saga flow is simple and linear with few branching points",
+        "Services are owned by different teams and no team wants to own a central orchestrator",
+        "Loose coupling between services is a higher priority than explicit flow visibility",
+        "Event infrastructure is already mature with reliable delivery guarantees"
+      ],
+      "avoid_when": [
+        "Saga has complex conditional logic, parallel branches, or many steps",
+        "End-to-end visibility into saga state is a hard requirement",
+        "Debugging implicit event-driven flows exceeds team capability",
+        "Adding new steps requires modifying event subscriptions across multiple services"
+      ],
+      "signals": [
+        "Services publish domain events that trigger actions in other services",
+        "No central saga coordinator exists — flow is implicit in event subscriptions",
+        "Each service has compensating event handlers for rollback scenarios",
+        "Distributed tracing with correlation IDs is used to follow saga execution",
+        "Event subscription configuration defines the implicit saga flow"
+      ],
+      "key_concepts": [
+        "Event-driven coordination",
+        "Implicit flow",
+        "Distributed compensation",
+        "Correlation IDs",
+        "Eventual consistency",
+        "Decentralized control"
+      ],
+      "related_patterns": ["saga_orchestration", "event_driven", "observer_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "reactor",
+      "name": "Reactor Pattern",
+      "category": "behavioral",
+      "description": "A concurrency pattern where a single-threaded event loop demultiplexes incoming I/O events and dispatches them to registered handlers. Used in Node.js, Nginx, and Redis. The key insight is that for I/O-bound workloads, a single-threaded event loop with non-blocking I/O can handle thousands of concurrent connections more efficiently than thread-per-connection models.",
+      "principles": [
+        "Single-threaded event loop handles all I/O demultiplexing",
+        "Non-blocking I/O operations register callbacks for completion",
+        "Event handlers must be non-blocking to avoid starving other handlers",
+        "Synchronous demultiplexer (select/epoll/kqueue) waits for I/O readiness",
+        "CPU-intensive work must be offloaded to avoid blocking the event loop"
+      ],
+      "when_to_use": [
+        "High-concurrency I/O-bound workloads (web servers, proxies, chat servers)",
+        "Many concurrent connections with relatively little CPU work per request",
+        "Memory efficiency is critical — thread-per-connection uses too much memory",
+        "Workload consists of short-lived I/O operations with minimal computation"
+      ],
+      "avoid_when": [
+        "Workload is CPU-bound — single thread becomes the bottleneck",
+        "Long-running synchronous operations cannot be made non-blocking",
+        "Team is unfamiliar with callback-based or async programming models"
+      ],
+      "signals": [
+        "Central event loop dispatches I/O events to registered handlers",
+        "All I/O operations are non-blocking with callback or promise-based completion",
+        "Single thread handles thousands of concurrent connections",
+        "CPU-intensive tasks are explicitly offloaded to worker threads or processes",
+        "Event loop metrics show queue depth and handler execution time"
+      ],
+      "key_concepts": [
+        "Event loop",
+        "Non-blocking I/O",
+        "Event demultiplexing",
+        "Handler registration",
+        "Callback chains",
+        "Backpressure"
+      ],
+      "related_patterns": ["event_driven", "observer_pattern", "pipeline"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "actor_model",
+      "name": "Actor Model",
+      "category": "behavioral",
+      "description": "A concurrency model where actors are the fundamental unit of computation. Each actor encapsulates state, processes messages sequentially from a mailbox, and can create other actors or send messages. Formalized by Carl Hewitt in 1973 and popularized by Erlang/OTP and Akka. The key insight is that shared mutable state is eliminated entirely — actors communicate only through asynchronous messages, making concurrency errors structurally impossible.",
+      "principles": [
+        "Actors are the unit of computation with encapsulated state",
+        "Communication is exclusively through asynchronous message passing",
+        "Each actor processes one message at a time from its mailbox",
+        "Actors can create child actors, forming supervision hierarchies",
+        "No shared state between actors — all state is private",
+        "Supervision trees handle failure with let-it-crash philosophy"
+      ],
+      "when_to_use": [
+        "System requires massive concurrency with millions of lightweight concurrent entities",
+        "State isolation between concurrent entities is critical for correctness",
+        "Fault tolerance with automatic recovery from component failures is needed",
+        "System models real-world entities that maintain state and interact asynchronously",
+        "Geographic distribution where actors can transparently span network boundaries"
+      ],
+      "avoid_when": [
+        "Shared mutable state with strong consistency is a core requirement",
+        "Message passing overhead is unacceptable for the latency requirements",
+        "Team is unfamiliar with message-passing concurrency and debugging mailbox issues"
+      ],
+      "signals": [
+        "System entities are modeled as actors with private state and message handlers",
+        "Communication between entities is exclusively through asynchronous message passing",
+        "Actor supervision hierarchy defines failure recovery strategies",
+        "Mailbox queues buffer incoming messages for sequential processing",
+        "Actor system framework (Akka, Erlang/OTP, Microsoft Orleans) is in use",
+        "Location transparency allows actors to run on different nodes without code changes"
+      ],
+      "key_concepts": [
+        "Actor",
+        "Mailbox",
+        "Message passing",
+        "Supervision hierarchy",
+        "Location transparency",
+        "Let-it-crash philosophy"
+      ],
+      "related_patterns": ["event_driven", "microservices", "state_machine"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "pipeline",
+      "name": "Pipeline Pattern",
+      "category": "behavioral",
+      "description": "A pattern where processing is decomposed into a sequence of stages, each performing a specific transformation, with the output of one stage feeding into the input of the next. Inspired by Unix pipes. The key insight is that complex processing can be decomposed into simple, composable, reusable stages that can be independently developed, tested, and potentially parallelized.",
+      "principles": [
+        "Processing is a sequence of discrete stages",
+        "Each stage performs a single transformation",
+        "Output of one stage is input to the next",
+        "Stages are composable and reusable",
+        "Stages can potentially run in parallel on different data"
+      ],
+      "when_to_use": [
+        "Data processing naturally decomposes into sequential transformation steps",
+        "Stages need to be independently testable and reusable",
+        "Different pipelines share common stages in different configurations",
+        "Throughput can benefit from stage-level parallelism"
+      ],
+      "avoid_when": [
+        "Processing steps have complex interdependencies that break the linear flow",
+        "Feedback loops between stages are required",
+        "Pipeline overhead exceeds the benefit for very simple transformations"
+      ],
+      "signals": [
+        "Code is structured as a sequence of transformation functions chained together",
+        "Each stage has a uniform interface (input type, output type)",
+        "Pipeline configuration defines which stages run in which order",
+        "Stages are reused across different pipelines",
+        "Intermediate results between stages can be inspected for debugging"
+      ],
+      "key_concepts": [
+        "Pipeline stages",
+        "Stage composition",
+        "Uniform interface",
+        "Stage-level parallelism",
+        "Pipeline configuration",
+        "Intermediate results"
+      ],
+      "related_patterns": ["pipe_and_filter", "chain_of_responsibility", "etl_pipeline"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "chain_of_responsibility",
+      "name": "Chain of Responsibility",
+      "category": "behavioral",
+      "description": "A behavioral pattern where a request is passed along a chain of handlers, each deciding whether to handle it or pass it to the next handler. Common in middleware stacks (Express.js, ASP.NET, Django). The key insight is that the sender of a request does not know which handler will process it, enabling dynamic composition of processing logic and open-ended extension.",
+      "principles": [
+        "Request passes through a chain of handlers in order",
+        "Each handler decides to process, modify, or pass the request",
+        "Handlers are loosely coupled — each knows only the next handler",
+        "Chain can be composed and reordered at runtime",
+        "A handler can stop propagation or modify the request for downstream handlers"
+      ],
+      "when_to_use": [
+        "Multiple handlers may need to process the same request in sequence",
+        "The set of handlers needs to be configurable or extensible without modifying existing code",
+        "Cross-cutting concerns (auth, logging, validation) need to be composed flexibly",
+        "Request processing order matters and should be explicitly controllable"
+      ],
+      "avoid_when": [
+        "Every request is handled by the same handler — the chain adds unnecessary indirection",
+        "Chain becomes so long that debugging which handler processed a request is difficult",
+        "Performance-critical path where handler chain overhead is measurable"
+      ],
+      "signals": [
+        "Middleware stack where each middleware function calls next() to continue processing",
+        "Handler interface with a reference to the next handler in the chain",
+        "Request passes through multiple handlers before reaching the final handler",
+        "Handlers can be added, removed, or reordered through configuration",
+        "Each handler has a single responsibility (authentication, rate limiting, logging)"
+      ],
+      "key_concepts": [
+        "Handler chain",
+        "Next handler reference",
+        "Request propagation",
+        "Handler composition",
+        "Short-circuit processing",
+        "Middleware stack"
+      ],
+      "related_patterns": ["pipeline", "mediator", "plugin"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "mediator",
+      "name": "Mediator Pattern",
+      "category": "behavioral",
+      "description": "A pattern where a central mediator object encapsulates how a set of objects interact, promoting loose coupling by preventing objects from referring to each other directly. In architecture, implemented as in-process message dispatchers like MediatR. The key insight is that many-to-many relationships between components are replaced by one-to-many relationships with the mediator, reducing coupling at the cost of centralizing interaction logic.",
+      "principles": [
+        "Components communicate through the mediator, not directly",
+        "Mediator encapsulates interaction logic between components",
+        "Components know only the mediator interface, not each other",
+        "Adding new interaction patterns requires modifying the mediator, not the components",
+        "Reduces the number of direct dependencies between components"
+      ],
+      "when_to_use": [
+        "Multiple components have complex many-to-many interaction patterns",
+        "Need to centralize and manage interaction logic in one place",
+        "CQRS or vertical slice architecture uses in-process command/query dispatch",
+        "Components should be reusable independently of their interaction context"
+      ],
+      "avoid_when": [
+        "Mediator becomes a god object containing too much logic",
+        "Interactions are simple point-to-point and the mediator adds unnecessary indirection",
+        "Performance-critical path where mediator dispatch overhead matters"
+      ],
+      "signals": [
+        "Central dispatcher routes commands and queries to appropriate handlers",
+        "Components send messages to the mediator rather than calling each other directly",
+        "Handler registration maps message types to handler implementations",
+        "Adding new behavior means adding new message types and handlers, not modifying existing components",
+        "Pipeline behaviors in the mediator handle cross-cutting concerns"
+      ],
+      "key_concepts": [
+        "Central mediator",
+        "Message dispatch",
+        "Handler registration",
+        "Decoupled components",
+        "Pipeline behaviors",
+        "Command/query separation"
+      ],
+      "related_patterns": ["cqrs", "vertical_slice", "observer_pattern", "command_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "observer_pattern",
+      "name": "Observer Pattern",
+      "category": "behavioral",
+      "description": "A pattern where an object (subject) maintains a list of dependents (observers) and notifies them of state changes, typically by calling one of their methods. One of the original GoF patterns and the foundation for reactive programming. The key insight is that the subject does not need to know the concrete types of its observers, enabling open-ended extension of reaction logic.",
+      "principles": [
+        "Subject maintains a list of observers and notifies them of changes",
+        "Observers register and unregister dynamically",
+        "Subject knows observers only through a common interface",
+        "Notification is typically synchronous within a single process",
+        "Push vs pull models define how much data observers receive"
+      ],
+      "when_to_use": [
+        "State changes in one object need to trigger updates in multiple dependent objects",
+        "The set of dependent objects changes dynamically at runtime",
+        "Decoupling the subject from the concrete types of its dependents is important",
+        "Reactive UI frameworks where view components observe model changes"
+      ],
+      "avoid_when": [
+        "Observer list grows unbounded causing notification performance issues",
+        "Cascading notifications create update storms or infinite loops",
+        "Memory leaks from forgotten observer registrations are a recurring problem"
+      ],
+      "signals": [
+        "Subject class has subscribe/unsubscribe methods for observers",
+        "Observer interface defines an update or notify method",
+        "State changes trigger iteration over observer list with notifications",
+        "Observers can be added or removed at runtime",
+        "Event emitter pattern with named events and listener registration"
+      ],
+      "key_concepts": [
+        "Subject (observable)",
+        "Observer (listener)",
+        "Subscribe/unsubscribe",
+        "Notification dispatch",
+        "Push vs pull notification",
+        "Memory leak prevention"
+      ],
+      "related_patterns": ["event_driven", "mediator", "reactor"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "state_machine",
+      "name": "State Machine",
+      "category": "behavioral",
+      "description": "A pattern where an entity's behavior is governed by its current state, with explicitly defined transitions between states triggered by events. Used extensively in protocol implementations, workflow engines, and UI state management. The key insight is that making states and transitions explicit eliminates impossible state bugs and makes the system's behavior verifiable and visualizable.",
+      "principles": [
+        "All valid states are explicitly enumerated",
+        "Transitions between states are triggered by events and are explicit",
+        "Actions are associated with transitions, not states alone",
+        "Invalid transitions are structurally prevented",
+        "Current state determines which events are accepted"
+      ],
+      "when_to_use": [
+        "Entity has a well-defined lifecycle with distinct states and transitions",
+        "Need to enforce that only valid state transitions occur",
+        "Business process has complex conditional logic based on current state",
+        "Visualization of state flow is valuable for communication with stakeholders",
+        "Protocol implementation with defined state transitions"
+      ],
+      "avoid_when": [
+        "State space is too large to enumerate explicitly (use rules engine instead)",
+        "Transitions are so simple that a state machine adds unnecessary formalism",
+        "Entity behavior does not vary based on state"
+      ],
+      "signals": [
+        "Enum or constant set defines all valid states for an entity",
+        "Transition table or transition functions map (state, event) to next state",
+        "Guard conditions on transitions enforce business rules",
+        "State machine visualization (state diagram) documents the entity lifecycle",
+        "Invalid state transitions throw explicit errors rather than silently failing"
+      ],
+      "key_concepts": [
+        "States",
+        "Transitions",
+        "Events/triggers",
+        "Guard conditions",
+        "Entry/exit actions",
+        "State diagram"
+      ],
+      "related_patterns": ["saga_orchestration", "event_sourcing", "command_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "command_pattern",
+      "name": "Command Pattern",
+      "category": "behavioral",
+      "description": "A pattern that encapsulates a request as an object, allowing parameterization of clients with different requests, queuing, logging, and undo/redo support. One of the original GoF patterns, widely used in CQRS and task-based architectures. The key insight is that reifying operations as objects enables them to be stored, transmitted, queued, and undone — capabilities impossible with direct method calls.",
+      "principles": [
+        "Each operation is encapsulated as a command object",
+        "Commands are self-contained with all data needed for execution",
+        "Commands can be serialized, queued, logged, and replayed",
+        "Undo is supported by storing inverse operations or previous state",
+        "Command handler is separate from the command definition"
+      ],
+      "when_to_use": [
+        "Operations need to be queued, scheduled, or executed asynchronously",
+        "Undo/redo functionality is a requirement",
+        "Operations need to be logged for audit or replay purposes",
+        "Task-based UI where user actions map to domain commands",
+        "CQRS write side where mutations are modeled as explicit commands"
+      ],
+      "avoid_when": [
+        "Operations are simple synchronous calls with no need for queuing or undo",
+        "Command object overhead is unjustified for trivial operations",
+        "Command proliferation creates too many small classes with little logic"
+      ],
+      "signals": [
+        "Operations are represented as objects with execute() methods",
+        "Command queue or command bus dispatches commands to handlers",
+        "Undo stack stores executed commands for reversal",
+        "Command objects carry all parameters needed for execution",
+        "Command handlers are registered separately from command definitions"
+      ],
+      "key_concepts": [
+        "Command object",
+        "Command handler",
+        "Command bus/queue",
+        "Undo/redo stack",
+        "Command serialization",
+        "Idempotent execution"
+      ],
+      "related_patterns": ["cqrs", "mediator", "event_sourcing", "state_machine"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "serverless",
+      "name": "Serverless Architecture",
+      "category": "deployment",
+      "description": "An architecture where the cloud provider manages server infrastructure, scaling, and availability, while developers deploy individual functions or containers that run on demand. Pioneered by AWS Lambda in 2014. The key insight is that operational burden shifts entirely to the provider, enabling teams to focus on business logic at the cost of vendor coupling and cold start latency.",
+      "principles": [
+        "No server management — provider handles infrastructure",
+        "Pay-per-invocation pricing model",
+        "Automatic scaling from zero to peak demand",
+        "Stateless function execution — state lives in external stores",
+        "Event-triggered invocation from various event sources",
+        "Short-lived execution with provider-defined time limits"
+      ],
+      "when_to_use": [
+        "Workload is spiky with long idle periods — pay-per-use is cost-effective",
+        "Team wants to eliminate server management and operational overhead",
+        "Event-driven workloads with well-defined triggers (HTTP, queue, schedule)",
+        "Rapid prototyping where infrastructure setup would slow development",
+        "Glue logic connecting managed services (S3 to DynamoDB, API Gateway to Lambda)"
+      ],
+      "avoid_when": [
+        "Workload is steady-state with high utilization — serverless is more expensive than reserved instances",
+        "Cold start latency is unacceptable for the use case",
+        "Functions need long execution times exceeding provider limits",
+        "Vendor lock-in is unacceptable and portability is a requirement",
+        "Complex stateful workflows are required within a single execution"
+      ],
+      "signals": [
+        "Functions deployed to AWS Lambda, Azure Functions, or Google Cloud Functions",
+        "Infrastructure-as-code defines event source mappings and function configurations",
+        "No long-running server processes — all compute is on-demand",
+        "State is stored in managed services (DynamoDB, S3, Cosmos DB) not local disk",
+        "Cold start metrics appear in production monitoring dashboards",
+        "Function concurrency limits and throttling configuration exists"
+      ],
+      "key_concepts": [
+        "Function-as-a-Service (FaaS)",
+        "Cold starts",
+        "Event source mapping",
+        "Stateless execution",
+        "Vendor lock-in",
+        "Managed services integration"
+      ],
+      "related_patterns": ["nanoservices", "event_driven", "containerized"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "containerized",
+      "name": "Containerized Architecture",
+      "category": "deployment",
+      "description": "An architecture where applications are packaged as container images and deployed to container orchestration platforms like Kubernetes. Docker (2013) and Kubernetes (2014) established the pattern. The key insight is that containers provide a consistent deployment unit across environments, decoupling the application from the host OS while being lighter than virtual machines.",
+      "principles": [
+        "Applications are packaged as immutable container images",
+        "Container orchestrator manages scheduling, scaling, and health",
+        "Infrastructure is defined as code (Kubernetes manifests, Helm charts)",
+        "Containers are ephemeral and can be replaced at any time",
+        "Service discovery and load balancing are provided by the platform",
+        "Resource limits and isolation are enforced per container"
+      ],
+      "when_to_use": [
+        "Need consistent deployment across development, staging, and production environments",
+        "Multiple services with different runtime requirements share the same infrastructure",
+        "Auto-scaling based on resource utilization or custom metrics is needed",
+        "Rolling deployments with zero downtime are a requirement",
+        "Team needs fine-grained resource allocation and isolation"
+      ],
+      "avoid_when": [
+        "Single simple application where container orchestration overhead is not justified",
+        "Team lacks Kubernetes or container orchestration expertise",
+        "Workload requires direct hardware access that containers cannot provide",
+        "Operational overhead of managing a container platform exceeds the benefit"
+      ],
+      "signals": [
+        "Dockerfiles define application packaging and dependencies",
+        "Kubernetes manifests or Helm charts define deployment configurations",
+        "Container registry stores versioned container images",
+        "Health checks and readiness probes ensure container availability",
+        "Horizontal pod autoscaler adjusts replica count based on metrics",
+        "Service mesh or ingress controller manages traffic routing"
+      ],
+      "key_concepts": [
+        "Container image",
+        "Container orchestration",
+        "Pod scheduling",
+        "Service discovery",
+        "Resource limits",
+        "Rolling updates"
+      ],
+      "related_patterns": ["microservices", "sidecar", "cell_based", "blue_green"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "cell_based",
+      "name": "Cell-Based Architecture",
+      "category": "deployment",
+      "description": "An architecture where the system is deployed as multiple independent cells, each containing a complete copy of the application stack and serving a subset of traffic (typically by tenant, region, or shard). Used by AWS internally and adopted by large SaaS providers. The key insight is that blast radius containment is achieved by isolating failure domains — a cell failure affects only the traffic routed to that cell.",
+      "principles": [
+        "Each cell is a complete, independent deployment of the application stack",
+        "Cells are isolated — failure in one cell does not affect others",
+        "Traffic is routed to cells by a thin routing layer (by tenant, region, or hash)",
+        "Cells are identical in code but independent in state and infrastructure",
+        "Cell size is bounded to limit blast radius",
+        "New cells are deployed for capacity expansion, not by scaling existing cells"
+      ],
+      "when_to_use": [
+        "Blast radius containment is critical — an outage must not affect all customers",
+        "Multi-tenant SaaS where tenant isolation is a security or compliance requirement",
+        "System serves millions of users and total failure would be catastrophic",
+        "Need to deploy updates to a subset of cells first as a deployment safety mechanism"
+      ],
+      "avoid_when": [
+        "System is small enough that single-deployment redundancy is sufficient",
+        "Cross-cell queries or aggregations are frequently needed",
+        "Operational cost of maintaining multiple identical deployments is prohibitive",
+        "Team lacks automation to manage cell provisioning and routing"
+      ],
+      "signals": [
+        "Multiple identical deployments serve different subsets of traffic",
+        "Routing layer directs requests to specific cells based on tenant or region",
+        "Cell health monitoring triggers traffic rerouting on cell failure",
+        "Each cell has its own database, cache, and compute resources",
+        "Deployment pipeline can target individual cells or roll out across cells sequentially"
+      ],
+      "key_concepts": [
+        "Cell isolation",
+        "Cell routing",
+        "Blast radius containment",
+        "Cell provisioning",
+        "Traffic sharding",
+        "Independent failure domains"
+      ],
+      "related_patterns": ["multi_region", "containerized", "canary"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "multi_region",
+      "name": "Multi-Region Deployment",
+      "category": "deployment",
+      "description": "An architecture where the application is deployed across multiple geographic regions, providing low latency to global users and resilience to regional outages. The key insight is that geography introduces fundamental constraints — speed of light latency, data sovereignty laws, and regional failure independence — that must be addressed at the architecture level, not just the infrastructure level.",
+      "principles": [
+        "Application is deployed in multiple geographic regions",
+        "Data replication strategy handles cross-region consistency",
+        "Traffic routing directs users to the nearest healthy region",
+        "Each region can operate independently during a regional outage",
+        "Data sovereignty and compliance requirements are respected per region"
+      ],
+      "when_to_use": [
+        "Global user base requires low latency from multiple continents",
+        "Business continuity requires surviving a full regional cloud outage",
+        "Data sovereignty regulations require data to remain in specific regions",
+        "Compliance standards mandate geographic redundancy"
+      ],
+      "avoid_when": [
+        "User base is concentrated in a single region",
+        "Strong consistency across regions is a hard requirement — cross-region latency makes this expensive",
+        "Operational complexity of multi-region deployment exceeds team capability",
+        "Cost of running redundant infrastructure in multiple regions is prohibitive"
+      ],
+      "signals": [
+        "Infrastructure-as-code provisions identical stacks in multiple cloud regions",
+        "Global load balancer routes traffic based on geographic proximity",
+        "Database replication runs across regions with defined consistency guarantees",
+        "Failover playbooks define how to redirect traffic during regional outages",
+        "Regional health checks trigger automatic failover to healthy regions"
+      ],
+      "key_concepts": [
+        "Geographic distribution",
+        "Cross-region replication",
+        "Global load balancing",
+        "Data sovereignty",
+        "Regional failover",
+        "Conflict resolution"
+      ],
+      "related_patterns": ["cell_based", "blue_green", "edge_computing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "blue_green",
+      "name": "Blue-Green Deployment",
+      "category": "deployment",
+      "description": "A deployment strategy maintaining two identical production environments (blue and green), where one serves live traffic while the other is updated and tested. Traffic is switched atomically from one to the other. The key insight is that deployment risk is minimized by preparing the new version in a full production-equivalent environment and switching traffic only after validation, with instant rollback by switching back.",
+      "principles": [
+        "Two identical production environments exist simultaneously",
+        "One environment serves live traffic while the other is staged",
+        "Traffic switch is atomic — all users move at once",
+        "Rollback is instant by switching traffic back to the previous environment",
+        "Database schema changes must be backward-compatible across both versions"
+      ],
+      "when_to_use": [
+        "Zero-downtime deployments are required",
+        "Need instant rollback capability without redeployment",
+        "Full production validation of the new version before exposing to users",
+        "Deployment window needs to be as short as possible"
+      ],
+      "avoid_when": [
+        "Cost of maintaining two full production environments is prohibitive",
+        "Database schema changes are not backward-compatible between versions",
+        "Stateful components make environment switching complex",
+        "Gradual traffic shifting is preferred over all-at-once switching"
+      ],
+      "signals": [
+        "Two production environments labeled blue and green in infrastructure configuration",
+        "Load balancer or DNS configuration determines which environment receives traffic",
+        "Deployment pipeline deploys to the inactive environment and runs validation tests",
+        "Traffic cutover is a single configuration change (DNS, load balancer weight)",
+        "Both environments share the same database or use compatible schema versions"
+      ],
+      "key_concepts": [
+        "Blue environment",
+        "Green environment",
+        "Traffic switching",
+        "Pre-production validation",
+        "Instant rollback",
+        "Backward-compatible schemas"
+      ],
+      "related_patterns": ["canary", "feature_flags", "containerized"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "canary",
+      "name": "Canary Deployment",
+      "category": "deployment",
+      "description": "A deployment strategy where a new version is gradually rolled out to a small percentage of users before full deployment. Traffic percentage increases as confidence grows based on metrics and error rates. Named after canaries in coal mines. The key insight is that exposing a small percentage of real traffic catches production issues that testing environments cannot surface, while limiting blast radius.",
+      "principles": [
+        "New version receives a small percentage of production traffic initially",
+        "Traffic percentage increases gradually based on health metrics",
+        "Automated rollback triggers on error rate or latency threshold breaches",
+        "Old and new versions run simultaneously during the rollout",
+        "Canary metrics are compared against baseline for anomaly detection"
+      ],
+      "when_to_use": [
+        "Changes have production risk that cannot be fully validated in staging",
+        "Gradual rollout with automated rollback is preferred over all-at-once deployment",
+        "Metrics infrastructure can detect anomalies in real-time during rollout",
+        "User impact of bugs must be minimized to a small percentage"
+      ],
+      "avoid_when": [
+        "System lacks metrics infrastructure for real-time comparison between versions",
+        "Both versions must be schema-compatible and the schema change is breaking",
+        "Traffic volume is too low for statistically meaningful canary comparison"
+      ],
+      "signals": [
+        "Traffic splitting configuration routes a percentage of requests to the new version",
+        "Canary analysis job compares error rates and latency between old and new versions",
+        "Automated rollback triggers when canary metrics exceed thresholds",
+        "Deployment pipeline has graduated traffic increase stages (1%, 5%, 25%, 100%)",
+        "Canary deployment status dashboard shows real-time comparison metrics"
+      ],
+      "key_concepts": [
+        "Traffic splitting",
+        "Canary analysis",
+        "Automated rollback",
+        "Graduated rollout",
+        "Baseline comparison",
+        "Blast radius limitation"
+      ],
+      "related_patterns": ["blue_green", "feature_flags", "cell_based"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "feature_flags",
+      "name": "Feature Flags (Feature Toggles)",
+      "category": "deployment",
+      "description": "A technique where features are wrapped in conditional flags that can be toggled at runtime without deployment, enabling trunk-based development and controlled feature rollout. Systematized by Martin Fowler's feature toggle taxonomy. The key insight is that deployment and release are decoupled — code can be deployed without being activated, and activation can target specific users, percentages, or segments.",
+      "principles": [
+        "Features are wrapped in runtime-evaluable toggle conditions",
+        "Toggles decouple deployment from feature release",
+        "Toggle state is managed externally (config service, database, feature flag platform)",
+        "Toggles can target specific users, segments, or percentages",
+        "Toggle lifecycle management ensures stale flags are cleaned up"
+      ],
+      "when_to_use": [
+        "Trunk-based development where incomplete features must be in main without being active",
+        "Gradual feature rollout to specific user segments (beta users, regions, plans)",
+        "A/B testing requires serving different experiences to different user groups",
+        "Kill switch capability to disable features instantly without deployment",
+        "Long-running feature branches need to be eliminated"
+      ],
+      "avoid_when": [
+        "Toggle management overhead exceeds the benefit — tech debt from stale toggles accumulates",
+        "Testing matrix explodes with too many toggle combinations",
+        "Team lacks discipline to remove toggles after features are fully released"
+      ],
+      "signals": [
+        "Feature flag evaluation calls in application code gate feature access",
+        "Feature flag management platform (LaunchDarkly, Unleash, Flagsmith) is in use",
+        "Toggle configuration includes targeting rules for user segments",
+        "Toggle cleanup tracking ensures stale flags are identified and removed",
+        "Testing framework supports running tests with different toggle combinations"
+      ],
+      "key_concepts": [
+        "Release toggles",
+        "Experiment toggles",
+        "Ops toggles",
+        "Permission toggles",
+        "Toggle lifecycle management",
+        "Targeting rules"
+      ],
+      "related_patterns": ["canary", "blue_green", "branch_by_abstraction"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "sidecar",
+      "name": "Sidecar Pattern",
+      "category": "deployment",
+      "description": "A pattern where auxiliary functionality is deployed as a separate process (sidecar) alongside the main application container, sharing the same lifecycle and network namespace. Popularized by service mesh implementations like Envoy/Istio. The key insight is that cross-cutting concerns (logging, monitoring, mTLS, retries) can be extracted from application code into a co-located sidecar, enabling polyglot applications to share infrastructure capabilities.",
+      "principles": [
+        "Sidecar runs alongside the main container sharing the same pod/host",
+        "Sidecar handles cross-cutting concerns transparently",
+        "Main application is unaware of sidecar functionality",
+        "Sidecar lifecycle is coupled to the main application lifecycle",
+        "Communication between main app and sidecar is via localhost"
+      ],
+      "when_to_use": [
+        "Cross-cutting concerns need to be consistent across polyglot services",
+        "Service mesh capabilities (mTLS, retries, circuit breaking) need to be added without code changes",
+        "Logging, metrics, and tracing collection should be uniform across all services",
+        "Main application should not be responsible for infrastructure concerns"
+      ],
+      "avoid_when": [
+        "Resource overhead of running an additional container per service is unacceptable",
+        "Sidecar adds latency to every request on the critical path",
+        "Application is a monolith where sidecar concerns are handled in-process efficiently"
+      ],
+      "signals": [
+        "Pod specification includes multiple containers: main application and sidecar",
+        "Envoy, Istio, or Linkerd sidecar proxy is injected into every service pod",
+        "Network traffic is intercepted by the sidecar proxy transparently",
+        "Sidecar containers appear in pod resource allocations alongside main containers",
+        "Service mesh control plane configures sidecar behavior centrally"
+      ],
+      "key_concepts": [
+        "Sidecar container",
+        "Service mesh",
+        "Transparent proxy",
+        "Pod co-location",
+        "Cross-cutting concern extraction",
+        "Control plane vs data plane"
+      ],
+      "related_patterns": ["ambassador", "containerized", "microservices"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "ambassador",
+      "name": "Ambassador Pattern",
+      "category": "deployment",
+      "description": "A pattern where a helper service acts as an out-of-process proxy for a client, handling cross-cutting communication concerns like retries, circuit breaking, and routing. Similar to sidecar but focused on outbound communication. The key insight is that legacy applications or applications in languages without good client libraries can gain advanced communication capabilities through a co-located proxy.",
+      "principles": [
+        "Ambassador proxy sits between the application and remote services",
+        "Handles outbound communication concerns (retries, timeouts, circuit breaking)",
+        "Application calls the ambassador on localhost instead of remote services",
+        "Ambassador can be updated independently of the application",
+        "Provides advanced features without modifying application code"
+      ],
+      "when_to_use": [
+        "Legacy application needs modern communication resilience without code changes",
+        "Application language lacks good client libraries for circuit breaking or retries",
+        "Outbound traffic needs monitoring, routing, or transformation uniformly",
+        "Need to add TLS termination or authentication to outbound calls transparently"
+      ],
+      "avoid_when": [
+        "Application has good native client libraries with built-in resilience",
+        "Latency overhead of the proxy is unacceptable",
+        "Single language environment where a shared library is simpler"
+      ],
+      "signals": [
+        "Outbound service calls route through a localhost proxy rather than directly to remote services",
+        "Proxy configuration defines retry policies, circuit breaker thresholds, and timeouts",
+        "Application code uses simple HTTP calls to localhost while proxy handles complex routing",
+        "Ambassador container runs alongside the application in the same pod",
+        "Proxy metrics show outbound request latency, retry counts, and circuit breaker state"
+      ],
+      "key_concepts": [
+        "Outbound proxy",
+        "Communication resilience",
+        "Client-side proxy",
+        "Transparent routing",
+        "Retry and circuit breaking",
+        "Legacy application integration"
+      ],
+      "related_patterns": ["sidecar", "containerized", "strangler_fig"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "strangler_fig",
+      "name": "Strangler Fig Pattern",
+      "category": "deployment",
+      "description": "A migration pattern where a legacy system is incrementally replaced by routing specific functionality to a new system while the old system continues to handle everything else. Named by Martin Fowler after strangler fig trees that grow around and eventually replace their host tree. The key insight is that big-bang rewrites almost always fail — incremental migration with parallel running reduces risk and delivers value continuously.",
+      "principles": [
+        "New system is built incrementally alongside the legacy system",
+        "Routing layer directs specific requests to old or new system",
+        "Functionality migrates one capability at a time",
+        "Old system is decommissioned only after all functionality has migrated",
+        "Rollback is possible by rerouting traffic back to the legacy system"
+      ],
+      "when_to_use": [
+        "Replacing a legacy system that cannot be rewritten all at once",
+        "Need to deliver value incrementally during a multi-year migration",
+        "Risk of big-bang rewrite failure is unacceptable",
+        "Legacy system must remain operational throughout the migration",
+        "Migrating from monolith to microservices incrementally"
+      ],
+      "avoid_when": [
+        "Legacy system is small enough for a complete rewrite in a single sprint",
+        "Routing layer between old and new systems is impractical",
+        "Data synchronization between old and new systems during migration is too complex"
+      ],
+      "signals": [
+        "Reverse proxy or API gateway routes some URLs to the legacy system and others to the new system",
+        "Migration progress tracker shows which capabilities have been migrated",
+        "Feature parity tests verify new implementation matches legacy behavior",
+        "Data synchronization mechanism keeps old and new systems consistent during migration",
+        "Traffic gradually shifts from legacy to new system as capabilities are migrated"
+      ],
+      "key_concepts": [
+        "Incremental migration",
+        "Routing layer",
+        "Feature parity verification",
+        "Parallel running",
+        "Legacy decommissioning",
+        "Data synchronization"
+      ],
+      "related_patterns": ["branch_by_abstraction", "monolith_to_microservices", "ambassador"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "branch_by_abstraction",
+      "name": "Branch by Abstraction",
+      "category": "deployment",
+      "description": "A technique for making large-scale changes to a system in a gradual way that allows you to release the system regularly while the change is in progress. An abstraction layer is introduced, with the old implementation behind it initially, then a new implementation is built alongside, and finally traffic is switched. Described by Paul Hammant. The key insight is that long-lived feature branches are avoided by using abstraction layers as the branching mechanism within the codebase itself.",
+      "principles": [
+        "Introduce an abstraction layer over the component to be replaced",
+        "Old implementation initially serves all traffic through the abstraction",
+        "New implementation is built behind the same abstraction",
+        "Traffic is gradually switched from old to new implementation",
+        "Old implementation is removed after full migration"
+      ],
+      "when_to_use": [
+        "Need to replace a core component without long-lived feature branches",
+        "Trunk-based development requires all changes to be on main",
+        "Replacement work spans multiple sprints and must not block other development",
+        "Need to A/B test old vs new implementation during migration"
+      ],
+      "avoid_when": [
+        "Abstraction layer is difficult to introduce because the component is deeply entangled",
+        "Performance overhead of the abstraction layer is unacceptable",
+        "Replacement can be done quickly enough that branching is simpler"
+      ],
+      "signals": [
+        "Interface or abstraction layer wraps the component being replaced",
+        "Both old and new implementations exist behind the same interface",
+        "Configuration or feature flag determines which implementation is active",
+        "Tests run against both implementations to verify behavioral parity",
+        "Old implementation is removed after migration is confirmed complete"
+      ],
+      "key_concepts": [
+        "Abstraction layer introduction",
+        "Parallel implementations",
+        "Gradual traffic switching",
+        "Trunk-based development",
+        "Implementation removal",
+        "Behavioral parity testing"
+      ],
+      "related_patterns": ["strangler_fig", "feature_flags", "hexagonal"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "pipe_and_filter",
+      "name": "Pipe and Filter",
+      "category": "data-flow",
+      "description": "An architecture where data flows through a sequence of processing components (filters) connected by channels (pipes). Each filter transforms the data independently without knowledge of other filters. Inspired by Unix pipe philosophy. The key insight is that filters are composable, reusable, and independently deployable processing stages connected by standardized data channels.",
+      "principles": [
+        "Filters are independent processing components with uniform interfaces",
+        "Pipes connect filter outputs to filter inputs",
+        "Filters are stateless or manage only local state",
+        "Filters can be added, removed, or reordered without modifying other filters",
+        "Each filter performs a single transformation"
+      ],
+      "when_to_use": [
+        "Data processing consists of independent transformation stages",
+        "Need to reuse processing stages across different data flows",
+        "Parallel processing of stages on streaming data is desirable",
+        "System processes data in a natural linear or fan-out flow"
+      ],
+      "avoid_when": [
+        "Processing requires feedback loops between stages",
+        "Shared state between filters is needed for the transformation logic",
+        "Overhead of data serialization between pipes is prohibitive"
+      ],
+      "signals": [
+        "Processing components implement a common transform interface (input -> output)",
+        "Components are connected via queues, streams, or channels",
+        "Processing flow is defined by configuration, not hardcoded connections",
+        "Individual components can be tested with mock input and verified output",
+        "Fan-out or fan-in topologies split and merge data flows"
+      ],
+      "key_concepts": [
+        "Filters (processing components)",
+        "Pipes (data channels)",
+        "Uniform interface",
+        "Fan-out and fan-in",
+        "Filter reusability",
+        "Stream processing"
+      ],
+      "related_patterns": ["pipeline", "streaming", "etl_pipeline"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "batch_sequential",
+      "name": "Batch Sequential Processing",
+      "category": "data-flow",
+      "description": "An architecture where data is processed in discrete batches, with each processing step completing entirely before the next begins. The output of each step is typically written to persistent storage before the next step reads it. One of the oldest data processing patterns. The key insight is that batch boundaries provide natural checkpoints for restart and recovery, and batch processing enables efficient bulk operations that streaming cannot match.",
+      "principles": [
+        "Data is processed in discrete batches, not individual records",
+        "Each step completes entirely before the next begins",
+        "Intermediate results are persisted between steps for recovery",
+        "Batch scheduling controls when processing runs",
+        "Batch size and frequency are tunable parameters"
+      ],
+      "when_to_use": [
+        "Data arrives in natural batches (daily files, hourly dumps, periodic exports)",
+        "Processing requires complete dataset access (sorting, aggregation, global statistics)",
+        "Real-time processing is not required and batch latency is acceptable",
+        "Bulk database operations are more efficient than row-by-row processing"
+      ],
+      "avoid_when": [
+        "Real-time or near-real-time processing is required",
+        "Data volume per batch is growing faster than processing capacity",
+        "Users expect immediate reflection of changes in query results"
+      ],
+      "signals": [
+        "Scheduled jobs (cron, Airflow, SSIS) trigger processing at defined intervals",
+        "Intermediate data is written to staging tables or files between steps",
+        "Batch job monitoring tracks completion status and processing duration",
+        "Retry logic restarts from the last successful step, not from the beginning",
+        "Processing window constraints define when batch jobs may run"
+      ],
+      "key_concepts": [
+        "Batch window",
+        "Job scheduling",
+        "Checkpoint and restart",
+        "Bulk operations",
+        "Staging tables",
+        "Processing latency"
+      ],
+      "related_patterns": ["etl_pipeline", "lambda_architecture", "pipe_and_filter"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "streaming",
+      "name": "Stream Processing Architecture",
+      "category": "data-flow",
+      "description": "An architecture where data is processed continuously as it arrives, event by event or in micro-batches, rather than in large periodic batches. Exemplified by Apache Kafka Streams, Apache Flink, and Apache Spark Streaming. The key insight is that treating data as a continuous stream enables real-time insights and reactions, with the event log serving as the source of truth.",
+      "principles": [
+        "Data is processed as a continuous stream of events",
+        "Processing happens in near-real-time as events arrive",
+        "Event ordering and time semantics (event time vs processing time) are explicit",
+        "Exactly-once or at-least-once processing guarantees are defined",
+        "Windowing operations aggregate events over time intervals",
+        "Stream processing topology defines the dataflow graph"
+      ],
+      "when_to_use": [
+        "Real-time analytics, dashboards, or alerting on live data",
+        "Event-driven reactions must happen within seconds or milliseconds",
+        "Data volume makes batch processing windows too long",
+        "Continuous ETL from operational systems to analytics systems",
+        "Complex event processing (pattern detection across event streams)"
+      ],
+      "avoid_when": [
+        "Processing requires access to the complete dataset (full sorts, global aggregations)",
+        "Data arrives in natural batches and real-time processing adds no value",
+        "Operational complexity of streaming infrastructure exceeds team capability"
+      ],
+      "signals": [
+        "Apache Kafka, Kinesis, or Pulsar serves as the event streaming platform",
+        "Stream processing jobs run continuously (Flink, Kafka Streams, Spark Streaming)",
+        "Windowing operations (tumbling, sliding, session) aggregate events over time",
+        "Consumer group management handles partition assignment and rebalancing",
+        "Backpressure mechanisms prevent fast producers from overwhelming slow consumers",
+        "Stream processing lag metrics track how far behind real-time the processing is"
+      ],
+      "key_concepts": [
+        "Event streams",
+        "Windowing (tumbling, sliding, session)",
+        "Exactly-once processing",
+        "Consumer groups",
+        "Backpressure",
+        "Stream processing topology"
+      ],
+      "related_patterns": ["event_driven", "kappa_architecture", "cdc_pattern", "pipe_and_filter"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "etl_pipeline",
+      "name": "ETL Pipeline",
+      "category": "data-flow",
+      "description": "A data integration pattern that extracts data from source systems, transforms it to fit operational or analytical needs, and loads it into a destination data store. The foundational pattern of data warehousing since the 1980s. The key insight is that source systems and analytical systems have fundamentally different schemas and quality requirements, and transformation bridges this gap.",
+      "principles": [
+        "Extract: read data from source systems without modifying them",
+        "Transform: clean, validate, denormalize, and reshape data",
+        "Load: write transformed data to the destination store",
+        "Idempotent operations enable safe re-execution",
+        "Data lineage tracking shows where each piece of data came from"
+      ],
+      "when_to_use": [
+        "Data needs to move from operational databases to analytical data warehouses",
+        "Source data requires cleaning, validation, and schema transformation",
+        "Multiple source systems need to be integrated into a unified data model",
+        "Regulatory requirements mandate data quality checks before loading"
+      ],
+      "avoid_when": [
+        "Real-time data availability is required — ETL batch latency is too high",
+        "Transformation logic is simple enough that ELT (load then transform) is better",
+        "Source systems can expose data through APIs, making extraction unnecessary"
+      ],
+      "signals": [
+        "ETL tool or framework (Airflow, dbt, SSIS, Informatica) orchestrates data pipelines",
+        "Source connectors extract data from databases, APIs, or files",
+        "Transformation logic cleans, validates, and reshapes data between extract and load",
+        "Data quality checks validate records before loading to the destination",
+        "Pipeline monitoring tracks extraction lag, transformation errors, and load throughput"
+      ],
+      "key_concepts": [
+        "Extract phase",
+        "Transform phase",
+        "Load phase",
+        "Data lineage",
+        "Idempotent loading",
+        "Data quality validation"
+      ],
+      "related_patterns": ["batch_sequential", "pipe_and_filter", "lambda_architecture", "data_mesh"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "lambda_architecture",
+      "name": "Lambda Architecture",
+      "category": "data-flow",
+      "description": "A data processing architecture with three layers: a batch layer for comprehensive but high-latency processing, a speed layer for low-latency approximate processing, and a serving layer that merges results from both. Proposed by Nathan Marz. The key insight is that batch processing provides accuracy while stream processing provides speed, and combining them provides both — at the cost of maintaining two separate processing codebases.",
+      "principles": [
+        "Batch layer processes the complete dataset for accuracy",
+        "Speed layer processes recent data for low latency",
+        "Serving layer merges batch and speed layer results",
+        "Immutable master dataset is the source of truth",
+        "Speed layer results are eventually replaced by batch layer results"
+      ],
+      "when_to_use": [
+        "Need both real-time approximate results and accurate batch-computed results",
+        "Complete reprocessing of historical data is needed when logic changes",
+        "Use case tolerates temporary inconsistency between real-time and batch views",
+        "Existing batch infrastructure needs to be augmented with real-time capabilities"
+      ],
+      "avoid_when": [
+        "Maintaining two codebases (batch and stream) for the same logic is too costly",
+        "Kappa architecture can meet latency requirements with stream processing alone",
+        "Team lacks expertise in both batch and stream processing technologies"
+      ],
+      "signals": [
+        "Parallel batch and stream processing pipelines process the same data",
+        "Batch layer runs periodically over the complete dataset (Hadoop, Spark batch)",
+        "Speed layer processes events in real-time (Storm, Flink, Spark Streaming)",
+        "Serving layer merges batch views with speed layer results for queries",
+        "Two implementations of the same transformation logic exist (batch and stream)"
+      ],
+      "key_concepts": [
+        "Batch layer",
+        "Speed layer",
+        "Serving layer",
+        "Immutable master dataset",
+        "Recomputation",
+        "Dual codebase maintenance"
+      ],
+      "related_patterns": ["kappa_architecture", "batch_sequential", "streaming"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "kappa_architecture",
+      "name": "Kappa Architecture",
+      "category": "data-flow",
+      "description": "A simplification of lambda architecture that uses a single stream processing layer for both real-time and historical data processing. Historical reprocessing is achieved by replaying the event log through updated stream processors. Proposed by Jay Kreps. The key insight is that if the event log is retained, stream processing alone can serve both real-time and batch needs, eliminating the dual-codebase problem of lambda architecture.",
+      "principles": [
+        "Single stream processing layer handles all data processing",
+        "Immutable event log retains all historical events",
+        "Reprocessing replays events through updated stream processors",
+        "No separate batch layer — stream processing handles everything",
+        "Event log retention period determines reprocessing capability"
+      ],
+      "when_to_use": [
+        "Stream processing technology can handle both real-time and reprocessing workloads",
+        "Maintaining dual codebases (batch + stream) is unacceptable",
+        "Event log can be retained long enough for reprocessing needs",
+        "Processing logic is the same for real-time and historical data"
+      ],
+      "avoid_when": [
+        "Historical reprocessing requires complete dataset access that event replay cannot provide",
+        "Event log retention costs are prohibitive for the data volume",
+        "Processing logic fundamentally differs between real-time and batch (different algorithms)"
+      ],
+      "signals": [
+        "Single stream processing pipeline handles both real-time and historical data",
+        "Event log (Kafka) retains events for extended periods enabling replay",
+        "Reprocessing is triggered by deploying updated stream processors and replaying events",
+        "No separate batch processing infrastructure exists",
+        "Stream processor state stores serve queries directly"
+      ],
+      "key_concepts": [
+        "Single processing path",
+        "Event log retention",
+        "Event replay for reprocessing",
+        "Stream processor state stores",
+        "Unified codebase",
+        "Log compaction"
+      ],
+      "related_patterns": ["lambda_architecture", "streaming", "event_sourcing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "data_mesh",
+      "name": "Data Mesh",
+      "category": "data-flow",
+      "description": "A decentralized data architecture where domain teams own and serve their data as products, with a federated governance model and self-serve data platform. Proposed by Zhamak Dehghani in 2019. The key insight is that centralizing data ownership in a single data team creates a bottleneck — instead, data ownership should follow domain ownership, with domains publishing data products for consumption.",
+      "principles": [
+        "Domain-oriented data ownership — each domain owns its data products",
+        "Data as a product — domains treat data consumers as customers",
+        "Self-serve data platform provides tooling for domain teams",
+        "Federated computational governance ensures interoperability",
+        "Data product contracts define SLAs, schemas, and quality guarantees"
+      ],
+      "when_to_use": [
+        "Centralized data team is a bottleneck for data delivery across the organization",
+        "Organization has well-defined domain teams that understand their data best",
+        "Multiple domains need to share data but a central data warehouse creates coupling",
+        "Data quality is best enforced by the teams that produce the data"
+      ],
+      "avoid_when": [
+        "Organization is small and a single data team can handle all data needs",
+        "Domain teams lack the skills or willingness to own data products",
+        "Federated governance overhead exceeds the benefit of decentralization",
+        "Data volume and complexity do not justify the architectural investment"
+      ],
+      "signals": [
+        "Domain teams publish data products with documented schemas and SLAs",
+        "Self-serve data platform provides tools for data product creation and discovery",
+        "Data product catalog enables discovery across domain boundaries",
+        "Federated governance policies are enforced computationally, not manually",
+        "Domain data products have their own CI/CD pipelines and quality checks"
+      ],
+      "key_concepts": [
+        "Domain data ownership",
+        "Data products",
+        "Self-serve data platform",
+        "Federated governance",
+        "Data contracts",
+        "Data product catalog"
+      ],
+      "related_patterns": ["microservices", "event_driven", "etl_pipeline"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "cdc_pattern",
+      "name": "Change Data Capture (CDC)",
+      "category": "data-flow",
+      "description": "A pattern that captures row-level changes (inserts, updates, deletes) from a database and publishes them as events for downstream consumers. Implemented by tools like Debezium reading database transaction logs. The key insight is that the database transaction log already contains a complete, ordered record of all changes — reading it avoids polling, triggers, and application-level change tracking.",
+      "principles": [
+        "Changes are captured from the database transaction log, not from application code",
+        "Captures inserts, updates, and deletes as discrete events",
+        "Preserves the order of changes as they occurred in the source database",
+        "Does not modify or impact the source database performance significantly",
+        "Provides both initial snapshot and ongoing change stream"
+      ],
+      "when_to_use": [
+        "Need to replicate data from operational databases to analytics or search systems",
+        "Event-driven architecture needs events from legacy systems that do not emit them",
+        "Database synchronization between systems without application-level change tracking",
+        "Building read replicas or materialized views from operational data"
+      ],
+      "avoid_when": [
+        "Source database does not expose a transaction log or the log format is proprietary",
+        "Application-level events already capture all changes and CDC adds redundancy",
+        "Change volume is so high that the CDC pipeline cannot keep up"
+      ],
+      "signals": [
+        "Debezium, Maxwell, or similar CDC connector reads database transaction logs",
+        "Change events are published to Kafka or similar event streaming platform",
+        "CDC connector configuration specifies which tables and schemas to capture",
+        "Initial snapshot followed by continuous change streaming is the setup pattern",
+        "Downstream consumers process change events to update derived data stores"
+      ],
+      "key_concepts": [
+        "Transaction log reading",
+        "Change events",
+        "Initial snapshot",
+        "Log-based CDC vs trigger-based CDC",
+        "Schema evolution handling",
+        "Exactly-once delivery"
+      ],
+      "related_patterns": ["event_driven", "streaming", "materialized_view", "write_ahead_log"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "materialized_view",
+      "name": "Materialized View Pattern",
+      "category": "data-flow",
+      "description": "A pattern where pre-computed query results are stored as a concrete data structure, updated when underlying data changes. Used in databases as materialized views and in application architecture as read-optimized projections. The key insight is that trading storage for compute eliminates expensive joins and aggregations at query time, shifting the cost to write time or background refresh.",
+      "principles": [
+        "Query results are pre-computed and stored, not computed on each request",
+        "Views are updated when underlying data changes (synchronous or async)",
+        "Multiple materialized views can serve different query patterns from the same source",
+        "Staleness is an explicit trade-off — refresh frequency balances freshness and cost",
+        "Views are rebuilt from source data, not patched"
+      ],
+      "when_to_use": [
+        "Expensive queries with complex joins or aggregations are executed frequently",
+        "Read-heavy workloads where pre-computation amortizes the cost across many reads",
+        "CQRS read models that serve denormalized views of the write model",
+        "Dashboard and reporting queries that do not need real-time data"
+      ],
+      "avoid_when": [
+        "Underlying data changes so frequently that view maintenance dominates write performance",
+        "Query patterns are ad-hoc and unpredictable — cannot pre-compute all possible views",
+        "Storage cost of materialized views exceeds compute cost savings"
+      ],
+      "signals": [
+        "Database materialized views or application-level projection tables store pre-computed results",
+        "Background jobs or event handlers refresh materialized views on data changes",
+        "Read endpoints query materialized views rather than computing joins on the fly",
+        "View refresh lag metrics track how stale the materialized data is",
+        "Multiple denormalized views serve different query patterns from the same source data"
+      ],
+      "key_concepts": [
+        "Pre-computed results",
+        "View refresh strategy",
+        "Staleness tolerance",
+        "Denormalized read models",
+        "Incremental vs full refresh",
+        "Storage vs compute trade-off"
+      ],
+      "related_patterns": ["cqrs", "event_sourcing", "cdc_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "write_ahead_log",
+      "name": "Write-Ahead Log (WAL)",
+      "category": "data-flow",
+      "description": "A pattern where all modifications are written to a sequential, append-only log before being applied to the main data structure. Used in databases (PostgreSQL WAL, MySQL redo log) and distributed systems (Raft log, Kafka). The key insight is that sequential writes to a log are orders of magnitude faster than random writes to data structures, and the log provides durability and crash recovery guarantees.",
+      "principles": [
+        "All modifications are appended to the log before being applied",
+        "Log entries are sequential and append-only",
+        "Recovery replays the log from the last checkpoint",
+        "Log is the source of truth until changes are flushed to main storage",
+        "Checkpointing periodically saves state to reduce recovery time"
+      ],
+      "when_to_use": [
+        "Crash recovery must guarantee no data loss for committed operations",
+        "Sequential write performance is needed for write-heavy workloads",
+        "Replication requires an ordered log of changes to propagate to replicas",
+        "Transactional guarantees (atomicity, durability) must be maintained across crashes"
+      ],
+      "avoid_when": [
+        "Write volume is low and direct writes to the data structure are fast enough",
+        "Storage overhead of maintaining the log is prohibitive",
+        "System does not need crash recovery guarantees"
+      ],
+      "signals": [
+        "Append-only log file exists alongside the main data files",
+        "Write operations append to the log before modifying the main data structure",
+        "Crash recovery procedure replays log entries from the last checkpoint",
+        "Log compaction or checkpointing periodically truncates old log entries",
+        "Replication reads from the log to propagate changes to follower nodes"
+      ],
+      "key_concepts": [
+        "Append-only log",
+        "Log sequence number (LSN)",
+        "Checkpointing",
+        "Log replay for recovery",
+        "Log compaction",
+        "Replication from log"
+      ],
+      "related_patterns": ["event_sourcing", "cdc_pattern", "streaming"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "monolith_to_microservices",
+      "name": "Monolith to Microservices Migration",
+      "category": "hybrid",
+      "description": "A migration strategy pattern for incrementally decomposing a monolithic application into microservices. Described extensively by Sam Newman. The key insight is that successful migration requires identifying seam points in the existing codebase, extracting along domain boundaries, and maintaining the monolith as a functioning system throughout the transition — not attempting a parallel rewrite.",
+      "principles": [
+        "Identify seam points along domain boundaries in the existing monolith",
+        "Extract one bounded context at a time into a separate service",
+        "Maintain the monolith as a functioning system throughout migration",
+        "Use strangler fig pattern to incrementally route traffic to new services",
+        "Database decomposition follows service decomposition"
+      ],
+      "when_to_use": [
+        "Monolith has become too large for a single team to maintain and deploy",
+        "Different parts of the monolith need independent scaling or deployment",
+        "Organization is growing and teams need autonomous service ownership",
+        "Technical debt in the monolith prevents rapid feature delivery"
+      ],
+      "avoid_when": [
+        "Monolith is still manageable and the migration cost exceeds the benefit",
+        "Domain boundaries are not well understood — premature extraction creates a distributed monolith",
+        "Team lacks operational readiness for distributed systems"
+      ],
+      "signals": [
+        "Monolith codebase is being analyzed for bounded context boundaries",
+        "New services are being extracted one at a time from the monolith",
+        "API gateway routes some requests to new services and others to the monolith",
+        "Database tables are being migrated from the shared monolith database to service-owned databases",
+        "Anti-corruption layer mediates between monolith and new service data models"
+      ],
+      "key_concepts": [
+        "Seam identification",
+        "Bounded context extraction",
+        "Database decomposition",
+        "Anti-corruption layer",
+        "Incremental migration",
+        "Parallel running"
+      ],
+      "related_patterns": ["strangler_fig", "modular_monolith", "microservices", "branch_by_abstraction"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "backends_for_frontends",
+      "name": "Backends for Frontends (BFF)",
+      "category": "hybrid",
+      "description": "A pattern where each frontend application (web, mobile, IoT) has its own dedicated backend service that aggregates and shapes data specifically for that frontend's needs. Described by Sam Newman and Phil Calçado. The key insight is that different frontends have fundamentally different data needs — a mobile app needs compact responses while a web dashboard needs rich aggregations — and a single general-purpose API cannot serve all optimally.",
+      "principles": [
+        "Each frontend type has its own dedicated backend service",
+        "BFF aggregates calls to downstream services for its frontend",
+        "BFF shapes response data to match its frontend's specific needs",
+        "Frontend team owns their BFF, not a separate backend team",
+        "BFF contains only presentation logic, not business logic"
+      ],
+      "when_to_use": [
+        "Different frontends (mobile, web, third-party) need significantly different API shapes",
+        "General-purpose API is becoming bloated with frontend-specific logic",
+        "Frontend teams want to control their own backend without coordinating with a central API team",
+        "Mobile and web have different performance constraints requiring different response shapes"
+      ],
+      "avoid_when": [
+        "Single frontend type — a BFF adds an unnecessary layer",
+        "Frontend API needs are similar enough that a single API serves all well",
+        "BFF starts containing business logic that should live in downstream services"
+      ],
+      "signals": [
+        "Separate backend services exist per frontend type (web-bff, mobile-bff, iot-bff)",
+        "BFF aggregates multiple downstream service calls into a single frontend-optimized response",
+        "Frontend team repository includes the BFF code alongside frontend code",
+        "BFF responses are tailored to frontend needs (field selection, nesting, pagination)",
+        "API gateway routes to different BFF services based on client type headers"
+      ],
+      "key_concepts": [
+        "Frontend-specific backend",
+        "Response shaping",
+        "API aggregation",
+        "Frontend team ownership",
+        "Client-type routing",
+        "Presentation logic"
+      ],
+      "related_patterns": ["microservices", "micro_frontends", "jamstack"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "micro_frontends",
+      "name": "Micro Frontends",
+      "category": "hybrid",
+      "description": "An architecture that extends microservice principles to the frontend, where the web application is composed of features independently developed, tested, and deployed by different teams. Each micro frontend owns a vertical slice of the UI. The key insight is that frontend monoliths create the same bottlenecks as backend monoliths — independent team autonomy requires independent frontend deployment.",
+      "principles": [
+        "Each micro frontend is independently developed, tested, and deployed",
+        "Team owns a vertical slice from UI to backend",
+        "Micro frontends are composed at build time, server time, or runtime",
+        "Shared nothing architecture — each micro frontend manages its own state",
+        "Shell application provides routing and composition infrastructure"
+      ],
+      "when_to_use": [
+        "Multiple teams work on different features of the same web application",
+        "Teams need to deploy frontend changes independently without coordinating releases",
+        "Different features benefit from different frontend frameworks or versions",
+        "Product is assembled from independently developed feature modules"
+      ],
+      "avoid_when": [
+        "Single team owns the entire frontend — micro frontend overhead is unjustified",
+        "Consistent UX requires tight coupling between features that micro frontends make harder",
+        "Performance overhead of loading multiple frameworks degrades user experience"
+      ],
+      "signals": [
+        "Web application is composed from independently deployed frontend modules",
+        "Module federation or web component composition joins micro frontends at runtime",
+        "Each micro frontend has its own build pipeline and deployment",
+        "Shell application handles routing and loads micro frontends dynamically",
+        "Different micro frontends may use different framework versions"
+      ],
+      "key_concepts": [
+        "Independent deployment",
+        "Runtime composition",
+        "Module federation",
+        "Shell application",
+        "Cross-micro-frontend communication",
+        "Shared design system"
+      ],
+      "related_patterns": ["microservices", "backends_for_frontends", "islands_architecture"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "jamstack",
+      "name": "Jamstack",
+      "category": "hybrid",
+      "description": "An architecture where the web frontend is pre-rendered at build time and served as static files from a CDN, with dynamic functionality provided by JavaScript calling APIs and serverless functions. Coined by Mathias Biilmann (Netlify). The key insight is that pre-rendering eliminates the server from the request path for most page loads, providing extreme performance and security, while APIs handle dynamic needs.",
+      "principles": [
+        "Pre-render as much as possible at build time",
+        "Serve static assets from a CDN for global edge performance",
+        "Dynamic functionality via client-side JavaScript calling APIs",
+        "Serverless functions handle server-side logic when needed",
+        "Git-based workflow with atomic deploys"
+      ],
+      "when_to_use": [
+        "Content-heavy sites (marketing, documentation, blogs) with mostly static content",
+        "Global audience where CDN edge delivery provides significant performance benefit",
+        "Security is a priority — no server to attack for pre-rendered pages",
+        "Developer experience benefits from decoupled frontend and content management"
+      ],
+      "avoid_when": [
+        "Highly dynamic content that changes per-request and cannot be pre-rendered",
+        "Build time becomes too long when pre-rendering thousands of pages",
+        "Real-time interactivity is the primary use case, not content delivery"
+      ],
+      "signals": [
+        "Static site generator (Next.js, Gatsby, Hugo) pre-renders pages at build time",
+        "CDN serves pre-rendered HTML, CSS, and JavaScript assets globally",
+        "API calls from client-side JavaScript fetch dynamic data",
+        "Serverless functions handle form submissions, authentication, and other server-side logic",
+        "Git push triggers build, pre-render, and CDN deployment pipeline"
+      ],
+      "key_concepts": [
+        "Pre-rendering (SSG)",
+        "CDN distribution",
+        "API-driven dynamic content",
+        "Serverless functions",
+        "Atomic deploys",
+        "Headless CMS"
+      ],
+      "related_patterns": ["serverless", "islands_architecture", "server_components", "edge_computing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "islands_architecture",
+      "name": "Islands Architecture",
+      "category": "hybrid",
+      "description": "A web architecture where the page is primarily static HTML with isolated interactive 'islands' that are independently hydrated on the client side. Described by Katie Sylor-Miller and popularized by Astro framework. The key insight is that most of a typical web page is static content that does not need JavaScript — only the interactive parts (islands) need client-side hydration, dramatically reducing JavaScript payload and improving performance.",
+      "principles": [
+        "Page is mostly static HTML rendered on the server",
+        "Interactive components are isolated islands with independent hydration",
+        "Each island can use a different framework (React, Vue, Svelte)",
+        "Islands hydrate independently — one island loading does not block others",
+        "Non-interactive content requires zero client-side JavaScript"
+      ],
+      "when_to_use": [
+        "Content-heavy pages with sparse interactivity (e.g., a few interactive widgets on a mostly static page)",
+        "Performance budget demands minimal JavaScript for page load",
+        "Different interactive components on the same page benefit from different frameworks",
+        "Progressive enhancement where pages work without JavaScript but enhance with it"
+      ],
+      "avoid_when": [
+        "Page is highly interactive with most elements requiring client-side state",
+        "Islands need to share state extensively, breaking their isolation",
+        "Single-page application behavior (client-side routing, persistent state) is required"
+      ],
+      "signals": [
+        "HTML pages contain isolated interactive components with hydration directives",
+        "Framework like Astro, Fresh, or Marko renders pages with island boundaries",
+        "JavaScript is loaded only for interactive islands, not for the entire page",
+        "Different islands on the same page use different component frameworks",
+        "Page functions partially without JavaScript — interactive features enhance progressively"
+      ],
+      "key_concepts": [
+        "Partial hydration",
+        "Island isolation",
+        "Framework-agnostic composition",
+        "Progressive enhancement",
+        "Selective JavaScript loading",
+        "Static-first rendering"
+      ],
+      "related_patterns": ["jamstack", "server_components", "micro_frontends"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "server_components",
+      "name": "Server Components",
+      "category": "hybrid",
+      "description": "A rendering architecture where some UI components execute on the server and stream their rendered output to the client, while other components execute on the client for interactivity. Pioneered by React Server Components. The key insight is that components that only display data can run entirely on the server, eliminating their JavaScript from the client bundle and allowing direct access to server-side data sources without API round-trips.",
+      "principles": [
+        "Server components render on the server and send HTML/payload to the client",
+        "Client components handle interactivity and run in the browser",
+        "Server components can directly access databases, file systems, and APIs",
+        "Server component code is never sent to the client browser",
+        "Server and client components compose naturally in the same component tree"
+      ],
+      "when_to_use": [
+        "Large component trees where most components only display data without interactivity",
+        "Need to reduce client-side JavaScript bundle size significantly",
+        "Components need direct access to server-side resources (database, file system)",
+        "Streaming server rendering can improve time-to-first-byte and progressive content display"
+      ],
+      "avoid_when": [
+        "Application is highly interactive with most components needing client-side state",
+        "Framework does not support server components natively",
+        "Server rendering latency is unacceptable for the user experience"
+      ],
+      "signals": [
+        "Components are explicitly marked as server or client components (e.g., 'use client' directive)",
+        "Server components directly query databases without API endpoints",
+        "Client bundle size analysis shows server components excluded from the bundle",
+        "Streaming response delivers server-rendered content progressively",
+        "Component tree mixes server and client components with clear boundaries"
+      ],
+      "key_concepts": [
+        "Server component rendering",
+        "Client component hydration",
+        "Streaming SSR",
+        "Bundle size reduction",
+        "Direct data access",
+        "Component boundary (server vs client)"
+      ],
+      "related_patterns": ["islands_architecture", "jamstack", "micro_frontends"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "edge_computing",
+      "name": "Edge Computing Architecture",
+      "category": "hybrid",
+      "description": "An architecture where computation is moved to the network edge, closer to end users, rather than running in centralized data centers. Enabled by platforms like Cloudflare Workers, AWS CloudFront Functions, and Deno Deploy. The key insight is that for latency-sensitive operations, moving compute to within milliseconds of the user provides performance improvements that no amount of server optimization in a distant data center can match.",
+      "principles": [
+        "Compute runs at edge locations geographically close to users",
+        "Edge functions handle request routing, transformation, and personalization",
+        "Heavy computation and stateful operations stay in origin data centers",
+        "Edge state is limited — typically cache, KV stores, or small databases",
+        "Cold start time is critical as edge functions may start on every request"
+      ],
+      "when_to_use": [
+        "Latency-sensitive operations where every millisecond of round-trip time matters",
+        "Request-level personalization or A/B testing that benefits from edge execution",
+        "Geographically distributed users need consistent low-latency responses",
+        "Authentication, rate limiting, or header manipulation at the edge reduces origin load"
+      ],
+      "avoid_when": [
+        "Computation requires access to large datasets that cannot be cached at the edge",
+        "Business logic is too complex for the constrained edge runtime environment",
+        "Edge runtime limitations (execution time, memory, APIs) are too restrictive",
+        "Debugging distributed edge functions is beyond team capability"
+      ],
+      "signals": [
+        "Functions deployed to edge platforms (Cloudflare Workers, Lambda@Edge, Deno Deploy)",
+        "Edge KV stores or caches hold frequently accessed data at edge locations",
+        "CDN configuration includes edge compute logic for request/response transformation",
+        "Latency metrics show sub-50ms responses from edge locations worldwide",
+        "Origin server traffic is reduced because the edge handles many requests directly"
+      ],
+      "key_concepts": [
+        "Edge locations",
+        "Edge functions",
+        "Edge KV stores",
+        "Origin offloading",
+        "Geographic distribution",
+        "Constrained runtime environment"
+      ],
+      "related_patterns": ["serverless", "jamstack", "multi_region"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "hybrid_cloud",
+      "name": "Hybrid Cloud Architecture",
+      "category": "hybrid",
+      "description": "An architecture where workloads are distributed across on-premises infrastructure and one or more public cloud providers, connected by networking and unified management. The key insight is that not all workloads can or should move to public cloud — regulatory constraints, data gravity, latency requirements, or existing investments create a permanent need for hybrid deployment, which must be a first-class architectural concern.",
+      "principles": [
+        "Workloads are placed on-premises or in cloud based on specific criteria",
+        "Unified management layer spans on-premises and cloud environments",
+        "Network connectivity between environments is secure and reliable",
+        "Data gravity drives placement — data-heavy workloads run near their data",
+        "Portable workloads use containers or abstractions for environment mobility"
+      ],
+      "when_to_use": [
+        "Regulatory requirements mandate certain data or workloads remain on-premises",
+        "Existing on-premises investment has not yet been amortized",
+        "Burst capacity in cloud supplements steady-state on-premises capacity",
+        "Data sovereignty laws require data to remain in specific jurisdictions",
+        "Latency-sensitive workloads need proximity to on-premises data sources"
+      ],
+      "avoid_when": [
+        "Workloads can fully run in public cloud without regulatory or technical constraints",
+        "Operational complexity of managing two environments exceeds the benefit",
+        "Network connectivity between environments is unreliable or too expensive"
+      ],
+      "signals": [
+        "Infrastructure spans on-premises data centers and public cloud regions",
+        "VPN or dedicated network connections link on-premises to cloud environments",
+        "Workload placement policy documents which workloads run where and why",
+        "Unified monitoring and management tools cover both on-premises and cloud",
+        "Container orchestration (Anthos, Azure Arc, EKS Anywhere) spans environments"
+      ],
+      "key_concepts": [
+        "Workload placement",
+        "Network connectivity",
+        "Unified management",
+        "Data gravity",
+        "Cloud bursting",
+        "Environment portability"
+      ],
+      "related_patterns": ["multi_region", "containerized", "edge_computing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "space_based",
+      "name": "Space-Based Architecture",
+      "category": "structural",
+      "description": "An architecture that achieves high scalability by removing the central database bottleneck, instead distributing both processing and data across multiple processing units with in-memory data grids for state sharing. Named after tuple spaces. The key insight is that the database is typically the scalability bottleneck — by partitioning data in-memory across processing units and using data replication, the architecture can scale horizontally without a central database constraint.",
+      "principles": [
+        "Processing units contain both application logic and in-memory data",
+        "Data grid replicates state across processing units",
+        "No central database on the hot path — reads and writes go to in-memory state",
+        "Data is asynchronously persisted to the database for durability",
+        "Messaging grid handles communication between processing units"
+      ],
+      "when_to_use": [
+        "Application has extreme scalability requirements that database-centric architectures cannot meet",
+        "Variable load with dramatic spikes requires elastic scaling of both compute and data",
+        "Low-latency reads and writes are critical and database round-trips are unacceptable",
+        "Workload is partitionable — different users or sessions can be served by different processing units"
+      ],
+      "avoid_when": [
+        "Data volume exceeds what can be held in memory across the processing units",
+        "Strong consistency across all processing units is a hard requirement",
+        "Application is read-heavy with simple queries that a database handles efficiently"
+      ],
+      "signals": [
+        "In-memory data grid (Hazelcast, Apache Ignite, GemFire) distributes state across nodes",
+        "Processing units contain both application code and cached data",
+        "Database writes are asynchronous — hot path never waits for database persistence",
+        "Data replication between processing units ensures state availability",
+        "Processing units can be added or removed dynamically based on load"
+      ],
+      "key_concepts": [
+        "Processing units",
+        "In-memory data grid",
+        "Data replication",
+        "Asynchronous persistence",
+        "Messaging grid",
+        "Tuple spaces"
+      ],
+      "related_patterns": ["microservices", "cell_based", "event_driven"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "blackboard",
+      "name": "Blackboard Pattern",
+      "category": "behavioral",
+      "description": "An architecture where a shared knowledge base (blackboard) is incrementally built by multiple specialized knowledge sources, each contributing partial solutions when they can. A control component selects which knowledge source acts next. Used in AI, speech recognition, and complex problem-solving systems. The key insight is that ill-structured problems where no single algorithm provides a solution can be tackled by multiple specialized agents contributing partial solutions to a shared workspace.",
+      "principles": [
+        "Shared blackboard holds the current state of the problem solution",
+        "Knowledge sources are independent specialists that contribute partial solutions",
+        "Control component selects which knowledge source to activate next",
+        "Knowledge sources monitor the blackboard and act when they can contribute",
+        "Solution emerges incrementally from contributions of multiple knowledge sources"
+      ],
+      "when_to_use": [
+        "Problem is ill-structured with no single deterministic solution algorithm",
+        "Multiple specialized algorithms can contribute partial solutions",
+        "Solution requires integration of diverse knowledge from different domains",
+        "AI or expert system needs to combine outputs from multiple reasoning engines"
+      ],
+      "avoid_when": [
+        "Problem has a well-defined algorithmic solution that a single process can compute",
+        "Shared state on the blackboard becomes a coordination bottleneck",
+        "Knowledge sources have strict ordering requirements that eliminate the benefit of flexibility"
+      ],
+      "signals": [
+        "Shared data structure holds evolving problem state accessed by multiple components",
+        "Multiple specialized processing components read and write to the shared structure",
+        "Control loop selects which component acts next based on current state",
+        "Solution quality improves incrementally as more components contribute",
+        "Components are independent and do not call each other directly"
+      ],
+      "key_concepts": [
+        "Blackboard (shared workspace)",
+        "Knowledge sources",
+        "Control component",
+        "Partial solutions",
+        "Opportunistic problem solving",
+        "Incremental solution building"
+      ],
+      "related_patterns": ["actor_model", "pipeline", "event_driven"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "service_mesh_pattern",
+      "name": "Service Mesh",
+      "category": "deployment",
+      "description": "An infrastructure layer that handles service-to-service communication, providing features like load balancing, mTLS, observability, and traffic management without modifying application code. Implemented by Istio, Linkerd, and Consul Connect. The key insight is that networking concerns (retries, circuit breaking, encryption, tracing) are cross-cutting infrastructure problems that should be solved once in the mesh, not reimplemented in every service.",
+      "principles": [
+        "Data plane proxies intercept all service-to-service traffic",
+        "Control plane configures proxy behavior centrally",
+        "Application code is unaware of the mesh — communication is transparent",
+        "Mutual TLS encrypts all inter-service communication automatically",
+        "Traffic management (routing, splitting, mirroring) is configured declaratively"
+      ],
+      "when_to_use": [
+        "Many microservices need consistent communication policies (retries, timeouts, mTLS)",
+        "Observability across services (distributed tracing, metrics) needs to be uniform",
+        "Traffic management (canary routing, fault injection) is needed without code changes",
+        "Zero-trust security requires mTLS between all services"
+      ],
+      "avoid_when": [
+        "Fewer than 10 services — mesh overhead exceeds benefit",
+        "Team cannot manage the operational complexity of mesh infrastructure",
+        "Latency overhead of sidecar proxies is unacceptable for the workload"
+      ],
+      "signals": [
+        "Sidecar proxy (Envoy) injected into every service pod",
+        "Control plane (Istiod, Linkerd control plane) manages mesh configuration",
+        "mTLS certificates are automatically rotated for all service-to-service communication",
+        "Distributed tracing spans are generated by mesh proxies without application instrumentation",
+        "Traffic policies (retry, timeout, circuit breaker) are defined as mesh configuration, not code"
+      ],
+      "key_concepts": [
+        "Data plane",
+        "Control plane",
+        "Sidecar proxy",
+        "Mutual TLS",
+        "Traffic policies",
+        "Observability integration"
+      ],
+      "related_patterns": ["sidecar", "microservices", "containerized", "ambassador"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "outbox_pattern",
+      "name": "Transactional Outbox",
+      "category": "behavioral",
+      "description": "A pattern that guarantees reliable event publishing by writing events to an outbox table in the same database transaction as the business data change. A separate process reads the outbox and publishes events to the message broker. The key insight is that dual writes (database + message broker) are inherently unreliable — writing both to the same database transaction eliminates the consistency problem, and a relay process handles publishing.",
+      "principles": [
+        "Events are written to an outbox table in the same transaction as business data",
+        "A separate relay process reads the outbox and publishes to the message broker",
+        "Outbox entries are marked as published after successful broker delivery",
+        "At-least-once delivery is guaranteed — consumers must handle duplicates",
+        "No dual write — all changes go to the database first"
+      ],
+      "when_to_use": [
+        "Service needs to reliably publish events when state changes occur",
+        "Dual writes to database and message broker are causing data inconsistency",
+        "At-least-once event delivery guarantee is required",
+        "Service uses a relational database and a message broker"
+      ],
+      "avoid_when": [
+        "Event sourcing is used — the event store already serves as the outbox",
+        "Message broker supports transactional sends (e.g., Kafka transactions)",
+        "Polling overhead of the outbox relay is unacceptable"
+      ],
+      "signals": [
+        "Outbox table exists in the service database alongside business tables",
+        "Business data and outbox entries are written in the same database transaction",
+        "Relay process (polling or CDC-based) reads outbox and publishes to message broker",
+        "Published flag or deletion marks outbox entries as successfully published",
+        "Consumer-side deduplication handles duplicate deliveries"
+      ],
+      "key_concepts": [
+        "Outbox table",
+        "Transactional write",
+        "Outbox relay/publisher",
+        "At-least-once delivery",
+        "Consumer deduplication",
+        "Polling vs CDC relay"
+      ],
+      "related_patterns": ["event_driven", "cdc_pattern", "saga_orchestration", "event_sourcing"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "bulkhead",
+      "name": "Bulkhead Pattern",
+      "category": "deployment",
+      "description": "A resilience pattern that isolates elements of an application into pools so that if one fails, the others continue to function. Named after ship bulkheads that prevent water from flooding the entire vessel. The key insight is that resource isolation (thread pools, connection pools, process isolation) prevents a failure or resource exhaustion in one component from cascading to others.",
+      "principles": [
+        "Resources are partitioned into isolated pools per component or consumer",
+        "Failure in one pool does not exhaust resources available to other pools",
+        "Each pool has defined resource limits (threads, connections, memory)",
+        "Pools are sized based on expected load and criticality of the component",
+        "Monitoring detects pool exhaustion before it impacts other components"
+      ],
+      "when_to_use": [
+        "Failure in one dependency must not exhaust resources needed by other operations",
+        "Different consumers have different SLAs requiring resource isolation",
+        "Thread pool or connection pool exhaustion has caused cascading failures in production",
+        "Critical and non-critical operations share the same infrastructure"
+      ],
+      "avoid_when": [
+        "System has few dependencies and isolation overhead is unjustified",
+        "Resource utilization is low and pooling would waste reserved capacity",
+        "Operational complexity of managing multiple pools exceeds the resilience benefit"
+      ],
+      "signals": [
+        "Separate thread pools or connection pools exist for different downstream services",
+        "Resource limits are configured per dependency or consumer group",
+        "Pool exhaustion metrics trigger alerts before cascading failure occurs",
+        "Circuit breakers per pool prevent continued requests to failing dependencies",
+        "Load shedding activates when a specific pool reaches capacity"
+      ],
+      "key_concepts": [
+        "Resource isolation",
+        "Pool partitioning",
+        "Cascading failure prevention",
+        "Pool sizing",
+        "Load shedding",
+        "Failure domain isolation"
+      ],
+      "related_patterns": ["cell_based", "sidecar", "microservices", "service_mesh_pattern"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "circuit_breaker",
+      "name": "Circuit Breaker Pattern",
+      "category": "behavioral",
+      "description": "A resilience pattern where a proxy monitors calls to a downstream service and trips to an open state after a threshold of failures, preventing further calls for a cooldown period before allowing tentative retries. Described by Michael Nygard in 'Release It!'. The key insight is that continuing to call a failing service wastes resources and can cause cascading failures — failing fast allows the caller to take alternative action.",
+      "principles": [
+        "Monitor failure rate of calls to downstream services",
+        "Trip to open state after failure threshold is exceeded",
+        "In open state, fail immediately without making the call",
+        "After cooldown, allow a limited number of test calls (half-open state)",
+        "Reset to closed state if test calls succeed"
+      ],
+      "when_to_use": [
+        "Downstream service failures cause timeout-induced resource exhaustion",
+        "Caller has fallback behavior when the downstream service is unavailable",
+        "Need to prevent cascading failures across service boundaries",
+        "Downstream service recovery is aided by reducing load during outage"
+      ],
+      "avoid_when": [
+        "Operations are fire-and-forget with no need for failure detection",
+        "Fallback behavior does not exist and failing fast provides no benefit",
+        "Single dependency where circuit breaking just moves the failure earlier"
+      ],
+      "signals": [
+        "Circuit breaker library (Resilience4j, Polly, Hystrix) wraps downstream calls",
+        "Three states visible in metrics: closed (normal), open (failing fast), half-open (testing)",
+        "Failure rate thresholds and cooldown periods are configured per downstream service",
+        "Fallback logic executes when circuit is open",
+        "Dashboard shows circuit breaker state transitions and trip frequency"
+      ],
+      "key_concepts": [
+        "Closed state (normal operation)",
+        "Open state (failing fast)",
+        "Half-open state (testing recovery)",
+        "Failure threshold",
+        "Cooldown period",
+        "Fallback behavior"
+      ],
+      "related_patterns": ["bulkhead", "sidecar", "service_mesh_pattern", "saga_orchestration"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "domain_driven_design",
+      "name": "Domain-Driven Design (DDD)",
+      "category": "structural",
+      "description": "An approach to software development that centers the design on the core business domain, using a ubiquitous language shared between developers and domain experts. Introduced by Eric Evans in 2003. The key insight is that the most significant complexity in software is the domain itself — aligning code structure with domain concepts reduces translation overhead and enables the model to evolve with the business.",
+      "principles": [
+        "Ubiquitous language bridges developers and domain experts",
+        "Bounded contexts define explicit boundaries for domain models",
+        "Aggregates enforce consistency boundaries within a bounded context",
+        "Domain events capture significant business occurrences",
+        "Context mapping defines relationships between bounded contexts",
+        "Strategic design guides decomposition into bounded contexts"
+      ],
+      "when_to_use": [
+        "Business domain is complex with rich rules, invariants, and processes",
+        "Collaboration between developers and domain experts is feasible and valuable",
+        "Multiple teams need to work on different parts of a complex domain",
+        "Domain model needs to evolve with changing business requirements"
+      ],
+      "avoid_when": [
+        "Domain is simple CRUD with no significant business rules",
+        "Domain experts are not available for collaboration",
+        "Project is a short-lived prototype where domain modeling overhead is unjustified"
+      ],
+      "signals": [
+        "Code uses domain-specific terminology that matches business language",
+        "Bounded context boundaries align with team and service boundaries",
+        "Aggregate roots enforce consistency for groups of related entities",
+        "Context map documents relationships (shared kernel, customer-supplier, etc.) between contexts",
+        "Domain events are explicitly modeled and published when significant state changes occur",
+        "Value objects and entities are used instead of primitive types for domain concepts"
+      ],
+      "key_concepts": [
+        "Ubiquitous language",
+        "Bounded context",
+        "Aggregates",
+        "Domain events",
+        "Context mapping",
+        "Value objects and entities"
+      ],
+      "related_patterns": ["hexagonal", "microservices", "event_sourcing", "modular_monolith"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "api_gateway",
+      "name": "API Gateway Pattern",
+      "category": "hybrid",
+      "description": "A pattern where a single entry point handles all client requests, routing them to appropriate backend services while providing cross-cutting concerns like authentication, rate limiting, and request transformation. The key insight is that clients should not need to know the internal decomposition of the backend — the gateway provides a unified, stable API surface while the backend services evolve independently.",
+      "principles": [
+        "Single entry point for all client requests",
+        "Request routing to appropriate backend services",
+        "Cross-cutting concerns (auth, rate limiting, logging) applied uniformly",
+        "Response aggregation combines data from multiple services",
+        "API versioning and backward compatibility managed at the gateway"
+      ],
+      "when_to_use": [
+        "Microservices backend needs a unified API surface for clients",
+        "Cross-cutting concerns must be applied consistently across all services",
+        "Client needs aggregated responses from multiple backend services",
+        "API versioning and deprecation must be managed centrally"
+      ],
+      "avoid_when": [
+        "Single backend service — gateway adds unnecessary latency",
+        "Gateway becomes a bottleneck or single point of failure",
+        "Gateway logic grows into a monolithic orchestration layer"
+      ],
+      "signals": [
+        "API gateway (Kong, AWS API Gateway, Envoy) sits in front of all backend services",
+        "Gateway configuration maps external URLs to internal service endpoints",
+        "Authentication and rate limiting are enforced at the gateway, not in each service",
+        "Response transformation reshapes backend responses for client consumption",
+        "Gateway metrics show request routing, latency, and error rates per route"
+      ],
+      "key_concepts": [
+        "Request routing",
+        "Cross-cutting concerns",
+        "Response aggregation",
+        "API versioning",
+        "Rate limiting",
+        "Single entry point"
+      ],
+      "related_patterns": ["backends_for_frontends", "microservices", "sidecar", "strangler_fig"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "event_mesh",
+      "name": "Event Mesh",
+      "category": "data-flow",
+      "description": "A dynamic infrastructure layer that routes events between decoupled applications, cloud services, and devices regardless of where they are deployed. Unlike a single event broker, an event mesh connects multiple brokers across environments into a unified event routing fabric. The key insight is that as event-driven architectures span multiple clouds, regions, and environments, a single broker is insufficient — an interconnected mesh of brokers provides global event routing with local performance.",
+      "principles": [
+        "Events are routed dynamically across interconnected brokers",
+        "Producers and consumers are location-agnostic",
+        "Topic-based or content-based routing determines event destinations",
+        "Mesh spans on-premises, cloud, and edge environments",
+        "Events are delivered with defined quality of service guarantees"
+      ],
+      "when_to_use": [
+        "Event-driven architecture spans multiple clouds or data centers",
+        "Events need to flow between on-premises and cloud environments",
+        "Dynamic event routing based on content or context is required",
+        "Single event broker cannot meet geographic distribution requirements"
+      ],
+      "avoid_when": [
+        "All services run in a single cloud region and a single broker suffices",
+        "Event volume is low enough that direct broker connections handle the load",
+        "Operational complexity of managing a mesh of brokers exceeds the benefit"
+      ],
+      "signals": [
+        "Multiple event brokers are interconnected across environments",
+        "Event routing rules dynamically direct events based on topic or content",
+        "Events flow between cloud regions, data centers, or edge locations transparently",
+        "Event mesh management console shows topology and routing configuration",
+        "Quality of service settings (delivery guarantee, ordering) are configured per event type"
+      ],
+      "key_concepts": [
+        "Broker interconnection",
+        "Dynamic event routing",
+        "Multi-environment spanning",
+        "Topic hierarchy",
+        "Quality of service",
+        "Event governance"
+      ],
+      "related_patterns": ["event_driven", "streaming", "service_mesh_pattern", "hybrid_cloud"],
+      "last_reviewed": "2026-03-21"
+    },
+    {
+      "id": "data_lake",
+      "name": "Data Lake Architecture",
+      "category": "data-flow",
+      "description": "An architecture where raw data from diverse sources is stored in its native format in a centralized repository, enabling schema-on-read rather than schema-on-write. Coined by James Dixon of Pentaho. The key insight is that deferring schema definition to query time preserves optionality — data scientists and analysts can apply different schemas to the same raw data for different analytical purposes.",
+      "principles": [
+        "Store raw data in its native format without upfront transformation",
+        "Schema-on-read: structure is applied when data is queried, not when stored",
+        "Single repository for structured, semi-structured, and unstructured data",
+        "Data governance prevents the lake from becoming a data swamp",
+        "Metadata catalog enables discovery and understanding of stored data"
+      ],
+      "when_to_use": [
+        "Need to store diverse data types (logs, images, JSON, CSV) in one repository",
+        "Analytical use cases are not known at data ingestion time",
+        "Data scientists need access to raw data for exploration and model training",
+        "Cost-effective storage of large volumes of data for future analysis"
+      ],
+      "avoid_when": [
+        "All queries need structured, well-defined schemas — a data warehouse is better",
+        "Data governance is immature and the lake will become an ungoverned swamp",
+        "Data volume is small enough that a traditional database handles all needs"
+      ],
+      "signals": [
+        "Object storage (S3, ADLS, GCS) serves as the primary data repository",
+        "Data is stored in raw format (Parquet, Avro, JSON, CSV) without transformation",
+        "Metadata catalog (Glue, Hive Metastore, Unity Catalog) indexes stored data",
+        "Query engines (Athena, Presto, Spark SQL) apply schema at query time",
+        "Data zones (raw, curated, enriched) organize data by processing stage"
+      ],
+      "key_concepts": [
+        "Schema-on-read",
+        "Raw data storage",
+        "Metadata catalog",
+        "Data zones",
+        "Data governance",
+        "Query engine"
+      ],
+      "related_patterns": ["data_mesh", "etl_pipeline", "lambda_architecture", "batch_sequential"],
+      "last_reviewed": "2026-03-21"
+    }
+  ]
+}
