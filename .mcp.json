@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "coeus": {
+      "command": "/Users/rezamalik/Repos/coeus/.venv/bin/python3",
+      "args": ["-m", "coeus.server"],
+      "env": {"PYTHONPATH": "src"}
+    }
+  }
+}
