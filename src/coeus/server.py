@@ -172,7 +172,7 @@ def design_api(
 @mcp.tool()
 def assess_resilience(
     system_description: str,
-    structural_signals: Union[list[str], str, None] = None,
+    structural_signals: Union[list[str], str],
     conn: Any = None,
 ) -> dict:
     """Assess the resilience of a system architecture.

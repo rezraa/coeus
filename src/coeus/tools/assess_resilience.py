@@ -175,7 +175,7 @@ def _compute_resilience_score(
 
 def assess_resilience(
     system_description: str,
-    structural_signals: list[str] | None = None,
+    structural_signals: list[str],
     conn: object = None,
 ) -> dict:
     """Assess the resilience of a system architecture.
