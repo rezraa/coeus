@@ -16,6 +16,7 @@ from coeus.tools.evaluate_scalability import evaluate_scalability as _evaluate_s
 from coeus.tools.recommend_pattern import recommend_pattern as _recommend_pattern
 from coeus.tools.design_api import design_api as _design_api
 from coeus.tools.assess_resilience import assess_resilience as _assess_resilience
+from coeus.tools.log_decision import log_decision as _log_decision
 from coeus.tools._shared import coerce
 
 
@@ -192,6 +193,38 @@ def assess_resilience(
     return _assess_resilience(
         system_description=system_description,
         structural_signals=coerce(structural_signals, list),
+        conn=conn,
+    )
+
+
+@mcp.tool()
+def log_decision(
+    decision_type: str,
+    context: str,
+    choice_made: str,
+    alternatives_considered: Union[list[str], str, None] = None,
+    rationale: str = "",
+    conn: Any = None,
+) -> dict:
+    """Record an architecture decision with rationale and alternatives.
+
+    Args:
+        decision_type: Category (e.g., "architecture", "pattern", "scalability",
+            "api_design", "tradeoff").
+        context: The situation or problem that prompted the decision.
+        choice_made: The option that was selected.
+        alternatives_considered: Other options evaluated but not chosen.
+        rationale: Reasoning behind the choice.
+        conn: Kuzu/LadybugDB connection for graph mode (injected by Othrys).
+
+    Returns: {decision_id, decision_type, recorded, timestamp}
+    """
+    return _log_decision(
+        decision_type=decision_type,
+        context=context,
+        choice_made=choice_made,
+        alternatives_considered=coerce(alternatives_considered, list),
+        rationale=rationale,
         conn=conn,
     )
 

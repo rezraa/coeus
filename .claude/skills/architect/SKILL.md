@@ -33,7 +33,9 @@ The user invoked this with: $ARGUMENTS
 
 6. If resilience concern: **CALL** `assess_resilience` with the system description and structural signals about failure modes. This returns a resilience score, single points of failure, missing resilience patterns, blast radius assessment, and hardening recommendations.
 
-7. **REPORT** the complete architecture assessment:
+7. **CALL** `log_decision` for every architecture decision made. Record decision type, context, choice, alternatives considered, rationale. Every architecture decision is recorded.
+
+8. **REPORT** the complete architecture assessment:
    - Architecture analysis with identified issues and severity
    - Recommended patterns with tradeoff analysis
    - Constraints that drove the recommendation
