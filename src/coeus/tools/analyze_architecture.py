@@ -13,7 +13,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from coeus.tools._shared import coerce, emit_event, get_knowledge
+from coeus.tools._shared import coerce, emit_event, get_knowledge, normalize_kwargs
+
+# Caller kwarg synonyms remapped to the canonical signature.
+_ALIASES = {"system": "description"}
+_IGNORED: set[str] = set()
 
 # ---------------------------------------------------------------------------
 # Anti-pattern detectors — structural signal keywords → architecture issues
@@ -87,6 +91,7 @@ _ANTI_PATTERNS: dict[str, dict[str, Any]] = {
 # Main tool
 # ---------------------------------------------------------------------------
 
+@normalize_kwargs
 def analyze_architecture(
     description: str,
     structural_signals: list[str],
@@ -107,8 +112,8 @@ def analyze_architecture(
         Dict with keys: matched_rules, architecture_issues,
         recommendations, scalability_flags.
     """
-    structural_signals = coerce(structural_signals, list) or []
-    constraints = coerce(constraints, dict) or {}
+    structural_signals = coerce(structural_signals, list, default=[])
+    constraints = coerce(constraints, dict, default={})
 
     kb = get_knowledge(conn)
 

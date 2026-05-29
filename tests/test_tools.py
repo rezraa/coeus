@@ -470,3 +470,119 @@ class TestSecurityChecks:
         assert "COEUS_DATA_DIR" not in result_str
         assert "/Users/" not in result_str
         assert "secret123" not in result_str
+
+
+# ===========================================================================
+# E2/S6 hardening — failure shapes from the S5 post-mortem matrix.
+# ===========================================================================
+
+from coeus.tools._shared import coerce
+from coeus.tools.log_decision import log_decision
+
+
+class TestCoerce:
+
+    def test_str_to_dict_mismatch_returns_default(self):
+        assert coerce("production", dict, default={}) == {}
+
+    def test_list_where_dict_expected_returns_default(self):
+        assert coerce(["a"], dict, default={}) == {}
+
+    def test_json_string_to_list(self):
+        assert coerce("[1,2]", list, default=[]) == [1, 2]
+
+    def test_native_dict_passthrough(self):
+        assert coerce({"k": 1}, dict) == {"k": 1}
+
+    def test_none_returns_default(self):
+        assert coerce(None, dict, default={}) == {}
+
+    def test_two_arg_call_still_works(self):
+        assert coerce("[1]", list) == [1]
+
+
+class TestLogDecisionHardening:
+
+    def test_choice_alias(self, tmp_path):
+        import os
+        os.environ["COEUS_DATA_DIR"] = str(tmp_path)
+        try:
+            result = log_decision(
+                decision_type="architecture",
+                context="picking a store",
+                choice="kuzu",  # alias of choice_made
+            )
+            assert result["recorded"] is True
+        finally:
+            os.environ.pop("COEUS_DATA_DIR", None)
+
+    def test_decision_and_alternatives_aliases(self, tmp_path):
+        import os
+        os.environ["COEUS_DATA_DIR"] = str(tmp_path)
+        try:
+            result = log_decision(
+                decision_type="pattern",
+                context="evaluating queues",
+                decision="kafka",  # alias of choice_made
+                alternatives=["rabbitmq"],  # alias of alternatives_considered
+            )
+            assert result["recorded"] is True
+        finally:
+            os.environ.pop("COEUS_DATA_DIR", None)
+
+    def test_choice_made_and_choice_collision_raises(self, tmp_path):
+        import os
+        os.environ["COEUS_DATA_DIR"] = str(tmp_path)
+        try:
+            with pytest.raises(TypeError):
+                log_decision(
+                    decision_type="architecture",
+                    context="x",
+                    choice_made="canonical",
+                    choice="alias",
+                )
+        finally:
+            os.environ.pop("COEUS_DATA_DIR", None)
+
+    def test_choice_and_decision_both_aliases_collide(self, tmp_path):
+        import os
+        os.environ["COEUS_DATA_DIR"] = str(tmp_path)
+        try:
+            # Two synonyms of the same canonical -> ambiguous -> raise.
+            with pytest.raises(TypeError):
+                log_decision(
+                    decision_type="architecture",
+                    context="x",
+                    choice="a",
+                    decision="b",
+                )
+        finally:
+            os.environ.pop("COEUS_DATA_DIR", None)
+
+
+class TestAssessResilienceHardening:
+
+    def test_system_alias(self):
+        result = assess_resilience(
+            system="A single-database monolith",  # alias of system_description
+            structural_signals=["single-database"],
+        )
+        assert isinstance(result, dict)
+
+
+class TestAnalyzeArchitectureHardening:
+
+    def test_system_alias(self):
+        result = analyze_architecture(
+            system="A shared-database microservice mesh",  # alias of description
+            structural_signals=["shared-database"],
+        )
+        assert isinstance(result, dict)
+
+    def test_truthy_wrong_type_constraints_does_not_crash(self):
+        result = analyze_architecture(
+            description="x",
+            structural_signals=["shared-database"],
+            constraints=["wrong", "shape"],
+        )
+        assert isinstance(result, dict)

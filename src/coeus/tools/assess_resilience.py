@@ -10,7 +10,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from coeus.tools._shared import coerce, emit_event, get_knowledge
+from coeus.tools._shared import coerce, emit_event, get_knowledge, normalize_kwargs
+
+# Caller kwarg synonyms remapped to the canonical signature.
+_ALIASES = {"system": "system_description"}
+_IGNORED: set[str] = set()
 
 # ---------------------------------------------------------------------------
 # SPOF detectors — structural signal keywords → single points of failure
@@ -173,6 +177,7 @@ def _compute_resilience_score(
 # Main tool
 # ---------------------------------------------------------------------------
 
+@normalize_kwargs
 def assess_resilience(
     system_description: str,
     structural_signals: list[str],
@@ -194,7 +199,7 @@ def assess_resilience(
         Dict with keys: resilience_score, single_points_of_failure,
         missing_patterns, blast_radius_assessment, hardening_recommendations.
     """
-    structural_signals = coerce(structural_signals, list) or []
+    structural_signals = coerce(structural_signals, list, default=[])
 
     kb = get_knowledge(conn)
 

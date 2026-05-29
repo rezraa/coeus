@@ -14,9 +14,19 @@ from typing import Any
 
 import logging
 
-from coeus.tools._shared import append_decision, coerce, emit_event, get_knowledge
+from coeus.tools._shared import append_decision, coerce_or_raise, emit_event, get_knowledge, normalize_kwargs
 
 logger = logging.getLogger(__name__)
+
+# Caller kwarg synonyms remapped to the canonical signature. Both ``choice``
+# and ``decision`` map to ``choice_made``; supplying more than one of them (or
+# one alongside an explicit ``choice_made``) is a collision and raises.
+_ALIASES = {
+    "choice": "choice_made",
+    "decision": "choice_made",
+    "alternatives": "alternatives_considered",
+}
+_IGNORED: set[str] = set()
 
 # ---------------------------------------------------------------------------
 # Valid decision types — for categorisation and filtering
@@ -44,6 +54,7 @@ _DECISION_TYPES: set[str] = {
 # Main tool
 # ---------------------------------------------------------------------------
 
+@normalize_kwargs
 def log_decision(
     decision_type: str,
     context: str,
@@ -68,7 +79,7 @@ def log_decision(
     Returns:
         Dict with keys: decision_id, decision_type, recorded, timestamp.
     """
-    alternatives_considered = coerce(alternatives_considered, list) or []
+    alternatives_considered = coerce_or_raise(alternatives_considered, list, [])
 
     # Normalise decision type — warn on unknown but preserve original
     dt_lower = decision_type.lower().strip()
