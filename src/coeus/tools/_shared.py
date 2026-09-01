@@ -212,6 +212,61 @@ def coerce_or_raise(
 
 
 # ---------------------------------------------------------------------------
+# Caller-boundary ceilings — one source of truth, shared by every Shape-C tool
+# ---------------------------------------------------------------------------
+# The retrieval engine bounds its own fan-out (_SEED_CAP/_TOPK_CAP); these bound
+# the UNTRUSTED caller input BEFORE that engine is reached, applied where the cost
+# is incurred. Declared once here so a second tool cannot drift a second copy.
+_MAX_MATCHED_SIGNALS = 256      # cap on caller-supplied signal ids, bound BEFORE hydrate
+_MAX_CONSTRAINTS = 64           # cap on constraint-dict cardinality
+_MAX_CONSTRAINT_VALUE_LEN = 256  # cap on each constraint value used in comparison
+_MAX_DESCRIPTION_LEN = 4096     # cap on free-text description (context/telemetry only)
+
+
+def _bounded_constraints(constraints: dict) -> dict:
+    """Bound an untrusted constraints dict at the caller boundary.
+
+    Keeps at most ``_MAX_CONSTRAINTS`` entries and clips each string value to
+    ``_MAX_CONSTRAINT_VALUE_LEN`` characters so an unbounded dict cannot amplify
+    the per-facet comparison cost. Pure sanitisation — never interpretation.
+    """
+    bounded: dict[str, Any] = {}
+    for key, val in list(constraints.items())[:_MAX_CONSTRAINTS]:
+        bounded[key] = val[:_MAX_CONSTRAINT_VALUE_LEN] if isinstance(val, str) else val
+    return bounded
+
+
+# ---------------------------------------------------------------------------
+# Shared output primitive — the derived related-pattern surface. Every concern
+# tool re-sources each retrieved pattern's OWN related_patterns (alternatives /
+# remediation / scaling recommendations); one resolver and one cap live here so
+# a second tool cannot drift a second copy (this is where the twin per-tool caps
+# _MAX_ALTERNATIVES / _MAX_RECOMMENDATIONS unified).
+# ---------------------------------------------------------------------------
+_MAX_RELATED_OUTPUT = 50   # cap on the deduped related-pattern cross-product a tool
+                           # derives across its k retrieved patterns (output size, not
+                           # a relevance score — corpus fan-out over k patterns)
+
+
+def _resolved_related(kb: Any, pattern: dict) -> list[dict[str, Any]]:
+    """Resolve a pattern's OWN ``related_patterns`` into ``{pattern_id, pattern_name}``.
+
+    Each id is resolved via ``_lookup_pattern`` (never a husk; a truly-absent id is
+    already surfaced in the retrieval envelope's ``dangling`` field), preserving
+    corpus order. The single shared resolver for the related-pattern surface every
+    concern tool derives from a retrieved pattern's own field — one source of truth,
+    not one copy per tool.
+    """
+    out: list[dict[str, Any]] = []
+    for rel_id in pattern.get("related_patterns", []):
+        rel = kb._lookup_pattern(rel_id)
+        if rel is None:
+            continue
+        out.append({"pattern_id": rel["id"], "pattern_name": rel.get("name", rel_id)})
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Kwarg normalisation — per-tool alias / ignore tables
 # ---------------------------------------------------------------------------
 

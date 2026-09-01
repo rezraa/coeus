@@ -1,0 +1,1780 @@
+{
+  "spec_id": "coeus-Gmetric-v1",
+  "story": "story-19e9ceb1",
+  "title": "Frozen G-metric scorecard for the Coeus retrieval refactor",
+  "authored_by": "Themis",
+  "status": "FROZEN",
+  "one_line": "Concept-level recall@10 over a method-independent reachable set of 130 golds; Shape C must beat the rule-routed baseline on the same set.",
+  "problem_statement": {
+    "disagreement_resolved": "Two tome measurements disagreed ~3-4x on 'how much is reachable': m-10b5c0a0 said 108/209 (concept judge, but denominator = A-union-B-union-C retrieval UNION -> CIRCULAR, method-dependent), m-01392e91 said ~28-43/209 (HONEST full denominator but EXACT-STRING grader that under-credits, e.g. time_series_db != 'Time-Series Database' per m-879a7403).",
+    "fix": "Take the good half of each: concept-level GRADER (from Shape C) applied to a METHOD-INDEPENDENT denominator (fix the circularity) computed by checking each gold directly against the corpus."
+  },
+  "1_grader": {
+    "type": "curated_concept_map",
+    "decision": "Curated concept/alias map, NOT a live LLM judge.",
+    "why": "The map is a frozen deterministic lookup table -> 'compute twice, same score' holds exactly. An LLM concept-judge (even temp 0) drifts across model versions and is not replayable; it was fine as a one-off measurement but cannot be the LOCKED grader. The map already encodes the concept-level judgment (naming variants + mechanism-equivalence) that fixed the exact-string under-crediting.",
+    "rule": "A gold is CONCEPT-COVERED by a method iff the method's ranked output (top-k corpus pattern IDs for that problem) contains ANY of the acceptable_corpus_ids the frozen map assigns to that gold. Naming variants and mechanism-equivalents are pre-encoded (e.g. Time-Series Database -> time_series_db; Saga -> saga_orchestration|saga_choreography; Immutable Audit Log -> event_log; Geo-Sharding -> data_partitioning|multi_region).",
+    "novel_pattern_fallback": "If a future method surfaces a corpus pattern for a gold that the map did not anticipate, an LLM concept-judge with the rubric below adjudicates ONLY that new (gold, pattern) pair; the verdict is then written back into the map (map grows monotonically, never silently re-decides existing rows).",
+    "rubric_for_map_and_fallback": {
+      "E_exists": "Corpus has a standalone pattern whose primary subject IS the gold's architectural concept, counting naming variants and a pattern that IS that mechanism under a different label.",
+      "B_borderline": "Concept present ONLY as an embedded key_concept/signal of a pattern about something else (e.g. anti_corruption_layer inside monolith_to_microservices; consistent_hashing inside cache/kv patterns; optimistic_concurrency inside rest_partial_updates; correlation_id inside event_driven), OR a composite/specialization of generic patterns where reasonable judges differ. NOT a first-class retrievable pattern.",
+      "A_absent": "Concept appears nowhere in the corpus (verified by direct grep of all three pattern files)."
+    }
+  },
+  "2_denominator": {
+    "definition": "METHOD-INDEPENDENT reachable set = the golds whose architectural concept actually EXISTS in Coeus's corpus, determined by checking each gold DIRECTLY against the 174 patterns at concept level. Does NOT depend on what any retrieval method returned (this removes the circularity flaw in m-10b5c0a0's 108).",
+    "FROZEN_reachable_set_size": 130,
+    "breakdown": {
+      "E_exists_reachable": 130,
+      "B_borderline_embedded_excluded": 30,
+      "A_absent_content_floor": 49,
+      "total_golds": 209
+    },
+    "borderline_policy": "The 30 borderline (embedded-only / composite) golds are EXCLUDED from BOTH numerator and denominator (scored neutral). A method surfacing them earns no credit and no penalty. This keeps the metric crisp and reproducible and refuses to grade on concepts that are not first-class retrievable patterns.",
+    "denominator_is_stable": "Because baseline and after are scored over the SAME 130-set, the denominator CANCELS in the pass/fail comparison. Its exact value (130 strict vs 160 lenient) changes only the reported percentage, never the C-vs-baseline verdict.",
+    "lenient_denominator_if_borderline_credited": 160
+  },
+  "3_score": {
+    "metric": "concept_recall_at_k",
+    "formula": "recall@k = (# of the 130 E-golds whose acceptable_corpus_ids intersect the method's top-k pattern IDs for that problem, summed over all 25 problems) / 130",
+    "primary_cutoff_k": 10,
+    "secondary_cutoff_k": 5,
+    "cutoff_rationale": "k=10 is the primary pass/fail operating point (a reasoning Titan reads a ~10-pattern bundle; both prior tome measurements report @10; less rank-noise than @5). k=5 is a secondary ranking-quality diagnostic (the capstone's decisive claim was a RANKING win: C@5 > B@10).",
+    "method_output_contract": "Each method emits, per problem, a rank-ordered list of DISTINCT corpus pattern IDs. Baseline = current rule-routed retrieval (problem/signals -> decision_rules -> recommended_patterns traversal). After = Shape C (LLM working-memory signal match -> pattern-direct hydrate). Same benchmark inputs, same corpus snapshot, same k."
+  },
+  "4_baseline_vs_after": {
+    "baseline": "rule_routed_retrieval (signal/problem -> rule -> recommended_patterns; the current production path, = Shape A in the tome)",
+    "after": "shape_C (deterministic signal index in working memory -> Titan concept match -> pattern-direct hydrate)",
+    "PASS_condition_FROZEN": {
+      "primary": "recall@10(shape_C) - recall@10(baseline) >= 0.10 of the reachable set (i.e. shape_C covers at least 13 more of the 130 golds than baseline). A strict > with an anti-noise margin.",
+      "robustness_1_design_works_floor": "recall@10(shape_C) >= 0.50 (>= 65 of 130). Establishes the new path actually surfaces a majority of what is reachable, not merely that it beats a broken baseline.",
+      "robustness_2_distribution": "shape_C recall@10 >= baseline recall@10 on >= 22 of 25 problems (guards against a win concentrated in a few problems; the capstone observed 24/25).",
+      "verdict_rule": "G-metric PASS = primary AND robustness_1 AND robustness_2. Any one failing = NOT a pass; return to council, do not close the story on it."
+    },
+    "notes": "Thresholds are set for the measured effect size (capstone: C@10=98 vs A@10=23 on the old 108-set, >4x) so a real win clears them trivially and a marginal/noise result correctly fails. Prometheus/council may ratify or adjust the margins BEFORE any code is written; once code starts, the bar is locked."
+  },
+  "5_reproducibility": {
+    "benchmark": {
+      "file": "BENCHMARK_blind_v1.json",
+      "sha256": "fcee12261808159549588c099ad264457495c5880c15026cf2c04b0e39aeab6c"
+    },
+    "corpus_snapshot_patterns_sha256": {
+      "architecture_patterns.json": "63a9e9ceb361aedeafebe75f2e52ebbe41ec1362d89e17a8db3fe8c74bfa8fca",
+      "scalability_patterns.json": "20fe1eda6d8dbefdc4a2f080be50c617abe041c6ea10ebb38b379e93c575196a",
+      "api_and_data.json": "2e8bb295b2ce933b284f599498802ac460f119fffc3c85d1dc42ce3cfd2092d1"
+    },
+    "corpus_pattern_count": 174,
+    "decision_rules_sha256_baseline_only": {
+      "file": "decision_rules.json",
+      "sha256": "1e0ccc9d5795fae832d803628eed3fb84a865ee1f13ebf1635e05f9dafa9e90f"
+    },
+    "n_problems": 25,
+    "total_golds": 209,
+    "cutoffs": {
+      "primary_k": 10,
+      "secondary_k": 5
+    },
+    "grader_config": "frozen curated concept map embedded in this file (field 'reachable_set_map'); deterministic; borderline+absent excluded from scoring",
+    "recompute_contract": "Given the pinned benchmark hash, the three pinned corpus-pattern hashes, k, and this map, recall@k is a pure function of a method's ranked output -> identical on every recompute. If any hash changes, the metric is INVALID and must be re-frozen (corpus/benchmark drift)."
+  },
+  "reachable_set_map": [
+    {
+      "problem": "P01",
+      "gold": "Transactional Outbox",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "outbox_pattern"
+      ]
+    },
+    {
+      "problem": "P01",
+      "gold": "Saga",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "saga_orchestration",
+        "saga_choreography"
+      ]
+    },
+    {
+      "problem": "P01",
+      "gold": "Idempotency Key",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "idempotency"
+      ]
+    },
+    {
+      "problem": "P01",
+      "gold": "Circuit Breaker",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker"
+      ]
+    },
+    {
+      "problem": "P01",
+      "gold": "Bulkhead",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "bulkhead"
+      ]
+    },
+    {
+      "problem": "P01",
+      "gold": "Dead Letter Queue",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "dead_letter_queue",
+        "dead_letter_queue_api"
+      ]
+    },
+    {
+      "problem": "P01",
+      "gold": "Server-Sent Events / WebSocket Push",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "server_sent_events",
+        "websocket_pattern"
+      ]
+    },
+    {
+      "problem": "P01",
+      "gold": "Change Data Capture",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "change_data_capture",
+        "cdc_pattern"
+      ]
+    },
+    {
+      "problem": "P01",
+      "gold": "Immutable Audit Ledger / Event Log",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P02",
+      "gold": "WebSocket / SSE Fan-out",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "websocket_pattern",
+        "server_sent_events",
+        "fan_out_pattern"
+      ]
+    },
+    {
+      "problem": "P02",
+      "gold": "Publish-Subscribe (topic per shipment)",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "pub_sub_messaging"
+      ]
+    },
+    {
+      "problem": "P02",
+      "gold": "Geospatial Partitioning / Sharding",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "data_partitioning",
+        "multi_region"
+      ]
+    },
+    {
+      "problem": "P02",
+      "gold": "CQRS Read Model / Read Replica",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "cqrs",
+        "database_read_replicas"
+      ]
+    },
+    {
+      "problem": "P02",
+      "gold": "Circuit Breaker",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker"
+      ]
+    },
+    {
+      "problem": "P02",
+      "gold": "Retry with Exponential Backoff and Jitter",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "retry_with_backoff"
+      ]
+    },
+    {
+      "problem": "P02",
+      "gold": "CRDT / Last-Write-Wins Conflict Resolution",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "crdt"
+      ]
+    },
+    {
+      "problem": "P02",
+      "gold": "Edge Caching / CDN for map tiles",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "cdn_caching",
+        "edge_caching"
+      ]
+    },
+    {
+      "problem": "P03",
+      "gold": "Gateway / Protocol Adapter",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "api_gateway",
+        "backends_for_frontends"
+      ]
+    },
+    {
+      "problem": "P03",
+      "gold": "Strangler Fig",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "strangler_fig"
+      ]
+    },
+    {
+      "problem": "P03",
+      "gold": "Immutable Audit Log",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P03",
+      "gold": "Blue-Green Deployment",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "blue_green"
+      ]
+    },
+    {
+      "problem": "P04",
+      "gold": "Log-Structured Ingest Queue (append-only log)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log",
+        "kafka_streaming",
+        "write_ahead_log"
+      ]
+    },
+    {
+      "problem": "P04",
+      "gold": "Backpressure / Load Shedding",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "backpressure",
+        "throttling"
+      ]
+    },
+    {
+      "problem": "P04",
+      "gold": "Time-Series Database",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "time_series_db"
+      ]
+    },
+    {
+      "problem": "P04",
+      "gold": "Partitioning / Sharding by meter",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "data_partitioning"
+      ]
+    },
+    {
+      "problem": "P04",
+      "gold": "Stream Processing with Windowed Aggregation",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "windowed_aggregation",
+        "stream_processing"
+      ]
+    },
+    {
+      "problem": "P04",
+      "gold": "Kappa Architecture",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "kappa_architecture"
+      ]
+    },
+    {
+      "problem": "P05",
+      "gold": "Precomputed / Materialized Recommendations",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "materialized_view"
+      ]
+    },
+    {
+      "problem": "P05",
+      "gold": "Predictive Autoscaling",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "autoscaling_policy",
+        "elastic_scaling"
+      ]
+    },
+    {
+      "problem": "P05",
+      "gold": "Async Pipeline / Fan-out Workers",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "async_processing",
+        "worker_pool",
+        "pipeline"
+      ]
+    },
+    {
+      "problem": "P05",
+      "gold": "Priority Queue",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "priority_queue"
+      ]
+    },
+    {
+      "problem": "P05",
+      "gold": "CDN with Origin Shield",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "cdn_caching"
+      ]
+    },
+    {
+      "problem": "P06",
+      "gold": "Strangler Fig",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "strangler_fig"
+      ]
+    },
+    {
+      "problem": "P06",
+      "gold": "Branch by Abstraction",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "branch_by_abstraction"
+      ]
+    },
+    {
+      "problem": "P06",
+      "gold": "Saga",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "saga_orchestration",
+        "saga_choreography"
+      ]
+    },
+    {
+      "problem": "P06",
+      "gold": "Idempotency Key",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "idempotency"
+      ]
+    },
+    {
+      "problem": "P06",
+      "gold": "Circuit Breaker",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker"
+      ]
+    },
+    {
+      "problem": "P06",
+      "gold": "Graceful Degradation / Fallback",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "graceful_degradation",
+        "fallback"
+      ]
+    },
+    {
+      "problem": "P06",
+      "gold": "Bulkhead",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "bulkhead"
+      ]
+    },
+    {
+      "problem": "P06",
+      "gold": "Canary Release",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "canary"
+      ]
+    },
+    {
+      "problem": "P07",
+      "gold": "Geo-Sharding / Region Affinity",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "multi_region",
+        "data_partitioning"
+      ]
+    },
+    {
+      "problem": "P07",
+      "gold": "Circuit Breaker",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker"
+      ]
+    },
+    {
+      "problem": "P07",
+      "gold": "Warm Pools / Scale-to-Zero",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "serverless",
+        "worker_pool"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Event Sourcing",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_sourcing"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Watermarking / Late-Arrival Handling",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "windowed_aggregation",
+        "stream_processing"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Idempotency Key",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "idempotency"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Exactly-Once / Deduplication",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "exactly_once_semantics"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Stream Aggregation with Windowing",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "windowed_aggregation",
+        "stream_processing"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Transactional Outbox",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "outbox_pattern"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Saga",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "saga_orchestration",
+        "saga_choreography"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Reconciliation / Audit Ledger",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P08",
+      "gold": "Dead Letter Queue",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "dead_letter_queue",
+        "dead_letter_queue_api"
+      ]
+    },
+    {
+      "problem": "P09",
+      "gold": "Local Read-Through Cache",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "read_through",
+        "cache_aside",
+        "application_cache"
+      ]
+    },
+    {
+      "problem": "P09",
+      "gold": "Load Shedding",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "throttling",
+        "graceful_degradation",
+        "backpressure"
+      ]
+    },
+    {
+      "problem": "P09",
+      "gold": "Sharded Counters / Token Bucket (pacing)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "token_bucket",
+        "rate_limiting"
+      ]
+    },
+    {
+      "problem": "P10",
+      "gold": "Change Data Capture (from DB2)",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "change_data_capture",
+        "cdc_pattern"
+      ]
+    },
+    {
+      "problem": "P10",
+      "gold": "API Gateway / Backend-for-Frontend",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "api_gateway",
+        "backends_for_frontends"
+      ]
+    },
+    {
+      "problem": "P10",
+      "gold": "Strangler Fig",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "strangler_fig"
+      ]
+    },
+    {
+      "problem": "P10",
+      "gold": "Circuit Breaker",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker"
+      ]
+    },
+    {
+      "problem": "P10",
+      "gold": "Bulkhead",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "bulkhead"
+      ]
+    },
+    {
+      "problem": "P10",
+      "gold": "Immutable Audit Log",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P10",
+      "gold": "Blue-Green Deployment (front tier)",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "blue_green"
+      ]
+    },
+    {
+      "problem": "P11",
+      "gold": "Circuit Breaker + Rules-Engine Fallback",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker",
+        "fallback"
+      ]
+    },
+    {
+      "problem": "P11",
+      "gold": "Saga / Process Manager",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "saga_orchestration",
+        "saga_choreography"
+      ]
+    },
+    {
+      "problem": "P11",
+      "gold": "Decision / Audit Log",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P11",
+      "gold": "Strangler Fig",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "strangler_fig"
+      ]
+    },
+    {
+      "problem": "P12",
+      "gold": "Geo-Sharding by City/Region",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "multi_region",
+        "data_partitioning"
+      ]
+    },
+    {
+      "problem": "P12",
+      "gold": "Cell-Based Architecture",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "cell_based"
+      ]
+    },
+    {
+      "problem": "P12",
+      "gold": "Pub/Sub + WebSocket Channels",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "pub_sub_messaging",
+        "websocket_pattern"
+      ]
+    },
+    {
+      "problem": "P12",
+      "gold": "Backpressure on Location Ingest",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "backpressure"
+      ]
+    },
+    {
+      "problem": "P12",
+      "gold": "Eventually-Consistent Pricing Cache",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "eventual_consistency",
+        "cache_aside"
+      ]
+    },
+    {
+      "problem": "P12",
+      "gold": "Idempotency Key (double-dispatch)",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "idempotency"
+      ]
+    },
+    {
+      "problem": "P12",
+      "gold": "Saga (ride + payment)",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "saga_orchestration",
+        "saga_choreography"
+      ]
+    },
+    {
+      "problem": "P13",
+      "gold": "Edge Stream Processing",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "edge_computing",
+        "stream_processing",
+        "streaming"
+      ]
+    },
+    {
+      "problem": "P13",
+      "gold": "Adaptive Sampling / Backpressure",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "backpressure",
+        "adaptive_concurrency"
+      ]
+    },
+    {
+      "problem": "P13",
+      "gold": "Tamper-Evident / Immutable Log",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P14",
+      "gold": "CRDT / Operational Transform",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "crdt"
+      ]
+    },
+    {
+      "problem": "P14",
+      "gold": "Async ML Pipeline (proctoring flags)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "async_processing",
+        "pipeline"
+      ]
+    },
+    {
+      "problem": "P14",
+      "gold": "Ephemeral Workers / Scale-to-Zero",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "serverless",
+        "worker_pool"
+      ]
+    },
+    {
+      "problem": "P14",
+      "gold": "Scheduled / Predictive Autoscaling",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "autoscaling_policy",
+        "elastic_scaling"
+      ]
+    },
+    {
+      "problem": "P15",
+      "gold": "Fan-out-on-Write (push)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "fan_out_pattern"
+      ]
+    },
+    {
+      "problem": "P15",
+      "gold": "Publish-Subscribe Notification Fan-out",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "pub_sub_messaging",
+        "fan_out_pattern"
+      ]
+    },
+    {
+      "problem": "P15",
+      "gold": "Materialized Timeline Cache",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "materialized_view"
+      ]
+    },
+    {
+      "problem": "P15",
+      "gold": "Rate Limiting",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "rate_limiting"
+      ]
+    },
+    {
+      "problem": "P15",
+      "gold": "Circuit Breaker",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker"
+      ]
+    },
+    {
+      "problem": "P16",
+      "gold": "Saga (multi-supplier booking)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "saga_orchestration",
+        "saga_choreography"
+      ]
+    },
+    {
+      "problem": "P16",
+      "gold": "Compensating Transaction",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "compensating_transaction"
+      ]
+    },
+    {
+      "problem": "P16",
+      "gold": "Idempotency Key",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "idempotency"
+      ]
+    },
+    {
+      "problem": "P16",
+      "gold": "Circuit Breaker + Timeout",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker",
+        "timeout_pattern"
+      ]
+    },
+    {
+      "problem": "P16",
+      "gold": "Bulkhead per Supplier",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "bulkhead"
+      ]
+    },
+    {
+      "problem": "P16",
+      "gold": "Cache-Aside with TTL + Freshness Check",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "cache_aside"
+      ]
+    },
+    {
+      "problem": "P17",
+      "gold": "Queue-Based Load Leveling + Sharded Workers",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "competing_consumers",
+        "worker_pool",
+        "async_processing"
+      ]
+    },
+    {
+      "problem": "P17",
+      "gold": "Per-ISP Rate Limiting (Token Bucket)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "token_bucket",
+        "rate_limiting"
+      ]
+    },
+    {
+      "problem": "P17",
+      "gold": "Circuit Breaker per Destination",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker"
+      ]
+    },
+    {
+      "problem": "P17",
+      "gold": "Dead Letter Queue + Retry Policy",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "dead_letter_queue",
+        "retry_with_backoff"
+      ]
+    },
+    {
+      "problem": "P17",
+      "gold": "Idempotency / Dedup",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "idempotency",
+        "exactly_once_semantics"
+      ]
+    },
+    {
+      "problem": "P17",
+      "gold": "Stream Analytics (opens/clicks)",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "stream_processing",
+        "streaming"
+      ]
+    },
+    {
+      "problem": "P18",
+      "gold": "Async Worker Pipeline + Priority Queue",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "worker_pool",
+        "priority_queue",
+        "async_processing"
+      ]
+    },
+    {
+      "problem": "P18",
+      "gold": "Prefetch / Read-Through Retrieval Cache",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "read_through",
+        "cache_aside"
+      ]
+    },
+    {
+      "problem": "P18",
+      "gold": "Circuit Breaker + Skip-AI Fallback",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker",
+        "fallback"
+      ]
+    },
+    {
+      "problem": "P18",
+      "gold": "Immutable Audit Log",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P19",
+      "gold": "Event Sourcing (order journal)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_sourcing"
+      ]
+    },
+    {
+      "problem": "P19",
+      "gold": "Deterministic State Machine / Replay",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "state_machine",
+        "replay_pattern"
+      ]
+    },
+    {
+      "problem": "P19",
+      "gold": "Write-Ahead Log / Journaling",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "write_ahead_log"
+      ]
+    },
+    {
+      "problem": "P20",
+      "gold": "Actor Model / Command per Robot",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "actor_model"
+      ]
+    },
+    {
+      "problem": "P20",
+      "gold": "Event-Driven Architecture",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_driven"
+      ]
+    },
+    {
+      "problem": "P20",
+      "gold": "Backpressure on Telemetry",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "backpressure"
+      ]
+    },
+    {
+      "problem": "P21",
+      "gold": "Bulkhead per Tenant (pool/queue isolation)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "bulkhead"
+      ]
+    },
+    {
+      "problem": "P21",
+      "gold": "Rate Limiting per Tenant",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "rate_limiting"
+      ]
+    },
+    {
+      "problem": "P21",
+      "gold": "Sharding by Tenant / Cell-Based",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "cell_based",
+        "data_partitioning"
+      ]
+    },
+    {
+      "problem": "P21",
+      "gold": "Data-Residency Routing / Geo-Partitioning",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "multi_region",
+        "data_partitioning"
+      ]
+    },
+    {
+      "problem": "P22",
+      "gold": "Saga / Process Manager",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "saga_orchestration",
+        "saga_choreography"
+      ]
+    },
+    {
+      "problem": "P22",
+      "gold": "Circuit Breaker + Retry",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker",
+        "retry_with_backoff"
+      ]
+    },
+    {
+      "problem": "P22",
+      "gold": "Idempotency Key",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "idempotency"
+      ]
+    },
+    {
+      "problem": "P22",
+      "gold": "Decision / Audit Log",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P23",
+      "gold": "CRDT / Conflict Resolution",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "crdt"
+      ]
+    },
+    {
+      "problem": "P23",
+      "gold": "Change-Log Sync / Event Replication",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "change_data_capture",
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P23",
+      "gold": "Idempotent Upsert / Dedup on Sync",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "idempotency",
+        "exactly_once_semantics"
+      ]
+    },
+    {
+      "problem": "P23",
+      "gold": "Backpressure on Reconnect Storm",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "backpressure"
+      ]
+    },
+    {
+      "problem": "P23",
+      "gold": "Phased / Canary Fleet Rollout",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "canary"
+      ]
+    },
+    {
+      "problem": "P23",
+      "gold": "Materialized Dashboard (eventual)",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "materialized_view"
+      ]
+    },
+    {
+      "problem": "P24",
+      "gold": "Log-Structured Ingest + Buffering (Kafka)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "kafka_streaming",
+        "event_log"
+      ]
+    },
+    {
+      "problem": "P24",
+      "gold": "Adaptive Sampling / Backpressure",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "backpressure",
+        "adaptive_concurrency"
+      ]
+    },
+    {
+      "problem": "P24",
+      "gold": "Sharding + Time-Based Index Rollover",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "data_partitioning"
+      ]
+    },
+    {
+      "problem": "P24",
+      "gold": "Columnar / Object-Store Query Tier",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "data_lakehouse",
+        "data_warehouse",
+        "data_lake",
+        "wide_column_store"
+      ]
+    },
+    {
+      "problem": "P24",
+      "gold": "Load Shedding on Query",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "throttling",
+        "graceful_degradation",
+        "backpressure"
+      ]
+    },
+    {
+      "problem": "P25",
+      "gold": "Staged / Cohort Rollout (Canary)",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "canary"
+      ]
+    },
+    {
+      "problem": "P25",
+      "gold": "Progressive Delivery + Automated Rollback",
+      "role": "primary_fit",
+      "verdict": "E",
+      "corpus_ids": [
+        "canary",
+        "feature_flags",
+        "blue_green"
+      ]
+    },
+    {
+      "problem": "P25",
+      "gold": "Health-Gated Rollout / Circuit Breaker",
+      "role": "prerequisite",
+      "verdict": "E",
+      "corpus_ids": [
+        "circuit_breaker",
+        "health_check",
+        "canary"
+      ]
+    },
+    {
+      "problem": "P25",
+      "gold": "Backpressure on Telemetry Ingest",
+      "role": "constraint_alternative",
+      "verdict": "E",
+      "corpus_ids": [
+        "backpressure"
+      ]
+    }
+  ],
+  "borderline_excluded": [
+    {
+      "problem": "P01",
+      "gold": "Reconciliation / Periodic Settlement"
+    },
+    {
+      "problem": "P02",
+      "gold": "Offline-First Sync (change-log replication)"
+    },
+    {
+      "problem": "P03",
+      "gold": "Anti-Corruption Layer"
+    },
+    {
+      "problem": "P05",
+      "gold": "Fan-out-on-write vs Fan-out-on-read"
+    },
+    {
+      "problem": "P06",
+      "gold": "Queue-Based Load Leveling"
+    },
+    {
+      "problem": "P06",
+      "gold": "Anti-Corruption Layer (BNPL provider)"
+    },
+    {
+      "problem": "P07",
+      "gold": "Authoritative Server + State Reconciliation"
+    },
+    {
+      "problem": "P07",
+      "gold": "Consistent Hashing (session → node)"
+    },
+    {
+      "problem": "P07",
+      "gold": "Server-Side Validation / Deterministic Simulation"
+    },
+    {
+      "problem": "P09",
+      "gold": "Deadline Propagation / Timeout Budget"
+    },
+    {
+      "problem": "P10",
+      "gold": "Anti-Corruption Layer"
+    },
+    {
+      "problem": "P11",
+      "gold": "Anti-Corruption Layer (ML vendor)"
+    },
+    {
+      "problem": "P13",
+      "gold": "Protocol Adapter (OPC-UA / Modbus bridge)"
+    },
+    {
+      "problem": "P14",
+      "gold": "Queue-Based Load Leveling"
+    },
+    {
+      "problem": "P15",
+      "gold": "Hybrid / Tiered Fan-out"
+    },
+    {
+      "problem": "P16",
+      "gold": "Optimistic Concurrency / Seat Lock"
+    },
+    {
+      "problem": "P16",
+      "gold": "Anti-Corruption Layer (GDS)"
+    },
+    {
+      "problem": "P18",
+      "gold": "Anti-Corruption Layer (AI vendor / DICOM)"
+    },
+    {
+      "problem": "P19",
+      "gold": "Active-Active with Sequencer"
+    },
+    {
+      "problem": "P19",
+      "gold": "Rolling Deploy with Drain / Hot-Swap"
+    },
+    {
+      "problem": "P20",
+      "gold": "Edge / Local Orchestrator (on-prem broker)"
+    },
+    {
+      "problem": "P20",
+      "gold": "Optimistic Locking / Inventory Reconciliation"
+    },
+    {
+      "problem": "P20",
+      "gold": "Anti-Corruption Layer (robot vendor protocols)"
+    },
+    {
+      "problem": "P22",
+      "gold": "Async Request-Reply / Callback Correlation"
+    },
+    {
+      "problem": "P22",
+      "gold": "Correlation ID"
+    },
+    {
+      "problem": "P22",
+      "gold": "Durable Execution / Persistent Workflow"
+    },
+    {
+      "problem": "P23",
+      "gold": "Offline-First / Local-First Architecture"
+    },
+    {
+      "problem": "P23",
+      "gold": "Fleet Telemetry / Health Reporting"
+    },
+    {
+      "problem": "P24",
+      "gold": "Cardinality Control / Aggregation Rollups"
+    },
+    {
+      "problem": "P25",
+      "gold": "Persistent Command Queue per Device (MQTT)"
+    }
+  ],
+  "absent_content_floor": [
+    {
+      "problem": "P01",
+      "gold": "Tokenization"
+    },
+    {
+      "problem": "P02",
+      "gold": "Structured Tracing / Distributed Tracing"
+    },
+    {
+      "problem": "P03",
+      "gold": "Attribute-Based Access Control (ABAC)"
+    },
+    {
+      "problem": "P03",
+      "gold": "Expand-Contract Schema Migration"
+    },
+    {
+      "problem": "P03",
+      "gold": "WebRTC SFU"
+    },
+    {
+      "problem": "P03",
+      "gold": "TURN/STUN Relay"
+    },
+    {
+      "problem": "P04",
+      "gold": "Tiered Storage + Downsampling/Rollups"
+    },
+    {
+      "problem": "P04",
+      "gold": "Data Retention / TTL"
+    },
+    {
+      "problem": "P04",
+      "gold": "Dual-Write + Backfill Migration"
+    },
+    {
+      "problem": "P05",
+      "gold": "Low-Latency HLS / Chunked CMAF"
+    },
+    {
+      "problem": "P05",
+      "gold": "Request Coalescing / Cache-Stampede Protection"
+    },
+    {
+      "problem": "P05",
+      "gold": "RED/USE Metrics + SLO Dashboards"
+    },
+    {
+      "problem": "P06",
+      "gold": "Inventory Reservation / Hold"
+    },
+    {
+      "problem": "P07",
+      "gold": "Interest Management / Spatial Partitioning"
+    },
+    {
+      "problem": "P07",
+      "gold": "Session Migration / Handoff"
+    },
+    {
+      "problem": "P09",
+      "gold": "Hedged Requests"
+    },
+    {
+      "problem": "P09",
+      "gold": "Approximate / Probabilistic Counting"
+    },
+    {
+      "problem": "P09",
+      "gold": "Bloom Filter (frequency cap)"
+    },
+    {
+      "problem": "P09",
+      "gold": "Consent Management / Data Minimization"
+    },
+    {
+      "problem": "P10",
+      "gold": "Federated Identity / OIDC"
+    },
+    {
+      "problem": "P11",
+      "gold": "Human-in-the-Loop Task Queue"
+    },
+    {
+      "problem": "P11",
+      "gold": "Content-Based Router"
+    },
+    {
+      "problem": "P11",
+      "gold": "Claim Check"
+    },
+    {
+      "problem": "P12",
+      "gold": "Spatial Indexing (Geohash / Quadtree)"
+    },
+    {
+      "problem": "P13",
+      "gold": "Data Diode / Unidirectional Gateway"
+    },
+    {
+      "problem": "P13",
+      "gold": "DMZ / Zoned Network (Purdue Model)"
+    },
+    {
+      "problem": "P13",
+      "gold": "Store-and-Forward Buffer"
+    },
+    {
+      "problem": "P14",
+      "gold": "WebRTC SFU"
+    },
+    {
+      "problem": "P14",
+      "gold": "Virtual Waiting Room / Admission Control"
+    },
+    {
+      "problem": "P15",
+      "gold": "Fan-out-on-Read (pull) for celebrities"
+    },
+    {
+      "problem": "P17",
+      "gold": "Suppression List / Consent Check"
+    },
+    {
+      "problem": "P17",
+      "gold": "Spot / Preemptible Instances for bursts"
+    },
+    {
+      "problem": "P18",
+      "gold": "Claim Check (large DICOM payloads)"
+    },
+    {
+      "problem": "P18",
+      "gold": "Tiered Storage (hot/cold) + Lifecycle"
+    },
+    {
+      "problem": "P18",
+      "gold": "Staged / Dual-Write Migration"
+    },
+    {
+      "problem": "P19",
+      "gold": "Pre-Trade Risk Gate"
+    },
+    {
+      "problem": "P19",
+      "gold": "Ring Buffer / Single-Writer (Disruptor)"
+    },
+    {
+      "problem": "P20",
+      "gold": "Store-and-Forward / Offline Queue"
+    },
+    {
+      "problem": "P20",
+      "gold": "Digital Twin / Shadow State"
+    },
+    {
+      "problem": "P21",
+      "gold": "Shuffle Sharding"
+    },
+    {
+      "problem": "P21",
+      "gold": "Expand-Contract Online Schema Migration"
+    },
+    {
+      "problem": "P21",
+      "gold": "Live Tenant Migration (dual-write + backfill)"
+    },
+    {
+      "problem": "P21",
+      "gold": "Per-Tenant Metering / Cost Attribution"
+    },
+    {
+      "problem": "P22",
+      "gold": "Human-in-the-Loop Task"
+    },
+    {
+      "problem": "P24",
+      "gold": "Tiered Storage (hot/warm/cold)"
+    },
+    {
+      "problem": "P24",
+      "gold": "Shuffle Sharding per Tenant"
+    },
+    {
+      "problem": "P25",
+      "gold": "Code Signing / Secure Boot Verification"
+    },
+    {
+      "problem": "P25",
+      "gold": "Device Shadow + Store-and-Forward"
+    },
+    {
+      "problem": "P25",
+      "gold": "Delta / Differential Updates"
+    }
+  ],
+  "per_problem_counts": {
+    "P01": {
+      "E": 9,
+      "B": 1,
+      "A": 1
+    },
+    "P02": {
+      "E": 8,
+      "B": 1,
+      "A": 1
+    },
+    "P03": {
+      "E": 4,
+      "B": 1,
+      "A": 4
+    },
+    "P04": {
+      "E": 6,
+      "B": 0,
+      "A": 3
+    },
+    "P05": {
+      "E": 5,
+      "B": 1,
+      "A": 3
+    },
+    "P06": {
+      "E": 8,
+      "B": 2,
+      "A": 1
+    },
+    "P07": {
+      "E": 3,
+      "B": 3,
+      "A": 2
+    },
+    "P08": {
+      "E": 9,
+      "B": 0,
+      "A": 0
+    },
+    "P09": {
+      "E": 3,
+      "B": 1,
+      "A": 4
+    },
+    "P10": {
+      "E": 7,
+      "B": 1,
+      "A": 1
+    },
+    "P11": {
+      "E": 4,
+      "B": 1,
+      "A": 3
+    },
+    "P12": {
+      "E": 7,
+      "B": 0,
+      "A": 1
+    },
+    "P13": {
+      "E": 3,
+      "B": 1,
+      "A": 3
+    },
+    "P14": {
+      "E": 4,
+      "B": 1,
+      "A": 2
+    },
+    "P15": {
+      "E": 5,
+      "B": 1,
+      "A": 1
+    },
+    "P16": {
+      "E": 6,
+      "B": 2,
+      "A": 0
+    },
+    "P17": {
+      "E": 6,
+      "B": 0,
+      "A": 2
+    },
+    "P18": {
+      "E": 4,
+      "B": 1,
+      "A": 3
+    },
+    "P19": {
+      "E": 3,
+      "B": 2,
+      "A": 2
+    },
+    "P20": {
+      "E": 3,
+      "B": 3,
+      "A": 2
+    },
+    "P21": {
+      "E": 4,
+      "B": 0,
+      "A": 4
+    },
+    "P22": {
+      "E": 4,
+      "B": 3,
+      "A": 1
+    },
+    "P23": {
+      "E": 6,
+      "B": 2,
+      "A": 0
+    },
+    "P24": {
+      "E": 5,
+      "B": 1,
+      "A": 2
+    },
+    "P25": {
+      "E": 4,
+      "B": 1,
+      "A": 3
+    }
+  },
+  "reconciliation_with_tome": {
+    "vs_m-01392e91_exact_string_~43": "130 concept-level vs ~43 exact-string is NOT a contradiction: different graders. Concept-level correctly credits naming variants the string matcher missed (time_series_db, idempotency, saga, circuit_breaker, bulkhead, CDC, SSE, backpressure, windowed_aggregation ...). This IS the under-crediting m-879a7403 flagged, quantified: exact-string under-counts existence ~3x.",
+    "vs_m-10b5c0a0_union_108": "130 (method-independent, deterministic map) is close to but not a strict superset of 108 (method-union, LLM judge). Most of the 108 fall in the 130 E-set; a handful likely sit in the 30-borderline band because the earlier LLM concept-judge was more generous about crediting embedded concepts (e.g. an ACL gold credited to monolith_to_microservices) than this stricter first-class-pattern map. That non-replayable generosity is exactly what a frozen deterministic map removes. Net: the honest ceiling is ~130 first-class-reachable, materially above the circular 108 (which was a method-dependent FLOOR, since a gold only entered it if some A/B/C run surfaced it at top-10); ~22+ golds exist in corpus but no run surfaced them (retrieval-miss headroom). This frozen 130 supersedes 108 as the grading denominator.",
+    "content_floor_refined": "Hard content gap (concept absent everywhere) = 49/209 (23%), roughly HALF what the method-dependent measurements implied (m-01392e91's 166-instance 'no pattern', m-10b5c0a0's 101 'lacked'). The rest of the apparent gap was retrieval/wiring/naming/abstraction (30 embedded-only + ~22 unsurfaced), NOT missing content. Directive-6 reconcile: no escalation needed; the numbers measured different things (concept vs string; method-independent vs union).",
+    "open_question_resolved": "The user's open question 'calibrate the intended abstraction band to size the genuine gap' is answered by the E/B/A split: 130 first-class-reachable, 30 embedded-abstraction gray-zone, 49 genuinely-absent. The abstraction-band decision is exactly whether the 30 borderline (e.g. anti_corruption_layer, consistent_hashing, optimistic_concurrency, correlation_id, offline_first) should be promoted to first-class patterns."
+  }
+}

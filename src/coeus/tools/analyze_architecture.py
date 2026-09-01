@@ -1,201 +1,188 @@
 # Copyright (c) 2026 Reza Malik. Licensed under the Apache License, Version 2.0.
-"""MCP tool: analyze_architecture
+"""MCP tool: analyze_architecture — wired onto the Shape C retrieval engine.
 
-Takes a system description and structural signals. Identifies architectural
-patterns, complexity, coupling, risks, and anti-patterns.
+The SECOND Coeus tool on the shared engine; it inherits the recommend_pattern
+template (retrieve → concern gate → concern reasoning over own fields → envelope)
+and diverges only where the concern demands it. Given the signal ids the caller
+recognised against ``get_signal_index`` plus a constraints dict, it:
 
-The agent (LLM) reads the system and identifies structural signals.
-This tool matches those signals against decision_rules.json, checks for
-common architecture anti-patterns, and flags scalability concerns.
+1. RETRIEVES candidates through one ``kb.hydrate`` call — the proven four-state,
+   fail-closed envelope; ``no_match``/``dangling`` abstain to empty issues, never
+   a husk.
+2. TIERS each retrieved pattern by the SAME deterministic gate as recommend_pattern
+   (``is_gated`` / ``facet_matches`` / ``split_conditions``), but with the semantic
+   INVERTED: an issue is CONFIRMED when the system's constraints satisfy the
+   pattern's own ``avoid_when`` facet, so a confirmed issue RISES above the
+   advisory tier (recommend_pattern sinks the gated recommendation; here the gate
+   ELEVATES the confirmed risk). Confirm covers only the 63/174 facet-carrying
+   patterns, so ADVISORY is the default and CONFIRMED the sparse elevation — ALL
+   k retrieved patterns contribute an entry, tiered.
+3. REASONS one issue entry per retrieved pattern over its OWN 100%-populated
+   ``avoid_when`` text (the issue bodies, via ``split_conditions``) and its OWN
+   ``related_patterns`` resolved via ``_lookup_pattern`` (the remediation, 0%
+   dangling, never a husk) — no hardcoded anti-pattern table, no fabricated
+   severity.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from coeus.tools._shared import coerce, emit_event, get_knowledge, normalize_kwargs
+from coeus.knowledge.loader import DANGLING, NO_MATCH, is_gated, split_conditions
+from coeus.tools._shared import (
+    _MAX_DESCRIPTION_LEN,
+    _MAX_MATCHED_SIGNALS,
+    _MAX_RELATED_OUTPUT,
+    _bounded_constraints,
+    _resolved_related,
+    coerce,
+    emit_event,
+    get_knowledge,
+    normalize_kwargs,
+)
 
-# Caller kwarg synonyms remapped to the canonical signature.
+# Caller kwarg synonyms remapped to the canonical signature. The system→description
+# alias survives the rewrite; the prose ``structural_signals`` param is RETIRED with
+# no alias shim (its replacement, ``matched_signal_ids``, is a different vocabulary).
 _ALIASES = {"system": "description"}
 _IGNORED: set[str] = set()
 
-# ---------------------------------------------------------------------------
-# Anti-pattern detectors — structural signal keywords → architecture issues
-# ---------------------------------------------------------------------------
+# The remediation set is the deduped related-pattern surface (_resolved_related) and
+# its size cap (_MAX_RELATED_OUTPUT) — both the shared primitives in _shared, so the
+# resolver and cap have one source of truth across every concern tool.
 
-_ANTI_PATTERNS: dict[str, dict[str, Any]] = {
-    "god-service": {
-        "issue": "Monolithic service handling too many responsibilities",
-        "severity": "high",
-        "recommendation": "Decompose into bounded contexts with clear domain boundaries. Start with a modular monolith before extracting services.",
-    },
-    "distributed-monolith": {
-        "issue": "Microservices with tight coupling behaving as a distributed monolith",
-        "severity": "high",
-        "recommendation": "Identify shared state and synchronous dependencies. Introduce event-driven communication and enforce service autonomy.",
-    },
-    "shared-database": {
-        "issue": "Multiple services sharing a single database, coupling schema changes",
-        "severity": "high",
-        "recommendation": "Give each service its own data store. Use events or APIs for cross-service data access. Apply the database-per-service pattern.",
-    },
-    "chatty-services": {
-        "issue": "Excessive inter-service calls creating latency and fragility",
-        "severity": "medium",
-        "recommendation": "Batch requests, use async messaging, or consolidate related services. Consider BFF pattern for client-facing aggregation.",
-    },
-    "no-circuit-breaker": {
-        "issue": "Missing circuit breaker pattern for external dependencies",
-        "severity": "high",
-        "recommendation": "Implement circuit breakers (Hystrix, Resilience4j, Polly) on all external calls. Define fallback behavior for each dependency.",
-    },
-    "synchronous-chain": {
-        "issue": "Long synchronous call chains creating cascading failure risk",
-        "severity": "high",
-        "recommendation": "Break synchronous chains with async messaging or event-driven patterns. Use sagas for distributed transactions.",
-    },
-    "no-caching": {
-        "issue": "Missing caching layer causing unnecessary load on backend systems",
-        "severity": "medium",
-        "recommendation": "Add cache-aside pattern for read-heavy paths. Use CDN for static content. Consider distributed cache for session data.",
-    },
-    "single-point-of-failure": {
-        "issue": "Critical component without redundancy or failover",
-        "severity": "high",
-        "recommendation": "Add redundancy at every layer. Use active-passive or active-active failover. Eliminate single-node dependencies.",
-    },
-    "no-health-checks": {
-        "issue": "Missing health check endpoints and observability infrastructure",
-        "severity": "medium",
-        "recommendation": "Add /health and /ready endpoints. Implement structured logging, distributed tracing, and metric collection.",
-    },
-    "hardcoded-config": {
-        "issue": "Configuration values hardcoded in application code",
-        "severity": "medium",
-        "recommendation": "Externalize configuration using environment variables, config maps, or a configuration service. Never commit secrets to source control.",
-    },
-    "no-versioning": {
-        "issue": "APIs without a versioning strategy risking breaking changes",
-        "severity": "medium",
-        "recommendation": "Adopt URL-based or header-based API versioning from day one. Document deprecation policy and sunset timelines.",
-    },
-    "tight-coupling": {
-        "issue": "Components with high coupling making independent changes impossible",
-        "severity": "high",
-        "recommendation": "Introduce interface boundaries, dependency inversion, and event-driven communication. Define clear contracts between modules.",
-    },
-}
-
-
-# ---------------------------------------------------------------------------
-# Main tool
-# ---------------------------------------------------------------------------
 
 @normalize_kwargs
 def analyze_architecture(
     description: str,
-    structural_signals: list[str],
+    matched_signal_ids: list[str],
     constraints: dict | None = None,
+    k: int = 10,
     conn: object = None,
 ) -> dict:
-    """Analyze a system architecture for issues, pattern matches, and risks.
+    """Name a system's architecture issues from the retrieved patterns' own avoid_when.
+
+    CRITICAL INVARIANT (the gate, inverted): an issue is CONFIRMED when the system's
+    constraints satisfy the pattern's own ``avoid_when`` facet, and every confirmed
+    issue sorts above every advisory one — so a risk the constraints actually
+    trigger (small team + MVP reaching for microservices) rises to the top, while
+    the ~64% no-facet-match majority still contribute advisory issues rather than
+    reproducing the dead-tool empty result.
 
     Args:
-        description: Description of the system architecture to analyze.
-        structural_signals: Agent-identified signals, e.g.
-            ["shared-database", "no-circuit-breaker", "synchronous-chain"].
-        constraints: Optional dict with constraint signals for filtering
-            (e.g. ``{"team_size": "1-5", "scale": "startup_mvp"}``).
+        description: Free-text description of the system — context/telemetry only
+            (retrieval is driven by ``matched_signal_ids``, not this text). Bounded
+            at the caller boundary.
+        matched_signal_ids: Signal ids the caller recognised against
+            ``get_signal_index`` (problem-language → sig-id, the proven path).
+        constraints: Optional dict — ``team_size`` (numeric range) plus categorical
+            ``scale``/``budget``/``timeline``/``latency``/``compliance``/
+            ``existing_stack``. Drives the deterministic confirm/advisory tiering.
+        k: Number of retrieved patterns to reason over (engine-clamped to 1..50).
         conn: Kuzu/LadybugDB connection for graph mode, or None for JSON.
 
     Returns:
-        Dict with keys: matched_rules, architecture_issues,
-        recommendations, scalability_flags.
+        Dict with ``constraints_analyzed`` / ``architecture_issues`` (one entry per
+        retrieved pattern, confirmed issues first) / ``recommendations`` (deduped
+        remediation set) plus the retrieval envelope (``retrieval_state`` /
+        ``unmatched`` / ``dangling``). Fail-closed: an abstaining envelope returns
+        empty issues, never a husk.
     """
-    structural_signals = coerce(structural_signals, list, default=[])
-    constraints = coerce(constraints, dict, default={})
+    description = description[:_MAX_DESCRIPTION_LEN] if isinstance(description, str) else ""
+    matched_signal_ids = coerce(matched_signal_ids, list) or []
+    constraints = _bounded_constraints(coerce(constraints, dict) or {})
+    try:
+        k = int(k)
+    except (TypeError, ValueError):
+        k = 10
 
     kb = get_knowledge(conn)
 
-    # 1. Match structural signals against decision rules
-    matched_rules: list[dict[str, Any]] = []
-    recommendations: list[dict[str, Any]] = []
-    scalability_flags: list[dict[str, Any]] = []
+    # 1. RETRIEVE — one hydrate call; the caller-boundary cap is non-amplifying
+    #    (the engine's _SEED_CAP already bounds fan-out downstream of it).
+    res = kb.hydrate(matched_signal_ids[:_MAX_MATCHED_SIGNALS], k=k)
 
-    if structural_signals:
-        rule_matches = kb.match_structural_signals(structural_signals)
+    envelope = {
+        "retrieval_state": res.state,
+        "unmatched": list(res.unmatched_signals),
+        "dangling": list(res.dangling),
+    }
 
-        # Apply constraint filtering if constraints provided
-        if constraints:
-            filtered_rules = kb.filter_by_constraints(
-                [rm["rule"] for rm in rule_matches], constraints
-            )
-            filtered_ids = {r["id"] for r in filtered_rules}
-            rule_matches = [
-                rm for rm in rule_matches if rm["rule"]["id"] in filtered_ids
-            ]
+    # 2. Fail closed: recognised-but-empty (no_match) or unresolvable (dangling)
+    #    abstains structurally — no issues, never the nearest husk.
+    if res.state in (NO_MATCH, DANGLING):
+        result = {
+            "constraints_analyzed": constraints,
+            "architecture_issues": [],
+            "recommendations": [],
+            **envelope,
+        }
+        emit_event("analyze_architecture", {
+            "description": description[:120],
+            "n_signals": len(matched_signal_ids),
+            "state": res.state,
+            "architecture_issues_count": 0,
+            "confirmed_count": 0,
+        })
+        return result
 
-        for rm in rule_matches:
-            rule = rm["rule"]
+    # 3. TIER — hydrate already ordered res.patterns by the proven integer vote key.
+    #    Layer ONE boolean confirm tier with a single total-order sort on
+    #    (not confirmed, hydrate-rank): a confirmed issue (its own avoid_when facet
+    #    the constraints satisfy) rises above every advisory one, relative order
+    #    within each tier preserved. The index is the pre-existing hydrate rank, so
+    #    the key is a total order — deterministic without relying on sort stability.
+    #    This is the clean inversion of recommend_pattern's (gated, rank) sink.
+    confirmed_flags = [is_gated(p, constraints) for p in res.patterns]
+    order = sorted(range(len(res.patterns)), key=lambda i: (not confirmed_flags[i], i))
 
-            rule_entry: dict[str, Any] = {
-                "signal": rm["signal"],
-                "rule_id": rule["id"],
-                "description": rule.get("rationale", rule.get("description", "")),
-                "priority": rule.get("priority", "medium"),
-                "recommended_patterns": [
-                    p.get("id", "") for p in rm.get("recommended_patterns", [])
-                ],
-            }
-            matched_rules.append(rule_entry)
-
-            # Build recommendations from matched patterns
-            for pattern in rm.get("recommended_patterns", []):
-                rec: dict[str, Any] = {
-                    "pattern_id": pattern.get("id", ""),
-                    "pattern_name": pattern.get("name", pattern.get("id", "")),
-                    "description": pattern.get("description", ""),
-                    "source_rule": rule["id"],
-                }
-                recommendations.append(rec)
-
-                # Check for scalability signals in the pattern
-                scale_signals = pattern.get("signals", [])
-                if scale_signals:
-                    scalability_flags.append({
-                        "pattern_id": pattern.get("id", ""),
-                        "signals": scale_signals[:3],
-                        "source": "pattern",
-                    })
-
-    # 2. Detect anti-patterns from structural signals
+    # 4. REASON — one issue entry per retrieved pattern over its OWN fields:
+    #    avoid_when text = the issue bodies; related_patterns = the remediation.
     architecture_issues: list[dict[str, Any]] = []
+    issue_pattern_ids: set[str] = set()
+    for i in order:
+        p = res.patterns[i]
+        avoid_texts, _ = split_conditions(p.get("avoid_when"))
+        issue_pattern_ids.add(p["id"])
+        architecture_issues.append({
+            "pattern_id": p["id"],
+            "pattern_name": p.get("name", p["id"]),
+            "confirmed": confirmed_flags[i],
+            "issues": list(avoid_texts),
+            "remediation": _resolved_related(kb, p),
+            "retrieval": dict(p["retrieval"]),   # plain dict for the output surface
+        })
 
-    for signal in structural_signals:
-        sig_lower = signal.lower().strip()
-        anti = _ANTI_PATTERNS.get(sig_lower)
-        if anti:
-            architecture_issues.append({
-                "signal": signal,
-                "issue": anti["issue"],
-                "severity": anti["severity"],
-                "recommendation": anti["recommendation"],
-            })
+    # 5. RECOMMENDATIONS — the deduped remediation set across the issue-patterns'
+    #    OWN related_patterns, excluding what is already an issue pattern (mirrors
+    #    recommend_pattern's alternatives). One source of truth (_resolved_related).
+    recommendations: list[dict[str, Any]] = []
+    seen_recs: set[str] = set()
+    for issue in architecture_issues:
+        for rec in issue["remediation"]:
+            rid = rec["pattern_id"]
+            if rid in issue_pattern_ids or rid in seen_recs:
+                continue
+            seen_recs.add(rid)
+            recommendations.append(rec)
+            if len(recommendations) >= _MAX_RELATED_OUTPUT:
+                break
+        if len(recommendations) >= _MAX_RELATED_OUTPUT:
+            break
 
-    # 3. Build result
-    result: dict[str, Any] = {
-        "matched_rules": matched_rules,
+    result = {
+        "constraints_analyzed": constraints,
         "architecture_issues": architecture_issues,
         "recommendations": recommendations,
-        "scalability_flags": scalability_flags,
+        **envelope,
     }
 
     emit_event("analyze_architecture", {
         "description": description[:120],
-        "signals": structural_signals,
-        "matched_rules_count": len(matched_rules),
+        "n_signals": len(matched_signal_ids),
+        "state": res.state,
         "architecture_issues_count": len(architecture_issues),
-        "scalability_flags_count": len(scalability_flags),
+        "confirmed_count": sum(confirmed_flags),
     })
 
     return result

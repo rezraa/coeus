@@ -1,0 +1,123 @@
+{
+  "_meta": {
+    "note": "bar-2 S0 pin: CURRENT (legacy) evaluate_scalability output BEFORE the Shape-C rewrite. Retrieval-BLIND: an already-scaled Kafka/K8s multi-region pipeline and a single-node PHP monolith yield BYTE-IDENTICAL tiers/patterns/bottlenecks today (the description only feeds the legacy substring matcher at :146; the 3 tiers are hardcoded in _SCALE_TIERS). NOT a golden lock - the 'before' half of the before/after delta the rebuild asserts.",
+    "tool_source_sha256": "7686c1f2641b26ebfb23b11eef02dbd235cfffc33a85800ecdecef163422a08f",
+    "legacy_output_keys": [
+      "current_assessment",
+      "tiers"
+    ],
+    "legacy_SCALE_TIERS_thresholds": [
+      "10x",
+      "100x",
+      "1000x"
+    ]
+  },
+  "cases": {
+    "retrieval_blind": {
+      "scaled_system": "Already-scaled Kafka event pipeline, 40 microservices on Kubernetes, horizontal scaling, distributed cache, multi-region, autoscaling in place",
+      "single_node_system": "Single-node PHP monolith on one VM, shared database, no caching, synchronous, no redundancy, vertical scaling only",
+      "tiers_byte_identical": true,
+      "scaled_tier_patterns": [
+        [
+          "horizontal_scaling",
+          "connection_pooling",
+          "cache_aside",
+          "load_balancer",
+          "database_read_replicas"
+        ],
+        [
+          "data_partitioning",
+          "async_processing",
+          "distributed_cache",
+          "circuit_breaker",
+          "autoscaling_policy",
+          "rate_limiting"
+        ],
+        [
+          "cell_based",
+          "multi_region",
+          "eventual_consistency",
+          "crdt",
+          "edge_caching",
+          "backpressure"
+        ]
+      ],
+      "single_tier_patterns": [
+        [
+          "horizontal_scaling",
+          "connection_pooling",
+          "cache_aside",
+          "load_balancer",
+          "database_read_replicas"
+        ],
+        [
+          "data_partitioning",
+          "async_processing",
+          "distributed_cache",
+          "circuit_breaker",
+          "autoscaling_policy",
+          "rate_limiting"
+        ],
+        [
+          "cell_based",
+          "multi_region",
+          "eventual_consistency",
+          "crdt",
+          "edge_caching",
+          "backpressure"
+        ]
+      ],
+      "scaled_tier_bottlenecks": [
+        [
+          "Database connection pool exhaustion",
+          "Single-node memory limits",
+          "Synchronous API call latency accumulation",
+          "Session state scalability",
+          "Deployment downtime during releases"
+        ],
+        [
+          "Database write throughput ceiling",
+          "Cross-service latency in synchronous chains",
+          "Data consistency across replicas",
+          "Operational complexity of many services",
+          "Observability and debugging in distributed systems",
+          "Cache invalidation at scale"
+        ],
+        [
+          "Global latency requirements",
+          "Data sovereignty and residency constraints",
+          "Consensus protocol overhead",
+          "Network partition tolerance",
+          "Cost scaling non-linearly with traffic",
+          "Blast radius of failures"
+        ]
+      ],
+      "single_tier_bottlenecks": [
+        [
+          "Database connection pool exhaustion",
+          "Single-node memory limits",
+          "Synchronous API call latency accumulation",
+          "Session state scalability",
+          "Deployment downtime during releases"
+        ],
+        [
+          "Database write throughput ceiling",
+          "Cross-service latency in synchronous chains",
+          "Data consistency across replicas",
+          "Operational complexity of many services",
+          "Observability and debugging in distributed systems",
+          "Cache invalidation at scale"
+        ],
+        [
+          "Global latency requirements",
+          "Data sovereignty and residency constraints",
+          "Consensus protocol overhead",
+          "Network partition tolerance",
+          "Cost scaling non-linearly with traffic",
+          "Blast radius of failures"
+        ]
+      ],
+      "n_tiers": 3
+    }
+  }
+}

@@ -1,302 +1,223 @@
 # Copyright (c) 2026 Reza Malik. Licensed under the Apache License, Version 2.0.
-"""MCP tool: assess_resilience
+"""MCP tool: assess_resilience — wired onto the Shape C retrieval engine.
 
-Evaluates failure modes of a system architecture. Identifies single points
-of failure, missing resilience patterns, blast radius, and provides
-hardening recommendations.
+The FOURTH Coeus tool on the shared engine; it inherits the recommend_pattern
+template (recommend_pattern m-fa73d51c, analyze_architecture m-7c8f8a50,
+evaluate_scalability) and reuses its gate polarity EXACTLY — the SINK. Given the
+signal ids the caller recognised against ``get_signal_index`` plus a constraints
+dict, it:
+
+1. RETRIEVES the resilience patterns the system is missing through one
+   ``kb.hydrate`` call — the proven four-state, fail-closed envelope;
+   ``no_match``/``dangling`` abstain to empty hardening, never a husk.
+2. RANKS by hydrate's integer vote key, then layers ONE boolean gate tier via the
+   SAME total-order sort as recommend_pattern — ``(gated, hydrate-rank)``: a
+   retrieved resilience pattern whose OWN ``avoid_when`` facet the constraints
+   satisfy is PREMATURE hardening (circuit_breaker/bulkhead/fallback name
+   ``{team_size: 1-5, scale: startup_mvp}``) and sinks below every appropriate one,
+   relative order intact. This is the premature-complexity guard: appropriate
+   hardening ranks ABOVE premature hardening, graded by each pattern's OWN fields.
+3. REASONS one hardening entry per retrieved pattern over its OWN 100%-populated
+   fields — ``use_when`` is the resilience gap it fills (``protects_against``; a
+   missing pattern's use_when IS the recommendation), ``avoid_when`` is when it is
+   overkill (``tradeoffs``), ``principles``, and ``related_patterns`` via the shared
+   ``_resolved_related``. No hardcoded SPOF/missing/blast table, no fabricated
+   severity, no float score.
+
+A SPOF is an absent redundancy pattern surfaced as its remediation; a blast
+condition is a coupling whose remediation is a decoupling pattern — both collapse
+into retrieval. ``posture`` is integer counts only ({retrieved, recommended_now,
+premature}); there is NO resilience_score, so a fragile system can never report
+fabricated safety.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from coeus.tools._shared import coerce, emit_event, get_knowledge, normalize_kwargs
+from coeus.knowledge.loader import DANGLING, NO_MATCH, is_gated, split_conditions
+from coeus.tools._shared import (
+    _MAX_DESCRIPTION_LEN,
+    _MAX_MATCHED_SIGNALS,
+    _MAX_RELATED_OUTPUT,
+    _bounded_constraints,
+    _resolved_related,
+    coerce,
+    emit_event,
+    get_knowledge,
+    normalize_kwargs,
+)
 
-# Caller kwarg synonyms remapped to the canonical signature.
+# Caller kwarg synonyms remapped to the canonical signature. The system→
+# system_description alias survives the rewrite (mirrors analyze_architecture's
+# system→description); the prose ``structural_signals`` param is RETIRED with no
+# alias shim (its replacement, ``matched_signal_ids``, is a different vocabulary).
 _ALIASES = {"system": "system_description"}
 _IGNORED: set[str] = set()
 
-# ---------------------------------------------------------------------------
-# SPOF detectors — structural signal keywords → single points of failure
-# ---------------------------------------------------------------------------
+# The recommendations set is the deduped related-pattern surface (_resolved_related)
+# and its size cap (_MAX_RELATED_OUTPUT) — both the shared primitives in _shared, so
+# the resolver and cap have one source of truth across every concern tool.
 
-_SPOF_SIGNALS: dict[str, dict[str, Any]] = {
-    "single-database": {
-        "component": "Database",
-        "risk": "Single database instance without replication or failover",
-        "impact": "Total system outage if database fails",
-        "mitigation": "Add read replicas, configure automatic failover, implement connection pooling",
-    },
-    "single-node": {
-        "component": "Application server",
-        "risk": "Application runs on a single node without redundancy",
-        "impact": "Complete service unavailability during node failure or deployment",
-        "mitigation": "Deploy minimum 2 instances behind a load balancer, use rolling deployments",
-    },
-    "single-region": {
-        "component": "Infrastructure",
-        "risk": "All infrastructure in one cloud region or data center",
-        "impact": "Total outage during regional failure or cloud provider incident",
-        "mitigation": "Deploy to multiple availability zones, plan for multi-region failover",
-    },
-    "no-load-balancer": {
-        "component": "Network",
-        "risk": "No load balancer distributing traffic across instances",
-        "impact": "Single server overload, no failover capability",
-        "mitigation": "Add L4/L7 load balancer, configure health checks and automatic removal",
-    },
-    "single-queue": {
-        "component": "Message queue",
-        "risk": "Single queue broker without clustering or replication",
-        "impact": "Message loss and processing halt during broker failure",
-        "mitigation": "Use clustered broker (RabbitMQ cluster, Kafka with replication factor 3+)",
-    },
-    "single-cache": {
-        "component": "Cache layer",
-        "risk": "Single cache node (e.g., solo Redis) without replication",
-        "impact": "Cache stampede and backend overload on cache failure",
-        "mitigation": "Use Redis Sentinel/Cluster, implement graceful degradation without cache",
-    },
-}
-
-# ---------------------------------------------------------------------------
-# Missing resilience pattern detectors
-# ---------------------------------------------------------------------------
-
-_MISSING_PATTERN_SIGNALS: dict[str, dict[str, Any]] = {
-    "no-circuit-breaker": {
-        "pattern": "Circuit Breaker",
-        "risk": "Cascading failures propagate through dependent services",
-        "recommendation": "Implement circuit breakers on all external calls with defined fallbacks",
-    },
-    "no-retry": {
-        "pattern": "Retry with Backoff",
-        "risk": "Transient failures cause permanent errors",
-        "recommendation": "Add exponential backoff with jitter for retries, ensure idempotency",
-    },
-    "no-timeout": {
-        "pattern": "Timeout",
-        "risk": "Hung connections consume resources indefinitely",
-        "recommendation": "Set timeouts on all network calls, use timeout budgets for call chains",
-    },
-    "no-bulkhead": {
-        "pattern": "Bulkhead",
-        "risk": "One failing dependency exhausts shared thread/connection pools",
-        "recommendation": "Isolate thread pools and connection pools per dependency",
-    },
-    "no-fallback": {
-        "pattern": "Fallback / Graceful Degradation",
-        "risk": "Failures result in complete feature unavailability",
-        "recommendation": "Define fallback responses (cached data, defaults, degraded mode) for each dependency",
-    },
-    "no-health-checks": {
-        "pattern": "Health Check",
-        "risk": "Unhealthy instances continue receiving traffic",
-        "recommendation": "Add /health (liveness) and /ready (readiness) endpoints, configure load balancer checks",
-    },
-    "no-dead-letter": {
-        "pattern": "Dead Letter Queue",
-        "risk": "Failed messages are silently lost or block processing",
-        "recommendation": "Route unprocessable messages to a DLQ for inspection and replay",
-    },
-    "no-idempotency": {
-        "pattern": "Idempotency",
-        "risk": "Retries cause duplicate side effects (double charges, duplicate records)",
-        "recommendation": "Use idempotency keys for all mutation operations, especially payments",
-    },
-    "no-rate-limiting": {
-        "pattern": "Rate Limiting",
-        "risk": "Sudden traffic spikes or abuse overwhelm the system",
-        "recommendation": "Implement token bucket or leaky bucket rate limiting at the API gateway",
-    },
-    "no-observability": {
-        "pattern": "Observability",
-        "risk": "Cannot diagnose failures, performance issues are invisible",
-        "recommendation": "Implement structured logging, distributed tracing, and metric collection (the three pillars)",
-    },
-}
-
-
-# ---------------------------------------------------------------------------
-# Blast radius assessment
-# ---------------------------------------------------------------------------
-
-_BLAST_RADIUS_INDICATORS: dict[str, dict[str, Any]] = {
-    "shared-database": {
-        "scope": "All services sharing the database",
-        "severity": "high",
-        "description": "Schema change or database outage affects every dependent service",
-    },
-    "synchronous-chain": {
-        "scope": "Entire call chain depth",
-        "severity": "high",
-        "description": "Failure at any point in the chain cascades to all upstream callers",
-    },
-    "shared-library": {
-        "scope": "All services using the library",
-        "severity": "medium",
-        "description": "Bug in shared library requires redeploying all consumers",
-    },
-    "monolith": {
-        "scope": "Entire application",
-        "severity": "medium",
-        "description": "Any failure in any module can affect the entire application",
-    },
-    "shared-cache": {
-        "scope": "All services using the cache",
-        "severity": "medium",
-        "description": "Cache invalidation error or outage affects all consumers simultaneously",
-    },
-    "global-load-balancer": {
-        "scope": "All traffic",
-        "severity": "high",
-        "description": "Load balancer misconfiguration or failure affects 100% of requests",
-    },
-}
-
-
-# ---------------------------------------------------------------------------
-# Scoring
-# ---------------------------------------------------------------------------
-
-def _compute_resilience_score(
-    spof_count: int,
-    missing_count: int,
-    blast_count: int,
-) -> float:
-    """Compute a 0.0-1.0 resilience score.
-
-    1.0 = no issues found, 0.0 = severely lacking resilience.
-    """
-    # Each issue category reduces the score
-    penalty = (spof_count * 0.15) + (missing_count * 0.08) + (blast_count * 0.10)
-    return max(0.0, min(1.0, round(1.0 - penalty, 2)))
-
-
-# ---------------------------------------------------------------------------
-# Main tool
-# ---------------------------------------------------------------------------
 
 @normalize_kwargs
 def assess_resilience(
     system_description: str,
-    structural_signals: list[str],
+    matched_signal_ids: list[str],
+    constraints: dict | None = None,
+    k: int = 10,
     conn: object = None,
 ) -> dict:
-    """Assess the resilience of a system architecture.
+    """Retrieve the resilience patterns a system is missing; rank appropriate hardening above premature.
 
-    Identifies single points of failure, missing resilience patterns,
-    blast radius of failures, and provides hardening recommendations.
+    CRITICAL INVARIANT (the gate, SINK): a retrieved resilience pattern whose OWN
+    ``avoid_when`` facet the constraints satisfy is PREMATURE hardening and sinks
+    below every appropriate one — a startup-MVP caller therefore gets
+    circuit_breaker/bulkhead flagged ``premature`` and ranked under the hardening it
+    actually needs now, while a caller who gates nothing gets all ``recommended``.
+    ``posture`` is integer counts only; there is NO resilience_score, so a fragile
+    system can never be reported as safe.
 
     Args:
-        system_description: Description of the system architecture.
-        structural_signals: Agent-identified signals about the system's
-            resilience characteristics, e.g. ["no-circuit-breaker",
-            "single-database", "synchronous-chain"].
+        system_description: Free-text description of the system — context/telemetry
+            only (retrieval is driven by ``matched_signal_ids``, not this text).
+            Bounded at the caller boundary.
+        matched_signal_ids: Signal ids the caller recognised against
+            ``get_signal_index`` (problem-language → sig-id, the proven path).
+        constraints: Optional dict — ``team_size`` (numeric range) plus categorical
+            ``scale``/``budget``/``timeline``/``latency``/``compliance``/
+            ``existing_stack``. Drives the deterministic premature-hardening sink.
+        k: Number of retrieved patterns to reason over (engine-clamped to 1..50).
         conn: Kuzu/LadybugDB connection for graph mode, or None for JSON.
 
     Returns:
-        Dict with keys: resilience_score, single_points_of_failure,
-        missing_patterns, blast_radius_assessment, hardening_recommendations.
+        Dict with ``constraints_analyzed`` / ``posture`` (integer counts
+        {retrieved, recommended_now, premature}) / ``hardening`` (one entry per
+        retrieved pattern, appropriate first) / ``recommendations`` (deduped
+        related-pattern set) plus the retrieval envelope (``retrieval_state`` /
+        ``unmatched`` / ``dangling``). Fail-closed: an abstaining envelope returns
+        empty hardening, never a husk.
     """
-    structural_signals = coerce(structural_signals, list, default=[])
+    system_description = (
+        system_description[:_MAX_DESCRIPTION_LEN]
+        if isinstance(system_description, str) else ""
+    )
+    matched_signal_ids = coerce(matched_signal_ids, list) or []
+    constraints = _bounded_constraints(coerce(constraints, dict) or {})
+    try:
+        k = int(k)
+    except (TypeError, ValueError):
+        k = 10
 
     kb = get_knowledge(conn)
 
-    # 1. Identify single points of failure
-    single_points_of_failure: list[dict[str, Any]] = []
-    for signal in structural_signals:
-        sig_lower = signal.lower().strip()
-        spof = _SPOF_SIGNALS.get(sig_lower)
-        if spof:
-            single_points_of_failure.append({
-                "signal": signal,
-                **spof,
-            })
+    # 1. RETRIEVE — one hydrate call; the caller-boundary cap is non-amplifying
+    #    (the engine's _SEED_CAP already bounds fan-out downstream of it).
+    res = kb.hydrate(matched_signal_ids[:_MAX_MATCHED_SIGNALS], k=k)
 
-    # 2. Identify missing resilience patterns
-    missing_patterns: list[dict[str, Any]] = []
-    for signal in structural_signals:
-        sig_lower = signal.lower().strip()
-        missing = _MISSING_PATTERN_SIGNALS.get(sig_lower)
-        if missing:
-            missing_patterns.append({
-                "signal": signal,
-                **missing,
-            })
+    envelope = {
+        "retrieval_state": res.state,
+        "unmatched": list(res.unmatched_signals),
+        "dangling": list(res.dangling),
+    }
 
-    # 3. Assess blast radius
-    blast_radius_assessment: list[dict[str, Any]] = []
-    for signal in structural_signals:
-        sig_lower = signal.lower().strip()
-        blast = _BLAST_RADIUS_INDICATORS.get(sig_lower)
-        if blast:
-            blast_radius_assessment.append({
-                "signal": signal,
-                **blast,
-            })
+    # 2. Fail closed: recognised-but-empty (no_match) or unresolvable (dangling)
+    #    abstains structurally — no hardening, never the nearest husk. posture is
+    #    all-zero integer counts (never a fabricated score).
+    if res.state in (NO_MATCH, DANGLING):
+        result = {
+            "constraints_analyzed": constraints,
+            "posture": {"retrieved": 0, "recommended_now": 0, "premature": 0},
+            "hardening": [],
+            "recommendations": [],
+            **envelope,
+        }
+        emit_event("assess_resilience", {
+            "description": system_description[:120],
+            "n_signals": len(matched_signal_ids),
+            "state": res.state,
+            "hardening_count": 0,
+            "premature_count": 0,
+        })
+        return result
 
-    # 4. Match against decision rules for additional context
-    hardening_recommendations: list[dict[str, Any]] = []
+    # 3. RANK — SINK. hydrate already ordered res.patterns by the proven integer vote
+    #    key. Layer ONE boolean gate tier with a single total-order sort on
+    #    (gated, hydrate-rank): a PREMATURE pattern (its own avoid_when facet the
+    #    constraints satisfy) sinks below every appropriate one, relative order within
+    #    each tier preserved. The index is the pre-existing hydrate rank, so the key
+    #    is a total order — deterministic without relying on sort stability. No float.
+    #    Identical to recommend_pattern's sink; only the label it carries differs.
+    gate_flags = [is_gated(p, constraints) for p in res.patterns]
+    order = sorted(range(len(res.patterns)), key=lambda i: (gate_flags[i], i))
 
-    if structural_signals:
-        rule_matches = kb.match_structural_signals(structural_signals)
-        for rm in rule_matches:
-            rule = rm["rule"]
-            # Only include resilience-related rules
-            if any(kw in rule.get("category", "").lower()
-                   for kw in ["resilience", "reliability", "failure"]):
-                for pattern in rm.get("recommended_patterns", []):
-                    hardening_recommendations.append({
-                        "pattern_id": pattern.get("id", ""),
-                        "pattern_name": pattern.get("name", pattern.get("id", "")),
-                        "rationale": rule.get("rationale", ""),
-                        "priority": rule.get("priority", "medium"),
-                        "source_rule": rule["id"],
-                    })
-
-    # Add recommendations from detected issues
-    for spof in single_points_of_failure:
-        hardening_recommendations.append({
-            "pattern_id": f"fix_{spof['signal'].replace('-', '_')}",
-            "pattern_name": f"Address {spof['component']} SPOF",
-            "rationale": spof["mitigation"],
-            "priority": "high",
-            "source_rule": "spof_detection",
+    # 4. REASON — one hardening entry per retrieved pattern over its OWN fields:
+    #    use_when = the resilience gap it fills (a missing pattern's use_when IS the
+    #    recommendation); avoid_when = when it is overkill; principles;
+    #    related_patterns (the shared resolver). No hardcoded SPOF/missing/blast list.
+    hardening: list[dict[str, Any]] = []
+    hardening_ids: set[str] = set()
+    for rank, i in enumerate(order, start=1):
+        p = res.patterns[i]
+        protects_against, _ = split_conditions(p.get("use_when"))
+        tradeoffs, _ = split_conditions(p.get("avoid_when"))
+        hardening_ids.add(p["id"])
+        hardening.append({
+            "rank": rank,
+            "pattern_id": p["id"],
+            "pattern_name": p.get("name", p["id"]),
+            "rationale": p.get("description", ""),
+            "appropriateness": "premature" if gate_flags[i] else "recommended",
+            "protects_against": list(protects_against),
+            "tradeoffs": list(tradeoffs),
+            "principles": list(p.get("principles") or []),
+            "related_patterns": _resolved_related(kb, p),
+            "retrieval": dict(p["retrieval"]),   # plain dict for the output surface
+            "gated": gate_flags[i],
         })
 
-    for mp in missing_patterns:
-        hardening_recommendations.append({
-            "pattern_id": mp["pattern"].lower().replace(" ", "_"),
-            "pattern_name": f"Add {mp['pattern']}",
-            "rationale": mp["recommendation"],
-            "priority": "high",
-            "source_rule": "missing_pattern_detection",
-        })
+    # 5. POSTURE — integer counts ONLY (no derived ratio that smells like the old
+    #    float score). A fragile system retrieves the hardening it lacks, so
+    #    recommended_now is non-zero, and there is no scalar to fabricate safety.
+    premature = sum(gate_flags)
+    posture = {
+        "retrieved": len(hardening),
+        "recommended_now": len(hardening) - premature,
+        "premature": premature,
+    }
 
-    # 5. Compute resilience score
-    resilience_score = _compute_resilience_score(
-        spof_count=len(single_points_of_failure),
-        missing_count=len(missing_patterns),
-        blast_count=len(blast_radius_assessment),
-    )
+    # 6. RECOMMENDATIONS — the deduped related-pattern set across the hardening
+    #    patterns' OWN related_patterns, excluding what is already a hardening pattern
+    #    (mirrors recommend_pattern's alternatives / the sisters' recommendations).
+    #    One source of truth (_resolved_related), one shared cap (_MAX_RELATED_OUTPUT).
+    recommendations: list[dict[str, Any]] = []
+    seen_recs: set[str] = set()
+    for h in hardening:
+        for rec in h["related_patterns"]:
+            rid = rec["pattern_id"]
+            if rid in hardening_ids or rid in seen_recs:
+                continue
+            seen_recs.add(rid)
+            recommendations.append(rec)
+            if len(recommendations) >= _MAX_RELATED_OUTPUT:
+                break
+        if len(recommendations) >= _MAX_RELATED_OUTPUT:
+            break
 
-    # 6. Build result
-    result: dict[str, Any] = {
-        "resilience_score": resilience_score,
-        "single_points_of_failure": single_points_of_failure,
-        "missing_patterns": missing_patterns,
-        "blast_radius_assessment": blast_radius_assessment,
-        "hardening_recommendations": hardening_recommendations,
+    result = {
+        "constraints_analyzed": constraints,
+        "posture": posture,
+        "hardening": hardening,
+        "recommendations": recommendations,
+        **envelope,
     }
 
     emit_event("assess_resilience", {
         "description": system_description[:120],
-        "signals": structural_signals,
-        "resilience_score": resilience_score,
-        "spof_count": len(single_points_of_failure),
-        "missing_patterns_count": len(missing_patterns),
-        "blast_radius_count": len(blast_radius_assessment),
+        "n_signals": len(matched_signal_ids),
+        "state": res.state,
+        "hardening_count": len(hardening),
+        "premature_count": premature,
     })
 
     return result

@@ -166,77 +166,40 @@ class TestDecisionRuleRetrieval:
 
 
 # ===================================================================
-# S4.2-6  TestStructuralSignalMatching — 4 tests
+# S4.2-6  TestStructuralSignalMatching — RETIRED with the legacy substring matcher
 # ===================================================================
-
-class TestStructuralSignalMatching:
-    """Test exact substring matching against decision rule structural_signals."""
-
-    def test_matching_signals_returns_results(self, kb: KnowledgeLoader) -> None:
-        """A known structural signal returns at least one matching rule."""
-        results = kb.match_structural_signals(["team of 1-5 engineers"])
-        assert len(results) >= 1
-        assert "rule" in results[0]
-        assert "signal" in results[0]
-        assert "recommended_patterns" in results[0]
-
-    def test_multiple_signals_match_multiple_rules(self, kb: KnowledgeLoader) -> None:
-        """Multiple distinct signals can match different rules."""
-        results = kb.match_structural_signals([
-            "team of 1-5 engineers",
-            "team of 50+ engineers",
-        ])
-        rule_ids = {r["rule"]["id"] for r in results}
-        assert len(rule_ids) >= 2
-
-    def test_priority_sorting(self, kb: KnowledgeLoader) -> None:
-        """Results are sorted by priority: high before medium before low."""
-        results = kb.match_structural_signals([
-            "team of 1-5 engineers",
-            "CRUD-dominant business logic",
-        ])
-        if len(results) >= 2:
-            priorities = [r["rule"].get("priority", "low") for r in results]
-            rank = {"high": 0, "medium": 1, "low": 2}
-            ranks = [rank.get(p, 2) for p in priorities]
-            assert ranks == sorted(ranks)
-
-    def test_empty_signals_returns_empty_list(self, kb: KnowledgeLoader) -> None:
-        """Empty signal list returns empty result list."""
-        assert kb.match_structural_signals([]) == []
+# The four tests here (test_matching_signals_returns_results,
+# test_multiple_signals_match_multiple_rules, test_priority_sorting,
+# test_empty_signals_returns_empty_list) were the loader-level binding of
+# KnowledgeLoader.match_structural_signals — the exact-substring rule matcher named in
+# plan-46de7c77's root-cause A/B. All four concern tools (recommend_pattern,
+# analyze_architecture, evaluate_scalability, assess_resilience) migrated onto the
+# Shape C hydrate() engine, dropping the matcher's tool-caller census to zero. S6
+# (story-16223628, council 9ccb9550) then deletes match_structural_signals,
+# _rule_signal_pairs, and the _resolve_pattern husk, so these four tests retire WITH
+# the method they bound — named, not silently dropped (Directive 12).
+# Coverage reconciliation: retrieval is now proven on the hydrate engine
+# (tests/test_retrieval_envelope.py, tests/test_retrieval_ranking.py,
+# tests/test_recommend_pattern.py, and each concern tool's own hydrate tests); the
+# regression floor that the matcher gains no callers is guarded by
+# tests/test_evaluate_scalability.py and tests/test_assess_resilience.py
+# (test_tool_no_longer_calls_match_structural_signals + test_matcher_has_zero_tool_callers_now).
 
 
 # ===================================================================
-# S4.2-7  TestConstraintFiltering — 3 tests
+# S4.2-7  TestConstraintFiltering — RETIRED with loader.filter_by_constraints
 # ===================================================================
-
-class TestConstraintFiltering:
-    """Test constraint-based filtering of decision rules."""
-
-    def test_filter_removes_matching_avoid_when(self, kb: KnowledgeLoader) -> None:
-        """Rules whose avoid_when matches constraints are removed."""
-        # rule_small_team_crud has avoid_when team_size=50+
-        rule = kb.get_rule("rule_small_team_crud")
-        assert rule is not None
-        rules = [rule]
-        surviving = kb.filter_by_constraints(rules, {"team_size": "50+"})
-        # The rule should be filtered out because "50+" matches avoid_when
-        assert len(surviving) == 0
-
-    def test_empty_constraints_returns_all(self, kb: KnowledgeLoader) -> None:
-        """Empty constraints dict returns all rules unfiltered."""
-        rules = [kb.get_rule("rule_small_team_crud")]
-        surviving = kb.filter_by_constraints(rules, {})
-        assert len(surviving) == 1
-
-    def test_non_matching_constraints_keeps_rules(self, kb: KnowledgeLoader) -> None:
-        """Constraints that don't match avoid_when keep the rule."""
-        rule = kb.get_rule("rule_small_team_crud")
-        assert rule is not None
-        rules = [rule]
-        surviving = kb.filter_by_constraints(rules, {"team_size": "1-3"})
-        # "1-3" does not match avoid_when values ("50+", "hyperscale")
-        assert len(surviving) == 1
+# The three tests here (test_filter_removes_matching_avoid_when,
+# test_empty_constraints_returns_all, test_non_matching_constraints_keeps_rules)
+# were the ONLY callers of KnowledgeLoader.filter_by_constraints outside the tool
+# that owned it. That loader method was the constraint leg of the legacy rule path
+# in analyze_architecture (its sole src caller), which the A/B (council
+# 3154bcba-decision-2) measured dead on real problem language. When
+# analyze_architecture moved to the Shape C engine (story-917b281e) the method was
+# deleted, and — per the pre-delete gate — these three tests retire WITH it, named.
+# The deterministic gate they gestured at (avoid_when facets vs constraints) is now
+# the engine's own, proven in tests/test_analyze_architecture.py (the confirm/gate
+# tiering) and tests/test_recommend_pattern.py (the sink tiering).
 
 
 # ===================================================================

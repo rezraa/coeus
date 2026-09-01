@@ -16,18 +16,32 @@
         "Uniform interface reduces coupling between client and server",
         "Resources may contain links to related resources"
       ],
-      "when_to_use": [
+      "use_when": [
         "Building public-facing APIs consumed by third parties",
         "CRUD-dominant workloads with well-defined domain entities",
         "Systems where cacheability of GET responses is valuable",
         "Microservices exposing domain aggregates to other services",
-        "Mobile and web clients needing a predictable contract"
+        "Mobile and web clients needing a predictable contract",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        },
+        {
+          "scale": "any"
+        }
       ],
       "avoid_when": [
         "Operations are inherently action-oriented (e.g., batch computation triggers)",
         "Real-time bidirectional communication is required",
         "Client needs to fetch deeply nested related data in a single call",
-        "Extremely low-latency binary protocols are needed"
+        "Extremely low-latency binary protocols are needed",
+        {
+          "team_size": "20+",
+          "scale": "enterprise"
+        },
+        {
+          "latency": "sub-millisecond"
+        }
       ],
       "signals": [
         "Domain model has clearly identifiable nouns (users, orders, products)",
@@ -45,7 +59,17 @@
         "ETag and conditional requests for concurrency control",
         "HATEOAS links for discoverability"
       ],
-      "related_patterns": ["rest_maturity_levels", "hateoas", "rest_pagination", "rest_versioning_url"],
+      "related_patterns": [
+        "rest_maturity_levels",
+        "hateoas",
+        "rest_pagination",
+        "rest_versioning_url",
+        "rest_filtering",
+        "rest_versioning_header",
+        "rest_bulk_operations",
+        "rest_partial_updates",
+        "graphql_schema_first"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -60,7 +84,7 @@
         "Maturity level choice should match team capability and client needs",
         "Higher maturity does not always mean better fitness for purpose"
       ],
-      "when_to_use": [
+      "use_when": [
         "Evaluating an existing API's design quality",
         "Setting architectural guidelines for a new API platform",
         "Deciding whether to invest in hypermedia controls",
@@ -87,7 +111,11 @@
         "Content-type negotiation at higher levels",
         "Link relations for state transitions"
       ],
-      "related_patterns": ["rest_resource_oriented", "hateoas", "rest_versioning_url"],
+      "related_patterns": [
+        "rest_resource_oriented",
+        "hateoas",
+        "rest_versioning_url"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -102,18 +130,24 @@
         "Link relations use standard or custom relation types",
         "Entry point URI is the only URI a client needs to know"
       ],
-      "when_to_use": [
+      "use_when": [
         "APIs that must evolve without breaking existing clients",
         "Workflow-driven domains where available actions depend on state",
         "Long-lived public APIs with diverse unknown consumers",
         "APIs where server-driven navigation improves security",
-        "Domain models with complex state machines"
+        "Domain models with complex state machines",
+        {
+          "scale": "any"
+        }
       ],
       "avoid_when": [
         "Clients are tightly coupled internal services with shared contracts",
         "Performance-sensitive paths where link overhead is unacceptable",
         "Team lacks tooling to generate and consume hypermedia formats",
-        "API surface is simple CRUD with no workflow transitions"
+        "API surface is simple CRUD with no workflow transitions",
+        {
+          "latency": "sub-millisecond"
+        }
       ],
       "signals": [
         "Responses contain _links or links objects with rel and href",
@@ -130,7 +164,13 @@
         "Siren entity/action model",
         "Spring HATEOAS and similar server-side libraries"
       ],
-      "related_patterns": ["rest_resource_oriented", "rest_maturity_levels", "rest_pagination"],
+      "related_patterns": [
+        "rest_resource_oriented",
+        "rest_maturity_levels",
+        "rest_pagination",
+        "rest_versioning_header",
+        "graphql_schema_first"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -145,7 +185,7 @@
         "Page size should have a sensible default and a maximum cap",
         "Pagination metadata belongs in response body or Link headers"
       ],
-      "when_to_use": [
+      "use_when": [
         "Any list endpoint returning more than ~50 items",
         "Feed-style data where new items are continuously inserted",
         "Search result pages with forward/backward navigation",
@@ -173,7 +213,12 @@
         "Stable sort order required for consistent pagination",
         "RFC 5988 Link header for page navigation"
       ],
-      "related_patterns": ["rest_resource_oriented", "rest_filtering", "graphql_cursor_pagination"],
+      "related_patterns": [
+        "rest_resource_oriented",
+        "rest_filtering",
+        "graphql_cursor_pagination",
+        "hateoas"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -188,7 +233,7 @@
         "Sorting parameters should support multi-field and direction",
         "Filter parameters should map to indexed database columns"
       ],
-      "when_to_use": [
+      "use_when": [
         "List endpoints with heterogeneous consumer query needs",
         "Dashboards requiring server-side filtering and sorting",
         "APIs where bandwidth matters (mobile clients)",
@@ -216,7 +261,11 @@
         "Filter operators: eq, ne, gt, gte, lt, lte, in, like",
         "JSON:API filter specification"
       ],
-      "related_patterns": ["rest_pagination", "rest_resource_oriented", "graphql_schema_first"],
+      "related_patterns": [
+        "rest_pagination",
+        "rest_resource_oriented",
+        "graphql_schema_first"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -231,18 +280,24 @@
         "Routing infrastructure directs traffic by version prefix",
         "Resource identity should remain stable across versions where possible"
       ],
-      "when_to_use": [
+      "use_when": [
         "Public APIs where version visibility aids developer experience",
         "APIs with infrequent breaking changes (yearly or less)",
         "Organisations with simple routing infrastructure",
         "APIs where multiple versions must coexist for extended periods",
-        "Brownfield systems migrating from legacy to modern contracts"
+        "Brownfield systems migrating from legacy to modern contracts",
+        {
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Breaking changes are frequent and fine-grained",
         "Versioning individual resources independently is needed",
         "API gateway supports header-based routing natively",
-        "Hypermedia-driven clients that follow links rather than construct URIs"
+        "Hypermedia-driven clients that follow links rather than construct URIs",
+        {
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "URLs contain /v1/, /v2/ path segments",
@@ -259,7 +314,12 @@
         "API gateway version routing",
         "Version-specific documentation generation"
       ],
-      "related_patterns": ["rest_versioning_header", "rest_resource_oriented", "rest_maturity_levels"],
+      "related_patterns": [
+        "rest_versioning_header",
+        "rest_resource_oriented",
+        "rest_maturity_levels",
+        "graphql_schema_first"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -274,18 +334,24 @@
         "Default version should be specified when no version header is sent",
         "API gateway or middleware must parse headers for routing"
       ],
-      "when_to_use": [
+      "use_when": [
         "APIs striving for RESTful purity with clean URIs",
         "Organisations with API gateways that support header-based routing",
         "Versioning at the representation level rather than the resource level",
         "Internal APIs where clients can be updated to send headers",
-        "APIs with fine-grained versioning needs per resource"
+        "APIs with fine-grained versioning needs per resource",
+        {
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Clients cannot easily set custom headers (e.g., simple browser links)",
         "Developer experience priorities favour visible version in URL",
         "Infrastructure lacks header-based routing capability",
-        "API is public-facing with many unsophisticated consumers"
+        "API is public-facing with many unsophisticated consumers",
+        {
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Requests include Accept: application/vnd.company.v2+json",
@@ -303,7 +369,13 @@
         "Header-based API gateway routing",
         "Vary header for cache correctness with versioned responses"
       ],
-      "related_patterns": ["rest_versioning_url", "rest_resource_oriented", "hateoas"],
+      "related_patterns": [
+        "rest_versioning_url",
+        "rest_resource_oriented",
+        "hateoas",
+        "rest_partial_updates",
+        "graphql_schema_first"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -318,7 +390,7 @@
         "Batch size limits prevent memory exhaustion and timeout issues",
         "Idempotency keys enable safe retry of failed batch items"
       ],
-      "when_to_use": [
+      "use_when": [
         "Importing or syncing data from external systems",
         "Clients that need to create/update many records at once",
         "Network-constrained environments where round-trip reduction matters",
@@ -346,7 +418,11 @@
         "Maximum batch size limits and chunking",
         "Asynchronous batch processing with status polling"
       ],
-      "related_patterns": ["rest_resource_oriented", "rest_partial_updates", "webhook_pattern"],
+      "related_patterns": [
+        "rest_resource_oriented",
+        "rest_partial_updates",
+        "webhook_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -361,7 +437,7 @@
         "Content-Type header must specify the patch format used",
         "Concurrent PATCH operations need optimistic locking via ETag/If-Match"
       ],
-      "when_to_use": [
+      "use_when": [
         "Updating a few fields on a large resource without sending the full body",
         "Collaborative editing where multiple clients modify different fields",
         "Mobile clients on constrained networks minimising payload size",
@@ -389,7 +465,11 @@
         "Idempotency considerations for PATCH",
         "Validation scoping to patched fields only"
       ],
-      "related_patterns": ["rest_resource_oriented", "rest_bulk_operations", "rest_versioning_header"],
+      "related_patterns": [
+        "rest_resource_oriented",
+        "rest_bulk_operations",
+        "rest_versioning_header"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -405,18 +485,34 @@
         "Deprecation directives maintain backward compatibility",
         "Input types are separate from output types"
       ],
-      "when_to_use": [
+      "use_when": [
         "Frontend and backend teams work in parallel on different schedules",
         "API serves multiple clients with varying data requirements",
         "Domain model is complex with many relationships",
         "Strong typing and introspection are valued for developer tooling",
-        "Reducing over-fetching is a priority for mobile clients"
+        "Reducing over-fetching is a priority for mobile clients",
+        {
+          "team_size": "5+",
+          "scale": "growth"
+        },
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "API surface is simple CRUD with few relationships",
         "Team lacks GraphQL schema design experience",
         "File uploads or binary streaming are primary use cases",
-        "Real-time requirements exceed subscription capabilities"
+        "Real-time requirements exceed subscription capabilities",
+        {
+          "team_size": "1-3",
+          "scale": "startup_mvp"
+        },
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Project contains .graphql or .gql schema files",
@@ -434,7 +530,17 @@
         "Schema-first codegen for type-safe resolvers",
         "Schema linting and breaking change detection"
       ],
-      "related_patterns": ["graphql_federation", "graphql_dataloader", "graphql_cursor_pagination"],
+      "related_patterns": [
+        "graphql_federation",
+        "graphql_dataloader",
+        "graphql_cursor_pagination",
+        "rest_filtering",
+        "graphql_subscriptions",
+        "graphql_persisted_queries",
+        "backends_for_frontends",
+        "edge_computing",
+        "rest_resource_oriented"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -450,7 +556,7 @@
         "Schema composition must detect and prevent conflicts at build time",
         "Performance depends on efficient query plan optimisation"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multiple teams own different domains within a single API surface",
         "Monolithic GraphQL server is becoming a bottleneck for deployment",
         "Domains have clear ownership boundaries (users, products, orders)",
@@ -479,7 +585,11 @@
         "Schema composition and conflict detection",
         "Federated tracing for cross-subgraph observability"
       ],
-      "related_patterns": ["graphql_schema_first", "graphql_dataloader", "graphql_persisted_queries"],
+      "related_patterns": [
+        "graphql_schema_first",
+        "graphql_dataloader",
+        "graphql_persisted_queries"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -494,7 +604,7 @@
         "Subscription lifecycle must handle connection drops and reconnection",
         "Filtering subscriptions server-side reduces unnecessary data transfer"
       ],
-      "when_to_use": [
+      "use_when": [
         "Live dashboards showing real-time metrics or status updates",
         "Chat or messaging features requiring push notifications",
         "Collaborative editing where changes must propagate to all viewers",
@@ -523,7 +633,12 @@
         "Subscription filtering arguments",
         "Connection lifecycle: init, ack, data, complete, error"
       ],
-      "related_patterns": ["graphql_schema_first", "websocket_pattern", "server_sent_events", "pub_sub_messaging"],
+      "related_patterns": [
+        "graphql_schema_first",
+        "websocket_pattern",
+        "server_sent_events",
+        "pub_sub_messaging"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -538,17 +653,25 @@
         "Batch function must return results in the same order as keys",
         "Loader key design must match the underlying data access pattern"
       ],
-      "when_to_use": [
+      "use_when": [
         "GraphQL resolvers fetch related entities that cause N+1 queries",
         "List fields resolve child entities individually in a loop",
         "Multiple resolvers in a single query need the same entity",
         "Database query count must be minimised for performance",
-        "API calls to downstream services should be batched"
+        "API calls to downstream services should be batched",
+        {
+          "team_size": "5+",
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Resolvers already perform batch fetches natively",
         "Query depth is shallow with no nested entity resolution",
-        "Data source does not support batch lookups"
+        "Data source does not support batch lookups",
+        {
+          "team_size": "1-3",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Resolver functions call loader.load(id) instead of direct DB queries",
@@ -566,7 +689,14 @@
         "Priming: manually populating cache from known data",
         "Error handling: return Error objects in result array positions"
       ],
-      "related_patterns": ["graphql_schema_first", "graphql_federation", "graphql_persisted_queries"],
+      "related_patterns": [
+        "graphql_schema_first",
+        "graphql_federation",
+        "graphql_persisted_queries",
+        "graphql_cursor_pagination",
+        "backends_for_frontends",
+        "rest_resource_oriented"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -581,7 +711,7 @@
         "Persisted queries enable CDN caching of GET-based GraphQL requests",
         "Query allowlisting prevents arbitrary query execution in production"
       ],
-      "when_to_use": [
+      "use_when": [
         "Reducing payload size for mobile clients on constrained networks",
         "Preventing query injection or denial-of-service via complex queries",
         "Enabling HTTP GET semantics for GraphQL query caching at CDN edge",
@@ -609,7 +739,11 @@
         "Query allowlisting for security hardening",
         "SHA-256 query hashing"
       ],
-      "related_patterns": ["graphql_schema_first", "graphql_federation", "graphql_dataloader"],
+      "related_patterns": [
+        "graphql_schema_first",
+        "graphql_federation",
+        "graphql_dataloader"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -624,7 +758,7 @@
         "Forward pagination uses first + after, backward uses last + before",
         "Total count is optional and should be omitted if expensive to compute"
       ],
-      "when_to_use": [
+      "use_when": [
         "Any GraphQL list field that may return many items",
         "Infinite scroll UIs consuming GraphQL APIs",
         "Relay-based frontend applications requiring connection-compliant schema",
@@ -652,7 +786,11 @@
         "Backward pagination: last N before cursor",
         "Cursor encoding: typically base64(type:id) but opaque to client"
       ],
-      "related_patterns": ["graphql_schema_first", "rest_pagination", "graphql_dataloader"],
+      "related_patterns": [
+        "graphql_schema_first",
+        "rest_pagination",
+        "graphql_dataloader"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -668,7 +806,7 @@
         "Metadata (headers/trailers) carry cross-cutting concerns",
         "Status codes are gRPC-specific (OK, NOT_FOUND, INTERNAL, etc.)"
       ],
-      "when_to_use": [
+      "use_when": [
         "Synchronous request-response communication between microservices",
         "High-throughput internal service-to-service communication",
         "Polyglot environments needing cross-language type-safe contracts",
@@ -697,7 +835,12 @@
         "gRPC status codes and error model",
         "Interceptors for logging, auth, and metrics"
       ],
-      "related_patterns": ["grpc_service_definition", "protobuf_schema_evolution", "grpc_server_streaming"],
+      "related_patterns": [
+        "grpc_service_definition",
+        "protobuf_schema_evolution",
+        "grpc_server_streaming",
+        "grpc_client_streaming"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -712,7 +855,7 @@
         "Flow control is managed by HTTP/2 at the transport level",
         "Server can send status and trailers to signal completion or error"
       ],
-      "when_to_use": [
+      "use_when": [
         "Streaming large datasets that would be inefficient as a single response",
         "Real-time event feeds (price tickers, log streams, status updates)",
         "Progressive data loading (e.g., search results as they are found)",
@@ -740,7 +883,13 @@
         "Stream cancellation from client side",
         "Error handling: status codes on stream termination"
       ],
-      "related_patterns": ["grpc_unary", "grpc_bidirectional", "server_sent_events", "grpc_client_streaming"],
+      "related_patterns": [
+        "grpc_unary",
+        "grpc_bidirectional",
+        "server_sent_events",
+        "grpc_client_streaming",
+        "grpc_service_definition"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -755,7 +904,7 @@
         "Flow control ensures the server is not overwhelmed by fast clients",
         "Server can send an early error status before reading all messages"
       ],
-      "when_to_use": [
+      "use_when": [
         "File upload or chunked data ingestion",
         "Aggregating sensor data or time-series readings for batch processing",
         "Collecting a set of inputs before running a computation",
@@ -783,7 +932,11 @@
         "Chunked upload patterns",
         "Early termination: server responds before reading all messages"
       ],
-      "related_patterns": ["grpc_unary", "grpc_server_streaming", "grpc_bidirectional"],
+      "related_patterns": [
+        "grpc_unary",
+        "grpc_server_streaming",
+        "grpc_bidirectional"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -798,7 +951,7 @@
         "Full-duplex communication over a single HTTP/2 connection",
         "Complex interaction protocols can be modelled as message sequences"
       ],
-      "when_to_use": [
+      "use_when": [
         "Chat or messaging systems requiring full-duplex communication",
         "Interactive protocols where client and server exchange messages freely",
         "Real-time collaboration (cursor tracking, shared editing)",
@@ -827,7 +980,11 @@
         "Stream-aware load balancing requirements",
         "Connection lifecycle management and reconnection"
       ],
-      "related_patterns": ["grpc_server_streaming", "grpc_client_streaming", "websocket_pattern"],
+      "related_patterns": [
+        "grpc_server_streaming",
+        "grpc_client_streaming",
+        "websocket_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -843,17 +1000,25 @@
         "Error details use google.rpc.Status with typed detail messages",
         "API design guides (e.g., Google AIP) provide consistent patterns"
       ],
-      "when_to_use": [
+      "use_when": [
         "Starting a new gRPC service from scratch",
         "Reviewing or refactoring existing proto definitions",
         "Establishing organisational API design standards for gRPC",
         "Training teams on Protocol Buffer best practices",
-        "Designing APIs that will be consumed by generated clients in multiple languages"
+        "Designing APIs that will be consumed by generated clients in multiple languages",
+        {
+          "team_size": "15+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Prototyping with JSON/REST is faster for initial exploration",
         "Service interface is trivial and design rigour is overkill",
-        "Team is not familiar with Protocol Buffers"
+        "Team is not familiar with Protocol Buffers",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Proto files follow consistent naming conventions",
@@ -871,7 +1036,12 @@
         "Method options and custom annotations",
         "API design guides (Google AIP, Buf style guide)"
       ],
-      "related_patterns": ["grpc_unary", "protobuf_schema_evolution", "grpc_server_streaming"],
+      "related_patterns": [
+        "grpc_unary",
+        "protobuf_schema_evolution",
+        "grpc_server_streaming",
+        "rest_resource_oriented"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -887,17 +1057,25 @@
         "Use oneof for mutually exclusive fields, not for evolution",
         "Default values for missing fields must be safe for all consumers"
       ],
-      "when_to_use": [
+      "use_when": [
         "Adding new fields to existing messages",
         "Deprecating and removing fields from proto definitions",
         "Migrating between proto2 and proto3 syntax",
         "Ensuring independent deployment of producer and consumer services",
-        "Managing proto schemas across a large organisation"
+        "Managing proto schemas across a large organisation",
+        {
+          "team_size": "15+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Schema changes require atomic deployment of all services (use a shared binary)",
         "Wire format is not Protocol Buffers (JSON evolution rules differ)",
-        "Proto files are used only for code generation with no wire compatibility needs"
+        "Proto files are used only for code generation with no wire compatibility needs",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Proto files contain reserved field numbers or names",
@@ -915,7 +1093,13 @@
         "Forward compatibility: new readers can read old messages",
         "Buf CLI for schema linting and breaking change detection"
       ],
-      "related_patterns": ["grpc_service_definition", "grpc_unary", "schema_registry"],
+      "related_patterns": [
+        "grpc_service_definition",
+        "grpc_unary",
+        "schema_registry",
+        "data_contract",
+        "rest_resource_oriented"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -931,7 +1115,7 @@
         "Connection state must be managed explicitly (open, closing, closed)",
         "Horizontal scaling requires sticky sessions or external pub/sub"
       ],
-      "when_to_use": [
+      "use_when": [
         "Real-time interactive applications (chat, gaming, collaborative editing)",
         "Live data feeds requiring sub-second latency (trading, sports)",
         "Applications needing bidirectional communication (not just server push)",
@@ -960,7 +1144,12 @@
         "Scaling: sticky sessions, Redis pub/sub for multi-instance",
         "Reconnection strategies with exponential backoff"
       ],
-      "related_patterns": ["server_sent_events", "long_polling", "graphql_subscriptions", "grpc_bidirectional"],
+      "related_patterns": [
+        "server_sent_events",
+        "long_polling",
+        "graphql_subscriptions",
+        "grpc_bidirectional"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -975,7 +1164,7 @@
         "Works through HTTP proxies and load balancers without special configuration",
         "Unidirectional: client cannot send data over the same connection"
       ],
-      "when_to_use": [
+      "use_when": [
         "Live notifications, alerts, or status updates to web clients",
         "Dashboard widgets showing real-time metrics",
         "Progress updates for long-running server operations",
@@ -1004,7 +1193,13 @@
         "Connection timeout and keepalive comment lines",
         "Polyfill libraries for environments without native EventSource"
       ],
-      "related_patterns": ["websocket_pattern", "long_polling", "graphql_subscriptions"],
+      "related_patterns": [
+        "websocket_pattern",
+        "long_polling",
+        "graphql_subscriptions",
+        "grpc_server_streaming",
+        "webhook_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1020,18 +1215,24 @@
         "Webhook signatures (HMAC) verify payload authenticity",
         "Idempotency: subscribers must handle duplicate deliveries gracefully"
       ],
-      "when_to_use": [
+      "use_when": [
         "Integrating with third-party services that need to react to your events",
         "Payment processing notifications (charge succeeded, refund issued)",
         "CI/CD pipeline triggers from source control events",
         "SaaS platforms notifying customer systems of data changes",
-        "Event-driven architectures across organisational boundaries"
+        "Event-driven architectures across organisational boundaries",
+        {
+          "scale": "any"
+        }
       ],
       "avoid_when": [
         "Consumer is not reachable via public URL (use polling or message queue)",
         "Low-latency delivery is critical (network variability adds delay)",
         "Event volume is very high (message queue is more efficient)",
-        "Delivery ordering guarantees are required"
+        "Delivery ordering guarantees are required",
+        {
+          "latency": "sub-millisecond"
+        }
       ],
       "signals": [
         "API documentation describes webhook registration endpoints",
@@ -1049,7 +1250,14 @@
         "Event payload envelope: type, timestamp, data, idempotency key",
         "Webhook testing tools and event replay"
       ],
-      "related_patterns": ["pub_sub_messaging", "server_sent_events", "dead_letter_queue_api"],
+      "related_patterns": [
+        "pub_sub_messaging",
+        "server_sent_events",
+        "dead_letter_queue_api",
+        "rest_bulk_operations",
+        "long_polling",
+        "fan_out_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1064,7 +1272,7 @@
         "Each response can include multiple accumulated events",
         "Standard HTTP semantics: works through all proxies and firewalls"
       ],
-      "when_to_use": [
+      "use_when": [
         "Near-real-time updates when WebSocket/SSE are not supported",
         "Browser environments behind restrictive corporate proxies",
         "Fallback transport for WebSocket libraries (e.g., Socket.IO)",
@@ -1092,7 +1300,11 @@
         "Comet pattern (historical term for long polling)",
         "Comparison with short polling, SSE, and WebSocket"
       ],
-      "related_patterns": ["websocket_pattern", "server_sent_events", "webhook_pattern"],
+      "related_patterns": [
+        "websocket_pattern",
+        "server_sent_events",
+        "webhook_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1108,7 +1320,7 @@
         "Subscription can be durable (survives disconnection) or ephemeral",
         "Message ordering guarantees vary by broker and configuration"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multiple services need to react to the same event independently",
         "Event-driven microservice architectures with loose coupling",
         "Broadcasting state changes across system components",
@@ -1137,7 +1349,14 @@
         "Durable subscriptions: messages buffered during subscriber downtime",
         "Message filtering: topic-based, attribute-based, or content-based"
       ],
-      "related_patterns": ["competing_consumers", "fan_out_pattern", "kafka_streaming", "webhook_pattern"],
+      "related_patterns": [
+        "competing_consumers",
+        "fan_out_pattern",
+        "kafka_streaming",
+        "webhook_pattern",
+        "graphql_subscriptions",
+        "dead_letter_queue_api"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1153,7 +1372,7 @@
         "Consumer group coordination handled by the broker",
         "Message ordering may be sacrificed for parallelism"
       ],
-      "when_to_use": [
+      "use_when": [
         "Processing workload exceeds a single consumer's capacity",
         "Work items are independent and can be processed in any order",
         "Horizontal scaling of background job processing",
@@ -1182,7 +1401,13 @@
         "At-least-once delivery: message redelivered on ack timeout",
         "Idempotent processing: handle duplicate deliveries safely"
       ],
-      "related_patterns": ["pub_sub_messaging", "dead_letter_queue_api", "message_ordering", "kafka_streaming"],
+      "related_patterns": [
+        "pub_sub_messaging",
+        "dead_letter_queue_api",
+        "message_ordering",
+        "kafka_streaming",
+        "fan_out_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1198,7 +1423,7 @@
         "DLQ depth is a key operational metric and alert trigger",
         "DLQ messages should have a retention policy to prevent unbounded growth"
       ],
-      "when_to_use": [
+      "use_when": [
         "Message processing can fail due to transient or permanent errors",
         "Poison messages must not block processing of subsequent messages",
         "Failed message investigation and replay is an operational requirement",
@@ -1226,7 +1451,11 @@
         "DLQ depth monitoring and alerting",
         "Retention policy to bound DLQ storage"
       ],
-      "related_patterns": ["competing_consumers", "webhook_pattern", "pub_sub_messaging"],
+      "related_patterns": [
+        "competing_consumers",
+        "webhook_pattern",
+        "pub_sub_messaging"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1242,7 +1471,7 @@
         "Consumer group rebalancing can temporarily disrupt ordering",
         "Sequence numbers enable gap detection and reordering at the consumer"
       ],
-      "when_to_use": [
+      "use_when": [
         "State machine transitions that must be applied in sequence",
         "Event sourcing where aggregate events must be replayed in order",
         "Financial transactions for the same account or instrument",
@@ -1270,7 +1499,12 @@
         "Consumer-side reordering buffer",
         "Ordering vs parallelism trade-off"
       ],
-      "related_patterns": ["competing_consumers", "kafka_streaming", "event_log", "exactly_once_semantics"],
+      "related_patterns": [
+        "competing_consumers",
+        "kafka_streaming",
+        "event_log",
+        "exactly_once_semantics"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1286,7 +1520,7 @@
         "Fan-out increases total message volume multiplicatively",
         "Consider eventual consistency across fan-out targets"
       ],
-      "when_to_use": [
+      "use_when": [
         "One event triggers processing in multiple independent systems",
         "Broadcasting notifications to multiple channels (email, SMS, push)",
         "Replicating data to multiple data stores or caches",
@@ -1314,7 +1548,11 @@
         "Fan-out factor: number of copies per input message",
         "Back-pressure propagation across fan-out targets"
       ],
-      "related_patterns": ["pub_sub_messaging", "competing_consumers", "webhook_pattern"],
+      "related_patterns": [
+        "pub_sub_messaging",
+        "competing_consumers",
+        "webhook_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1330,19 +1568,27 @@
         "Indexing strategies are critical for query performance at scale",
         "Vertical scaling is natural; horizontal scaling requires sharding or read replicas"
       ],
-      "when_to_use": [
+      "use_when": [
         "Transactional workloads requiring strong consistency (finance, inventory)",
         "Data with well-defined schemas and stable relationships",
         "Complex queries involving joins, aggregations, and subqueries",
         "Regulatory environments requiring ACID compliance",
-        "Applications where the schema is known at design time"
+        "Applications where the schema is known at design time",
+        {
+          "compliance": "financial",
+          "scale": "any"
+        }
       ],
       "avoid_when": [
         "Schema is highly variable or unknown at design time",
         "Write throughput exceeds vertical scaling limits",
         "Data is naturally hierarchical or document-shaped",
         "Graph traversal queries dominate the workload",
-        "Eventual consistency is acceptable and horizontal scale is paramount"
+        "Eventual consistency is acceptable and horizontal scale is paramount",
+        {
+          "scale": "hyperscale",
+          "latency": "sub-millisecond"
+        }
       ],
       "signals": [
         "Domain model has entities with clear foreign key relationships",
@@ -1360,7 +1606,14 @@
         "Connection pooling for concurrent access management",
         "Read replicas for scaling read-heavy workloads"
       ],
-      "related_patterns": ["document_db_selection", "graph_db_selection", "polyglot_persistence"],
+      "related_patterns": [
+        "document_db_selection",
+        "graph_db_selection",
+        "polyglot_persistence",
+        "key_value_store",
+        "clean_architecture",
+        "cqrs"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1376,19 +1629,26 @@
         "Horizontal scaling via sharding is a first-class capability",
         "Transactions across documents are possible but more expensive than in RDBMS"
       ],
-      "when_to_use": [
+      "use_when": [
         "Content management systems with variable content types",
         "Product catalogs where items have different attribute sets",
         "User profiles with varying fields and preferences",
         "Rapid prototyping where schema is evolving frequently",
-        "Read-heavy workloads where denormalised documents reduce joins"
+        "Read-heavy workloads where denormalised documents reduce joins",
+        {
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Data requires multi-document transactions frequently",
         "Strong referential integrity across entities is critical",
         "Complex analytical queries with multi-collection joins",
         "Write patterns update the same document from many concurrent writers",
-        "Regulatory requirements mandate strict schema enforcement"
+        "Regulatory requirements mandate strict schema enforcement",
+        {
+          "compliance": "financial",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Data naturally maps to JSON documents with nested objects and arrays",
@@ -1406,7 +1666,13 @@
         "Sharding: distribute documents across nodes by shard key",
         "Change streams for real-time document change notifications"
       ],
-      "related_patterns": ["relational_db_selection", "key_value_store", "polyglot_persistence"],
+      "related_patterns": [
+        "relational_db_selection",
+        "key_value_store",
+        "polyglot_persistence",
+        "search_engine_db",
+        "multi_model_db"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1422,18 +1688,26 @@
         "Traversal depth is bounded by query, not by schema design",
         "Graph visualisation aids understanding of complex relationship structures"
       ],
-      "when_to_use": [
+      "use_when": [
         "Social network analysis (friends, followers, influence paths)",
         "Fraud detection requiring multi-hop relationship analysis",
         "Knowledge graphs and recommendation engines",
         "Network topology and dependency mapping",
-        "Access control with complex hierarchical or role-based structures"
+        "Access control with complex hierarchical or role-based structures",
+        {
+          "scale": "growth"
+        },
+        "Relationship traversal is the primary query axis: multi-hop traversal is ~O(1) per hop versus N self-joins with compounding cost in SQL."
       ],
       "avoid_when": [
         "Data is primarily tabular with few relationships",
         "Aggregate queries (sum, count, average) dominate the workload",
         "Write throughput is extremely high and graph integrity overhead is costly",
-        "Simple key-value lookups are the primary access pattern"
+        "Simple key-value lookups are the primary access pattern",
+        {
+          "scale": "startup_mvp",
+          "existing_stack": "relational_only"
+        }
       ],
       "signals": [
         "Domain model diagrams show dense interconnections between entities",
@@ -1451,7 +1725,11 @@
         "Property graph model vs RDF triple model",
         "Graph algorithms: shortest path, PageRank, community detection"
       ],
-      "related_patterns": ["relational_db_selection", "polyglot_persistence", "multi_model_db"],
+      "related_patterns": [
+        "relational_db_selection",
+        "polyglot_persistence",
+        "multi_model_db"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1467,7 +1745,7 @@
         "TTL (time-to-live) enables automatic expiration for cache use cases",
         "Simplest possible data model minimises operational complexity"
       ],
-      "when_to_use": [
+      "use_when": [
         "Caching layers requiring sub-millisecond reads",
         "Session storage for web applications",
         "Feature flags and configuration management",
@@ -1496,7 +1774,12 @@
         "Atomic operations: increment, compare-and-swap",
         "Eviction policies: LRU, LFU, random for memory-bounded stores"
       ],
-      "related_patterns": ["document_db_selection", "relational_db_selection", "polyglot_persistence"],
+      "related_patterns": [
+        "document_db_selection",
+        "relational_db_selection",
+        "polyglot_persistence",
+        "wide_column_store"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1512,18 +1795,26 @@
         "Specialised compression exploits temporal patterns in data",
         "Tag-based indexing enables efficient filtering of series"
       ],
-      "when_to_use": [
+      "use_when": [
         "Infrastructure monitoring and metrics collection",
         "IoT sensor data ingestion and analysis",
         "Financial market data (tick data, OHLCV)",
         "Application performance monitoring (APM) data",
-        "Energy consumption or environmental monitoring"
+        "Energy consumption or environmental monitoring",
+        {
+          "scale": "growth",
+          "latency": "seconds"
+        }
       ],
       "avoid_when": [
         "Data is not primarily time-indexed",
         "Complex relational queries across non-temporal dimensions are needed",
         "Update and delete operations on historical data are frequent",
-        "Dataset is small enough for a general-purpose database"
+        "Dataset is small enough for a general-purpose database",
+        {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
       ],
       "signals": [
         "Data arrives as continuous streams of timestamped measurements",
@@ -1541,7 +1832,12 @@
         "Downsampling: aggregate high-resolution data into coarser intervals",
         "Continuous queries/materialized views for pre-computed aggregations"
       ],
-      "related_patterns": ["wide_column_store", "stream_processing", "polyglot_persistence"],
+      "related_patterns": [
+        "wide_column_store",
+        "stream_processing",
+        "polyglot_persistence",
+        "lambda_architecture"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1557,7 +1853,7 @@
         "Linear horizontal scaling by adding nodes to the cluster",
         "Write path is optimised: append-only log + memtable + SSTable"
       ],
-      "when_to_use": [
+      "use_when": [
         "Write-heavy workloads at massive scale (millions of writes/second)",
         "Time-series or event logging where data is append-mostly",
         "Multi-datacenter replication with tunable consistency",
@@ -1586,7 +1882,11 @@
         "SSTable compaction strategies (size-tiered, leveled)",
         "Anti-patterns: large partitions, tombstone accumulation"
       ],
-      "related_patterns": ["time_series_db", "key_value_store", "polyglot_persistence"],
+      "related_patterns": [
+        "time_series_db",
+        "key_value_store",
+        "polyglot_persistence"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1602,18 +1902,25 @@
         "Near-real-time indexing: documents searchable within seconds of ingestion",
         "Horizontal scaling via sharding and replication"
       ],
-      "when_to_use": [
+      "use_when": [
         "Full-text search across large collections of text documents",
         "E-commerce product search with faceted filtering",
         "Log aggregation and analysis (ELK/OpenSearch stack)",
         "Autocomplete and typeahead search suggestions",
-        "Geospatial search queries (nearby, within radius)"
+        "Geospatial search queries (nearby, within radius)",
+        {
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Primary data store with ACID transaction requirements",
         "Simple key-value lookups without text search",
         "Data requiring strong consistency guarantees",
-        "Small datasets where database LIKE queries suffice"
+        "Small datasets where database LIKE queries suffice",
+        {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
       ],
       "signals": [
         "Search bar is a primary UI element in the application",
@@ -1631,7 +1938,11 @@
         "Mappings: field type definitions (text, keyword, date, geo_point)",
         "Aggregations: bucket, metric, and pipeline aggregations for analytics"
       ],
-      "related_patterns": ["document_db_selection", "polyglot_persistence", "data_lake_pattern"],
+      "related_patterns": [
+        "document_db_selection",
+        "polyglot_persistence",
+        "data_lake_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1647,7 +1958,7 @@
         "Jack-of-all-trades trade-off: may not match specialised database performance",
         "Licensing and vendor lock-in considerations vary significantly"
       ],
-      "when_to_use": [
+      "use_when": [
         "Application needs both document and graph queries on the same data",
         "Startup or small team wanting to minimise infrastructure complexity",
         "Prototyping where the optimal data model is not yet determined",
@@ -1676,7 +1987,11 @@
         "Consistency model across different data model operations",
         "Migration path to specialised databases if needed"
       ],
-      "related_patterns": ["graph_db_selection", "document_db_selection", "polyglot_persistence"],
+      "related_patterns": [
+        "graph_db_selection",
+        "document_db_selection",
+        "polyglot_persistence"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1692,18 +2007,26 @@
         "Service boundaries often align with data store boundaries",
         "Eventually consistent synchronisation between stores is common"
       ],
-      "when_to_use": [
+      "use_when": [
         "Application has fundamentally different data access patterns",
         "Search, caching, transactions, and analytics each need optimised storage",
         "Microservice architecture where each service owns its data store",
         "Performance requirements vary dramatically across different data types",
-        "Team has expertise to operate multiple database technologies"
+        "Team has expertise to operate multiple database technologies",
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Team lacks operational capacity for multiple database systems",
         "Data model is homogeneous and a single database suffices",
         "Consistency requirements make cross-store synchronisation too complex",
-        "Application scale does not justify infrastructure complexity"
+        "Application scale does not justify infrastructure complexity",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Infrastructure includes multiple database technologies",
@@ -1721,34 +2044,57 @@
         "Service-per-database alignment in microservice architecture",
         "Migration and data gravity considerations"
       ],
-      "related_patterns": ["relational_db_selection", "document_db_selection", "graph_db_selection", "search_engine_db", "change_data_capture"],
+      "related_patterns": [
+        "relational_db_selection",
+        "document_db_selection",
+        "graph_db_selection",
+        "search_engine_db",
+        "change_data_capture",
+        "key_value_store",
+        "time_series_db",
+        "wide_column_store",
+        "multi_model_db",
+        "data_mesh_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
       "id": "etl_pipeline",
       "name": "ETL (Extract, Transform, Load) Pipeline",
       "category": "data-processing",
-      "description": "Data integration pattern that extracts data from source systems, transforms it (cleaning, enriching, aggregating) in a staging area, and loads the transformed data into a target system (typically a data warehouse). Transformation happens before loading, ensuring only clean, structured data enters the target.",
+      "description": "Data integration pattern that extracts data from source systems, transforms it (cleaning, enriching, aggregating) in a staging area, and loads the transformed data into a target system (typically a data warehouse). Transformation happens before loading, ensuring only clean, structured data enters the target. A data integration pattern that extracts data from source systems, transforms it to fit operational or analytical needs, and loads it into a destination data store. The foundational pattern of data warehousing since the 1980s. The key insight is that source systems and analytical systems have fundamentally different schemas and quality requirements, and transformation bridges this gap.",
       "principles": [
         "Extract from heterogeneous sources without modifying them",
         "Transform in a staging area before loading into the target",
         "Load transformed data in bulk into the destination system",
         "Idempotent pipeline runs enable safe re-execution",
         "Schema-on-write: data must conform to target schema before loading",
-        "Pipeline orchestration manages dependencies and scheduling"
+        "Pipeline orchestration manages dependencies and scheduling",
+        "Extract: read data from source systems without modifying them",
+        "Transform: clean, validate, denormalize, and reshape data",
+        "Load: write transformed data to the destination store",
+        "Idempotent operations enable safe re-execution",
+        "Data lineage tracking shows where each piece of data came from"
       ],
-      "when_to_use": [
+      "use_when": [
         "Loading data into a data warehouse with strict schema requirements",
         "Integrating data from multiple source systems into a unified model",
         "Data quality enforcement before loading (validation, deduplication)",
         "Batch reporting and business intelligence data preparation",
-        "Regulatory reporting requiring auditable data transformations"
+        "Regulatory reporting requiring auditable data transformations",
+        "Data needs to move from operational databases to analytical data warehouses",
+        "Source data requires cleaning, validation, and schema transformation",
+        "Multiple source systems need to be integrated into a unified data model",
+        "Regulatory requirements mandate data quality checks before loading"
       ],
       "avoid_when": [
         "Real-time or near-real-time data processing is required",
         "Schema-on-read flexibility is preferred (use ELT instead)",
         "Transformation logic is simple enough to do in the target system",
-        "Data volume is too large for batch transformation in staging"
+        "Data volume is too large for batch transformation in staging",
+        "Real-time data availability is required — ETL batch latency is too high",
+        "Transformation logic is simple enough that ELT (load then transform) is better",
+        "Source systems can expose data through APIs, making extraction unnecessary"
       ],
       "signals": [
         "Pipeline code has distinct extract, transform, and load stages",
@@ -1756,7 +2102,12 @@
         "Scheduled batch jobs (cron, Airflow, Prefect) orchestrate pipelines",
         "Data validation and quality checks between stages",
         "Target system has a fixed star or snowflake schema",
-        "Tools like Apache NiFi, Talend, or dbt in the data stack"
+        "Tools like Apache NiFi, Talend, or dbt in the data stack",
+        "ETL tool or framework (Airflow, dbt, SSIS, Informatica) orchestrates data pipelines",
+        "Source connectors extract data from databases, APIs, or files",
+        "Transformation logic cleans, validates, and reshapes data between extract and load",
+        "Data quality checks validate records before loading to the destination",
+        "Pipeline monitoring tracks extraction lag, transformation errors, and load throughput"
       ],
       "key_concepts": [
         "Extract: pull data from sources (APIs, databases, files)",
@@ -1764,9 +2115,27 @@
         "Load: write transformed data to target in bulk",
         "Staging area: temporary storage for in-progress transformations",
         "Orchestration: DAG-based pipeline dependency management",
-        "Idempotency: re-runnable pipelines producing the same result"
+        "Idempotency: re-runnable pipelines producing the same result",
+        "Extract phase",
+        "Transform phase",
+        "Load phase",
+        "Data lineage",
+        "Idempotent loading",
+        "Data quality validation"
       ],
-      "related_patterns": ["elt_pipeline", "batch_processing", "data_warehouse", "change_data_capture"],
+      "related_patterns": [
+        "elt_pipeline",
+        "batch_processing",
+        "data_warehouse",
+        "change_data_capture",
+        "batch_sequential",
+        "pipe_and_filter",
+        "lambda_architecture",
+        "data_mesh",
+        "pipeline",
+        "data_lake",
+        "data_lake_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1782,7 +2151,7 @@
         "Separation of ingestion and transformation concerns",
         "Transformation logic is version-controlled SQL or similar"
       ],
-      "when_to_use": [
+      "use_when": [
         "Cloud data warehouses with elastic compute (Snowflake, BigQuery, Redshift)",
         "Raw data preservation is required for auditability or reprocessing",
         "Transformation logic evolves frequently and reprocessing is common",
@@ -1811,7 +2180,13 @@
         "Raw layer -> staging layer -> mart layer data modelling",
         "Reprocessing: re-run transformations on preserved raw data"
       ],
-      "related_patterns": ["etl_pipeline", "data_warehouse", "data_lakehouse", "batch_processing"],
+      "related_patterns": [
+        "etl_pipeline",
+        "data_warehouse",
+        "data_lakehouse",
+        "batch_processing",
+        "data_lake_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1827,18 +2202,26 @@
         "Schema changes in the source must be handled gracefully",
         "Exactly-once semantics require coordination between CDC and consumer"
       ],
-      "when_to_use": [
+      "use_when": [
         "Synchronising data between operational database and analytics systems",
         "Building materialised views or search indexes from database changes",
         "Event sourcing retrofit: derive events from an existing database",
         "Cache invalidation triggered by database changes",
-        "Microservice data replication without application-level dual-write"
+        "Microservice data replication without application-level dual-write",
+        {
+          "existing_stack": "legacy",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Source database does not expose a transaction log (or access is restricted)",
         "Application-level events already capture all relevant state changes",
         "Data synchronisation latency of hours is acceptable (batch ETL is simpler)",
-        "Schema changes are so frequent that CDC event evolution is unmanageable"
+        "Schema changes are so frequent that CDC event evolution is unmanageable",
+        {
+          "scale": "startup_mvp",
+          "timeline": "days"
+        }
       ],
       "signals": [
         "Debezium connectors configured for source databases",
@@ -1856,7 +2239,13 @@
         "Schema evolution: handling source schema changes in CDC events",
         "Outbox pattern: reliable event publishing via CDC on an outbox table"
       ],
-      "related_patterns": ["event_log", "kafka_streaming", "polyglot_persistence", "etl_pipeline"],
+      "related_patterns": [
+        "event_log",
+        "kafka_streaming",
+        "polyglot_persistence",
+        "etl_pipeline",
+        "event_sourcing"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1872,18 +2261,25 @@
         "Input data is immutable during batch execution",
         "Results are atomic: all-or-nothing for consistency"
       ],
-      "when_to_use": [
+      "use_when": [
         "Nightly reports, billing calculations, or statement generation",
         "Large-scale data transformations (ETL, model training)",
         "Processing accumulated events or logs periodically",
         "Data migration and backfill operations",
-        "Regulatory reporting with end-of-day deadlines"
+        "Regulatory reporting with end-of-day deadlines",
+        {
+          "latency": "minutes",
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Sub-second or real-time response is required",
         "Data must be processed as it arrives",
         "Batch window is too short for the volume of data",
-        "Users expect immediate reflection of their actions"
+        "Users expect immediate reflection of their actions",
+        {
+          "latency": "sub-second"
+        }
       ],
       "signals": [
         "Cron schedules or orchestrator DAGs trigger processing jobs",
@@ -1901,7 +2297,15 @@
         "Batch scheduling: cron, Airflow, Step Functions",
         "Batch vs micro-batch vs stream processing spectrum"
       ],
-      "related_patterns": ["stream_processing", "micro_batch", "etl_pipeline", "data_warehouse"],
+      "related_patterns": [
+        "stream_processing",
+        "micro_batch",
+        "etl_pipeline",
+        "data_warehouse",
+        "elt_pipeline",
+        "data_lakehouse",
+        "serverless"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1917,18 +2321,26 @@
         "Backpressure mechanisms prevent consumer overwhelm",
         "Late-arriving events require watermark and allowed lateness configuration"
       ],
-      "when_to_use": [
+      "use_when": [
         "Real-time dashboards and monitoring with sub-second latency",
         "Fraud detection requiring immediate analysis of transaction patterns",
         "IoT sensor data processing with continuous alerting",
         "Real-time recommendation or personalisation engines",
-        "Event-driven microservice coordination"
+        "Event-driven microservice coordination",
+        {
+          "scale": "enterprise",
+          "latency": "sub-second"
+        }
       ],
       "avoid_when": [
         "Processing latency of minutes or hours is acceptable",
         "Data arrives in infrequent large batches",
         "Computation requires full dataset access (not incremental)",
-        "Team lacks experience with stream processing complexity"
+        "Team lacks experience with stream processing complexity",
+        {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
       ],
       "signals": [
         "Apache Flink, Kafka Streams, or Spark Structured Streaming in stack",
@@ -1946,7 +2358,16 @@
         "Exactly-once semantics: transactional source-to-sink processing",
         "Backpressure: flow control when consumers are slower than producers"
       ],
-      "related_patterns": ["batch_processing", "micro_batch", "kafka_streaming", "windowed_aggregation"],
+      "related_patterns": [
+        "batch_processing",
+        "micro_batch",
+        "kafka_streaming",
+        "windowed_aggregation",
+        "time_series_db",
+        "data_lakehouse",
+        "stream_join",
+        "cqrs"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1962,7 +2383,7 @@
         "Compatible with batch processing frameworks and operators",
         "Easier to reason about than continuous stream processing"
       ],
-      "when_to_use": [
+      "use_when": [
         "Near-real-time processing where seconds of latency is acceptable",
         "Teams experienced with batch processing adopting streaming",
         "Exactly-once semantics needed without stream processing complexity",
@@ -1991,7 +2412,11 @@
         "Batch-compatible APIs for familiar programming model",
         "Continuous processing mode as an alternative (Spark)"
       ],
-      "related_patterns": ["stream_processing", "batch_processing", "kafka_streaming"],
+      "related_patterns": [
+        "stream_processing",
+        "batch_processing",
+        "kafka_streaming"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2007,7 +2432,7 @@
         "Data governance prevents the lake from becoming a data swamp",
         "Zone architecture: raw -> curated -> consumption layers"
       ],
-      "when_to_use": [
+      "use_when": [
         "Collecting diverse data types for future, not-yet-known analytics",
         "Machine learning pipelines requiring access to raw feature data",
         "Centralising data from many heterogeneous source systems",
@@ -2036,7 +2461,13 @@
         "File formats: Parquet (columnar), ORC, Avro (row-based)",
         "Data swamp anti-pattern: ungoverned lake with no metadata"
       ],
-      "related_patterns": ["data_warehouse", "data_lakehouse", "etl_pipeline", "elt_pipeline"],
+      "related_patterns": [
+        "data_warehouse",
+        "data_lakehouse",
+        "etl_pipeline",
+        "elt_pipeline",
+        "search_engine_db"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2052,7 +2483,7 @@
         "Historical data preserved for trend analysis and time-series comparison",
         "Access control and governance enforce data security policies"
       ],
-      "when_to_use": [
+      "use_when": [
         "Business intelligence dashboards and ad-hoc analytical queries",
         "Centralised reporting across multiple operational systems",
         "Historical trend analysis and forecasting",
@@ -2081,7 +2512,13 @@
         "Compute-storage separation: scale query compute independently",
         "Materialised views for pre-computed query acceleration"
       ],
-      "related_patterns": ["data_lake_pattern", "data_lakehouse", "etl_pipeline", "elt_pipeline"],
+      "related_patterns": [
+        "data_lake_pattern",
+        "data_lakehouse",
+        "etl_pipeline",
+        "elt_pipeline",
+        "batch_processing"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2097,7 +2534,7 @@
         "Unified batch and streaming data processing on the same tables",
         "Metadata layer enables partition pruning and data skipping"
       ],
-      "when_to_use": [
+      "use_when": [
         "Unifying data lake and data warehouse into a single architecture",
         "Requiring ACID transactions on data stored in object storage",
         "Both BI/SQL analytics and ML workloads on the same data",
@@ -2126,7 +2563,14 @@
         "Partition evolution: change partitioning without data rewrite (Iceberg)",
         "Merge-on-read vs copy-on-write update strategies"
       ],
-      "related_patterns": ["data_lake_pattern", "data_warehouse", "stream_processing", "batch_processing"],
+      "related_patterns": [
+        "data_lake_pattern",
+        "data_warehouse",
+        "stream_processing",
+        "batch_processing",
+        "elt_pipeline",
+        "data_mesh_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2142,7 +2586,7 @@
         "Ordering guaranteed within a partition, not across partitions",
         "Producers are decoupled from consumers through topic abstraction"
       ],
-      "when_to_use": [
+      "use_when": [
         "Event-driven microservice architectures requiring durable messaging",
         "High-throughput event ingestion (millions of events per second)",
         "Event sourcing requiring an immutable, replayable event log",
@@ -2171,7 +2615,20 @@
         "Retention: time-based or size-based event retention policy",
         "Compacted topic: keeps latest value per key (table semantics)"
       ],
-      "related_patterns": ["event_log", "pub_sub_messaging", "competing_consumers", "schema_registry"],
+      "related_patterns": [
+        "event_log",
+        "pub_sub_messaging",
+        "competing_consumers",
+        "schema_registry",
+        "message_ordering",
+        "change_data_capture",
+        "stream_processing",
+        "micro_batch",
+        "replay_pattern",
+        "stream_join",
+        "windowed_aggregation",
+        "exactly_once_semantics"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2187,7 +2644,7 @@
         "Projections build read-optimised views from the event stream",
         "Snapshots prevent unbounded replay time for long-lived aggregates"
       ],
-      "when_to_use": [
+      "use_when": [
         "Audit trail requirements where every change must be recorded",
         "Event sourcing architectures deriving state from events",
         "Systems requiring temporal queries (what was the state at time T?)",
@@ -2216,7 +2673,14 @@
         "Event versioning and upcasting for schema evolution",
         "Idempotent event handlers for safe replay"
       ],
-      "related_patterns": ["kafka_streaming", "replay_pattern", "change_data_capture", "exactly_once_semantics"],
+      "related_patterns": [
+        "kafka_streaming",
+        "replay_pattern",
+        "change_data_capture",
+        "exactly_once_semantics",
+        "message_ordering",
+        "schema_registry"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2232,7 +2696,7 @@
         "New projections or read models can be built by replaying the full log",
         "Replay must handle schema evolution across historical events"
       ],
-      "when_to_use": [
+      "use_when": [
         "Building a new read model or projection from existing events",
         "Recovering from a bug that corrupted derived state",
         "Backfilling data after deploying a new feature",
@@ -2261,7 +2725,11 @@
         "Side-effect isolation: skip external calls during replay",
         "Replay throughput: optimisations for fast historical reprocessing"
       ],
-      "related_patterns": ["event_log", "kafka_streaming", "exactly_once_semantics"],
+      "related_patterns": [
+        "event_log",
+        "kafka_streaming",
+        "exactly_once_semantics"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2277,7 +2745,7 @@
         "Late arrivals beyond the window are either dropped or handled specially",
         "Stream-table joins enrich stream events with static reference data"
       ],
-      "when_to_use": [
+      "use_when": [
         "Correlating events from two different systems (clicks + conversions)",
         "Enriching transaction streams with customer profile data",
         "Matching order events with corresponding payment events",
@@ -2306,7 +2774,11 @@
         "Window types for joins: sliding, tumbling, session",
         "State management for buffered unmatched events"
       ],
-      "related_patterns": ["windowed_aggregation", "kafka_streaming", "stream_processing"],
+      "related_patterns": [
+        "windowed_aggregation",
+        "kafka_streaming",
+        "stream_processing"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2322,7 +2794,7 @@
         "Window state must be managed and expired to prevent unbounded growth",
         "Aggregation results emitted on window close or incrementally"
       ],
-      "when_to_use": [
+      "use_when": [
         "Real-time metrics: requests per second, average response time",
         "Anomaly detection: unusual patterns within a time window",
         "Session analysis: user activity grouped by session gaps",
@@ -2351,7 +2823,12 @@
         "Allowed lateness: grace period for late events after watermark",
         "Window trigger: when to emit results (on close, early, late)"
       ],
-      "related_patterns": ["stream_processing", "stream_join", "kafka_streaming", "exactly_once_semantics"],
+      "related_patterns": [
+        "stream_processing",
+        "stream_join",
+        "kafka_streaming",
+        "exactly_once_semantics"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2367,7 +2844,7 @@
         "Exactly-once adds latency and throughput overhead",
         "Simpler at-least-once with idempotent consumers is often sufficient"
       ],
-      "when_to_use": [
+      "use_when": [
         "Financial transactions where double-processing has monetary impact",
         "Aggregation counters that must be precisely accurate",
         "Event sourcing systems where duplicate events corrupt state",
@@ -2396,7 +2873,13 @@
         "Flink two-phase commit for exactly-once sinks",
         "Trade-off: correctness vs throughput and complexity"
       ],
-      "related_patterns": ["kafka_streaming", "event_log", "message_ordering", "replay_pattern"],
+      "related_patterns": [
+        "kafka_streaming",
+        "event_log",
+        "message_ordering",
+        "replay_pattern",
+        "windowed_aggregation"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2412,7 +2895,7 @@
         "Contracts are discoverable through a central catalog or registry",
         "Quality metrics (freshness, completeness, accuracy) are part of the contract"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multiple teams consume data produced by a single team",
         "Data quality issues have caused production incidents",
         "Data mesh architecture requires explicit data product interfaces",
@@ -2441,7 +2924,11 @@
         "Contract versioning: breaking vs non-breaking changes",
         "Automated compliance testing in CI/CD"
       ],
-      "related_patterns": ["schema_registry", "data_mesh_pattern", "protobuf_schema_evolution"],
+      "related_patterns": [
+        "schema_registry",
+        "data_mesh_pattern",
+        "protobuf_schema_evolution"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2457,18 +2944,26 @@
         "Forward compatibility: old schema can read new data",
         "Subject naming strategy ties schemas to topics or record types"
       ],
-      "when_to_use": [
+      "use_when": [
         "Kafka or other streaming platforms with schema evolution needs",
         "Multiple producers and consumers sharing event schemas",
         "Preventing schema-incompatible messages from entering topics",
         "Automated schema validation in CI/CD pipelines",
-        "Centralised schema documentation and discovery"
+        "Centralised schema documentation and discovery",
+        {
+          "team_size": "15+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "All producers and consumers are deployed atomically",
         "Schema changes are extremely rare and manual coordination suffices",
         "Message format is self-describing (JSON with no schema enforcement)",
-        "Operational overhead of running a schema registry is unjustifiable"
+        "Operational overhead of running a schema registry is unjustifiable",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Confluent Schema Registry, Apicurio, or AWS Glue Schema Registry in stack",
@@ -2486,7 +2981,13 @@
         "Serializer/deserializer integration with messaging clients",
         "Schema registry REST API for registration and retrieval"
       ],
-      "related_patterns": ["kafka_streaming", "data_contract", "protobuf_schema_evolution", "event_log"],
+      "related_patterns": [
+        "kafka_streaming",
+        "data_contract",
+        "protobuf_schema_evolution",
+        "event_log",
+        "data_mesh_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2502,7 +3003,7 @@
         "Interoperability standards ensure cross-domain data consumption",
         "Data product thinking: treat data consumers as customers"
       ],
-      "when_to_use": [
+      "use_when": [
         "Large organisations where centralised data teams are bottlenecks",
         "Multiple domains produce data consumed across organisational boundaries",
         "Domain teams have engineering capacity to own their data products",
@@ -2532,7 +3033,12 @@
         "Data product catalog: discovery layer for available data products",
         "Interoperability: standardised formats, protocols, and metadata"
       ],
-      "related_patterns": ["data_contract", "schema_registry", "polyglot_persistence", "data_lakehouse"],
+      "related_patterns": [
+        "data_contract",
+        "schema_registry",
+        "polyglot_persistence",
+        "data_lakehouse"
+      ],
       "last_reviewed": "2026-03-21"
     }
   ]

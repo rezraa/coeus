@@ -1,0 +1,65 @@
+{
+  "_meta": {
+    "note": "bar-2 S0 pin: CURRENT (legacy) analyze_architecture output BEFORE the Shape-C rewrite. Documents the three dead rule-derived containers (matched_rules/recommendations/scalability_flags) that the A/B (council 3154bcba-decision-2) showed return [] on real problem language, and the island-only architecture_issues whose severity is fabricated by the hardcoded _ANTI_PATTERNS table (zero structured link to the 174 pattern nodes, census m-109c0968). NOT a golden lock - the 'before' half of the before/after delta.",
+    "tool_source_sha256": "5ebf84290e71578cb466c130016d7d5264bd0ab2d11f1d13136779299adf22e4",
+    "legacy_ANTI_PATTERNS_slug_count": 12,
+    "legacy_output_keys": [
+      "architecture_issues",
+      "matched_rules",
+      "recommendations",
+      "scalability_flags"
+    ]
+  },
+  "cases": {
+    "island_keys": {
+      "keys": [
+        "architecture_issues",
+        "matched_rules",
+        "recommendations",
+        "scalability_flags"
+      ],
+      "matched_rules_count": 0,
+      "architecture_issues_count": 3,
+      "recommendations_count": 0,
+      "scalability_flags_count": 0,
+      "issue_severities": [
+        "high",
+        "high",
+        "high"
+      ],
+      "issue_signals": [
+        "shared-database",
+        "no-circuit-breaker",
+        "tight-coupling"
+      ]
+    },
+    "real_problem_language": {
+      "keys": [
+        "architecture_issues",
+        "matched_rules",
+        "recommendations",
+        "scalability_flags"
+      ],
+      "matched_rules_count": 0,
+      "architecture_issues_count": 0,
+      "recommendations_count": 0,
+      "scalability_flags_count": 0,
+      "issue_severities": [],
+      "issue_signals": []
+    },
+    "rule_keyword": {
+      "keys": [
+        "architecture_issues",
+        "matched_rules",
+        "recommendations",
+        "scalability_flags"
+      ],
+      "matched_rules_count": 5,
+      "architecture_issues_count": 0,
+      "recommendations_count": 11,
+      "scalability_flags_count": 7,
+      "issue_severities": [],
+      "issue_signals": []
+    }
+  }
+}

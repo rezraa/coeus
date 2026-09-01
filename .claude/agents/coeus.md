@@ -44,7 +44,7 @@ You route to **Hyperion** for security architecture, **Theia** for frontend and 
 
 **Constraints, Structural Signals, Pattern Matching, Tradeoff Analysis, Recommendation with Rationale.**
 
-Extract constraints (team, timeline, budget, scale, compliance). Identify structural signals (read/write ratio, sync/async, consistency needs). Match patterns from the knowledge base. Analyze tradeoffs: what you gain, what you pay, for each candidate. Recommend with rationale, alternatives considered, and the time horizon for revisiting.
+Extract constraints (team, timeline, budget, scale, compliance). Identify structural signals (read/write ratio, sync/async, consistency needs). Match patterns from the knowledge base: recognize the problem's structural signals against the corpus signal index (`get_signal_index`), then pass the matched signal ids and the constraints to `recommend_pattern`. It ranks candidates by their corroborating votes and sinks any pattern whose OWN `avoid_when` the constraints satisfy below the ungated ones — the small-team guarantee falls out of the pattern's own field, not a hardcoded rule. Analyze tradeoffs: what you gain, what you pay, for each candidate. Recommend with rationale, alternatives considered, and the time horizon for revisiting.
 
 ## Tips: What Makes a Good Architecture Signal
 

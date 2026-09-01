@@ -20,244 +20,49 @@ from coeus.knowledge.loader import KnowledgeLoader
 
 
 # ===================================================================
-# S4.3-1  TestAnalyzeArchitecture — 7 tests
+# S4.3-1  analyze_architecture — see tests/test_analyze_architecture.py
 # ===================================================================
-
-class TestAnalyzeArchitecture:
-    """Test the analyze_architecture tool."""
-
-    def test_anti_pattern_detection(self) -> None:
-        """Known anti-pattern signals produce architecture_issues."""
-        result = analyze_architecture(
-            description="System with shared database across services",
-            structural_signals=["shared-database", "no-circuit-breaker"],
-        )
-        assert len(result["architecture_issues"]) >= 2
-        issue_signals = [i["signal"] for i in result["architecture_issues"]]
-        assert "shared-database" in issue_signals
-        assert "no-circuit-breaker" in issue_signals
-
-    def test_anti_pattern_severity(self) -> None:
-        """Anti-pattern issues include severity levels."""
-        result = analyze_architecture(
-            description="Fragile system",
-            structural_signals=["shared-database"],
-        )
-        for issue in result["architecture_issues"]:
-            assert issue["severity"] in ("high", "medium", "low")
-
-    def test_signal_matching_returns_matched_rules(self) -> None:
-        """Structural signals matching decision rules populate matched_rules."""
-        result = analyze_architecture(
-            description="Small team building a CRUD app",
-            structural_signals=["team of 1-5 engineers"],
-        )
-        assert len(result["matched_rules"]) >= 1
-        assert "rule_id" in result["matched_rules"][0]
-
-    def test_constraint_filtering(self) -> None:
-        """Constraints filter out rules whose avoid_when matches."""
-        # Without constraints — should match small-team rules
-        result_no_filter = analyze_architecture(
-            description="Small team app",
-            structural_signals=["team of 1-5 engineers"],
-        )
-        # With enterprise constraints — small-team rules should be filtered
-        result_filtered = analyze_architecture(
-            description="Small team app",
-            structural_signals=["team of 1-5 engineers"],
-            constraints={"team_size": "50+", "scale": "hyperscale"},
-        )
-        assert len(result_filtered["matched_rules"]) <= len(result_no_filter["matched_rules"])
-
-    def test_empty_signals(self) -> None:
-        """Empty structural_signals returns empty results."""
-        result = analyze_architecture(
-            description="Some system",
-            structural_signals=[],
-        )
-        assert result["matched_rules"] == []
-        assert result["architecture_issues"] == []
-
-    def test_result_keys_present(self) -> None:
-        """Result dict contains all expected top-level keys."""
-        result = analyze_architecture(
-            description="Test system",
-            structural_signals=["shared-database"],
-        )
-        assert "matched_rules" in result
-        assert "architecture_issues" in result
-        assert "recommendations" in result
-        assert "scalability_flags" in result
-
-    def test_malformed_signals_handled(self) -> None:
-        """Signals that match no anti-pattern or rule still return valid structure."""
-        result = analyze_architecture(
-            description="A system",
-            structural_signals=["completely-unknown-signal-xyz"],
-        )
-        assert isinstance(result["matched_rules"], list)
-        assert isinstance(result["architecture_issues"], list)
+# The prose-signal TestAnalyzeArchitecture suite retired when the tool was wired
+# onto the Shape C engine (story-917b281e): its input is now matched_signal_ids, it
+# reasons issues from each retrieved pattern's OWN avoid_when (the _ANTI_PATTERNS
+# island is deleted), inverts the gate to CONFIRMED, and drops matched_rules +
+# scalability_flags + fabricated severity. The five superseded tests are killed
+# strictly-stronger (Directive 10) — test_anti_pattern_detection,
+# test_anti_pattern_severity, test_signal_matching_returns_matched_rules,
+# test_constraint_filtering, test_result_keys_present — and every proof for the
+# rebuilt tool (anchor RED-first, contract, envelope, BAR-1/2, determinism,
+# Hyperion ceilings, deletions) lives in the dedicated
+# tests/test_analyze_architecture.py, one source of truth for the rebuilt tool.
 
 
 # ===================================================================
-# S4.3-2  TestEvaluateScalability — 6 tests
+# S4.3-2  evaluate_scalability — see tests/test_evaluate_scalability.py
 # ===================================================================
-
-class TestEvaluateScalability:
-    """Test the evaluate_scalability tool."""
-
-    def test_tiered_results_returned(self) -> None:
-        """Result contains exactly three tiers: 10x, 100x, 1000x."""
-        result = evaluate_scalability(
-            description="Web application with PostgreSQL",
-        )
-        assert len(result["tiers"]) == 3
-        thresholds = [t["threshold"] for t in result["tiers"]]
-        assert thresholds == ["10x", "100x", "1000x"]
-
-    def test_each_tier_has_bottlenecks(self) -> None:
-        """Each tier includes a bottlenecks list."""
-        result = evaluate_scalability(description="Stateless web service")
-        for tier in result["tiers"]:
-            assert "bottlenecks" in tier
-            assert len(tier["bottlenecks"]) > 0
-
-    def test_each_tier_has_recommendations(self) -> None:
-        """Each tier includes a recommendations list."""
-        result = evaluate_scalability(description="API server")
-        for tier in result["tiers"]:
-            assert "recommendations" in tier
-            assert len(tier["recommendations"]) > 0
-
-    def test_each_tier_has_patterns(self) -> None:
-        """Each tier includes resolved pattern details."""
-        result = evaluate_scalability(description="Standard web app")
-        for tier in result["tiers"]:
-            assert "patterns" in tier
-            assert isinstance(tier["patterns"], list)
-
-    def test_current_assessment_present(self) -> None:
-        """Result includes current_assessment with description and scale."""
-        result = evaluate_scalability(
-            description="Monolith on single node",
-            current_scale="startup_mvp",
-        )
-        assert "current_assessment" in result
-        assert result["current_assessment"]["current_scale"] == "startup_mvp"
-
-    def test_empty_description(self) -> None:
-        """Empty description still returns valid tiered result."""
-        result = evaluate_scalability(description="")
-        assert len(result["tiers"]) == 3
-        assert "current_assessment" in result
-
-    def test_growth_projections_influence_recommendations(self) -> None:
-        """Growth projections produce tier-specific recommendations."""
-        result = evaluate_scalability(
-            description="API backend",
-            growth_projections={"rps": "100->10k", "data": "10GB->1TB", "users": "10k->10M"},
-        )
-        # 10x tier should mention load balancer for rps
-        tier_10x = result["tiers"][0]
-        recs_text = " ".join(tier_10x["recommendations"]).lower()
-        assert "load balancer" in recs_text or len(tier_10x["recommendations"]) > 0
+# The prose-signal TestEvaluateScalability suite retired when the tool was wired
+# onto the Shape C engine (story-558f4a76): its input is now matched_signal_ids, it
+# retrieves through the four-state hydrate envelope, and it drops the retrieval-BLIND
+# hardcoded _SCALE_TIERS (the identical 10x/100x/1000x threshold tiers + fixed
+# bottleneck/pattern lists it returned for every system). It PARTITIONS each
+# retrieved pattern into horizon current-vs-growth by the deterministic gate instead.
+# The seven superseded tests are killed strictly-stronger (Directive 10) —
+# test_tiered_results_returned, test_each_tier_has_bottlenecks,
+# test_each_tier_has_recommendations, test_each_tier_has_patterns,
+# test_current_assessment_present, test_empty_description,
+# test_growth_projections_influence_recommendations — and every proof for the
+# rebuilt tool (anchor RED-first, contract, envelope, BAR-1/2, determinism,
+# Hyperion ceilings, deletions, DRY) lives in the dedicated
+# tests/test_evaluate_scalability.py, one source of truth for the rebuilt tool.
 
 
 # ===================================================================
-# S4.3-3  TestRecommendPattern — 8 tests
+# S4.3-3  recommend_pattern — see tests/test_recommend_pattern.py
 # ===================================================================
-
-class TestRecommendPattern:
-    """Test the recommend_pattern decision engine."""
-
-    def test_returns_ranked_recommendations(self) -> None:
-        """Result includes ranked recommendations with fit_score."""
-        result = recommend_pattern(
-            structural_signals=["team of 1-5 engineers", "CRUD-dominant business logic"],
-            constraints={"team_size": "1-3", "scale": "startup_mvp"},
-        )
-        assert len(result["recommendations"]) >= 1
-        for rec in result["recommendations"]:
-            assert "rank" in rec
-            assert "fit_score" in rec
-            assert 0.0 <= rec["fit_score"] <= 1.0
-
-    def test_small_team_mvp_never_gets_microservices_first(self) -> None:
-        """CRITICAL INVARIANT: Small team + MVP NEVER gets microservices as #1."""
-        result = recommend_pattern(
-            structural_signals=["team of 1-5 engineers", "CRUD-dominant business logic"],
-            constraints={"team_size": "1-3", "scale": "startup_mvp"},
-        )
-        if result["recommendations"]:
-            assert result["recommendations"][0]["pattern_id"] != "microservices", (
-                "Microservices must NEVER be the #1 recommendation for small team + MVP"
-            )
-
-    def test_large_team_can_get_microservices(self) -> None:
-        """Large team with enterprise scale can receive microservices."""
-        result = recommend_pattern(
-            structural_signals=[
-                "team of 50+ engineers",
-                "multiple autonomous squads",
-                "independent release cycles required",
-            ],
-            constraints={"team_size": "50+", "scale": "enterprise"},
-        )
-        pattern_ids = [r["pattern_id"] for r in result["recommendations"]]
-        assert "microservices" in pattern_ids or "domain_driven_design" in pattern_ids
-
-    def test_constraint_aware_filtering(self) -> None:
-        """Constraints influence which rules and patterns survive."""
-        result = recommend_pattern(
-            structural_signals=["team of 1-5 engineers"],
-            constraints={"team_size": "1-3", "scale": "startup_mvp"},
-        )
-        assert "constraints_analyzed" in result
-        assert result["constraints_analyzed"]["team_size"] == "1-3"
-
-    def test_conflicting_constraints_noted(self) -> None:
-        """When both monolith and microservices appear, a conflict is flagged."""
-        result = recommend_pattern(
-            structural_signals=[
-                "team of 1-5 engineers",
-                "team of 50+ engineers",
-            ],
-            constraints={},
-        )
-        # Both may match — check if conflicts exist when both are recommended
-        pattern_ids = [r["pattern_id"] for r in result["recommendations"]]
-        if "monolith" in pattern_ids and "microservices" in pattern_ids:
-            assert len(result["conflicts"]) >= 1
-
-    def test_empty_signals(self) -> None:
-        """Empty signals returns valid structure with empty recommendations."""
-        result = recommend_pattern(
-            structural_signals=[],
-            constraints={"team_size": "5"},
-        )
-        assert isinstance(result["recommendations"], list)
-        assert isinstance(result["conflicts"], list)
-        assert isinstance(result["alternatives"], list)
-
-    def test_alternatives_populated(self) -> None:
-        """Alternatives list is populated from matched rule alternatives."""
-        result = recommend_pattern(
-            structural_signals=["team of 1-5 engineers", "CRUD-dominant business logic"],
-            constraints={"team_size": "1-3"},
-        )
-        # rule_small_team_crud has alternatives: vertical_slice, clean_architecture
-        assert isinstance(result["alternatives"], list)
-
-    def test_tradeoffs_included(self) -> None:
-        """Recommendations include tradeoff analysis for known patterns."""
-        result = recommend_pattern(
-            structural_signals=["team of 1-5 engineers", "CRUD-dominant business logic"],
-            constraints={"team_size": "1-3", "scale": "startup_mvp"},
-        )
-        for rec in result["recommendations"]:
-            if rec["pattern_id"] in ("monolith", "modular_monolith", "microservices"):
-                assert rec["tradeoffs"], f"Missing tradeoffs for {rec['pattern_id']}"
+# The prose-signal TestRecommendPattern suite retired when the tool was wired onto
+# the Shape C engine (story-22072cab): its input is now matched_signal_ids, its
+# output drops the float fit_score for an integer retrieval vote + a deterministic
+# gate. Every one of those tests — the anchor rewritten RED-first, the three
+# artifact tests killed-with-reason (Directive 10) — lives in the dedicated
+# tests/test_recommend_pattern.py, one source of truth for the rebuilt tool.
 
 
 # ===================================================================
@@ -318,69 +123,11 @@ class TestDesignApi:
 
 
 # ===================================================================
-# S4.3-5  TestAssessResilience — 6 tests
+# TestAssessResilience (legacy, 6 tests) RETIRED — story-bc2dece3
 # ===================================================================
-
-class TestAssessResilience:
-    """Test the assess_resilience tool."""
-
-    def test_spof_detection(self) -> None:
-        """Known SPOF signals are detected and listed."""
-        result = assess_resilience(
-            system_description="Database without replication",
-            structural_signals=["single-database", "single-node"],
-        )
-        assert len(result["single_points_of_failure"]) >= 2
-        components = [s["component"] for s in result["single_points_of_failure"]]
-        assert "Database" in components
-        assert "Application server" in components
-
-    def test_missing_patterns_identified(self) -> None:
-        """Missing resilience pattern signals are detected."""
-        result = assess_resilience(
-            system_description="Service without circuit breakers or retries",
-            structural_signals=["no-circuit-breaker", "no-retry", "no-timeout"],
-        )
-        assert len(result["missing_patterns"]) >= 3
-        patterns = [m["pattern"] for m in result["missing_patterns"]]
-        assert "Circuit Breaker" in patterns
-        assert "Retry with Backoff" in patterns
-        assert "Timeout" in patterns
-
-    def test_resilience_score_range(self) -> None:
-        """Resilience score is always between 0.0 and 1.0."""
-        result = assess_resilience(
-            system_description="Test system",
-            structural_signals=["single-database", "no-circuit-breaker"],
-        )
-        score = result["resilience_score"]
-        assert 0.0 <= score <= 1.0
-
-    def test_perfect_score_no_issues(self) -> None:
-        """No signals means resilience score of 1.0."""
-        result = assess_resilience(
-            system_description="Well-architected system",
-            structural_signals=[],
-        )
-        assert result["resilience_score"] == 1.0
-
-    def test_recommendations_present(self) -> None:
-        """Hardening recommendations are generated for detected issues."""
-        result = assess_resilience(
-            system_description="Fragile system",
-            structural_signals=["single-database", "no-circuit-breaker"],
-        )
-        assert len(result["hardening_recommendations"]) >= 2
-
-    def test_blast_radius_assessment(self) -> None:
-        """Blast radius indicators are detected from signals."""
-        result = assess_resilience(
-            system_description="System with shared database across services",
-            structural_signals=["shared-database", "synchronous-chain"],
-        )
-        assert len(result["blast_radius_assessment"]) >= 1
-        severities = [b["severity"] for b in result["blast_radius_assessment"]]
-        assert all(s in ("high", "medium", "low") for s in severities)
+# The prose-signal SPOF/missing/blast/score tool is gone; assess_resilience is
+# now on the Shape C engine. Its proofs (incl. the 6 legacy tests killed-with-
+# reason) live in tests/test_assess_resilience.py — strengthened, not dropped.
 
 
 # ===================================================================
@@ -400,23 +147,27 @@ class TestSecurityChecks:
             "{{config.items()}}",
         ]
         for payload in malicious_inputs:
-            # Should not raise or execute — just treat as text
+            # Should not raise or execute — just treat as text (a payload as a
+            # signal id is unrecognised, so it abstains; the point is no execution)
             result = analyze_architecture(
                 description=payload,
-                structural_signals=[payload],
+                matched_signal_ids=[payload],
             )
             assert isinstance(result, dict)
             # Description should appear as-is, not interpreted
             result2 = assess_resilience(
                 system_description=payload,
-                structural_signals=[],
+                matched_signal_ids=[payload],
             )
             assert isinstance(result2, dict)
 
     def test_vendor_neutrality(self) -> None:
         """Default recommendations do not exclusively favor one cloud vendor."""
+        kb = KnowledgeLoader()
+        sigs = [e["signal_id"] for e in kb.get_signal_index()
+                if "monolith" in e["pattern_ids"]][:2]
         result = recommend_pattern(
-            structural_signals=["team of 1-5 engineers", "CRUD-dominant business logic"],
+            matched_signal_ids=sigs,
             constraints={"team_size": "1-3", "scale": "startup_mvp"},
         )
         # Recommendations should be about patterns, not vendor-specific services
@@ -427,20 +178,21 @@ class TestSecurityChecks:
 
     def test_all_tools_return_json_serializable(self) -> None:
         """All tool outputs can be serialized to JSON without errors."""
+        _sigs = [e["signal_id"] for e in KnowledgeLoader().get_signal_index()[:3]]
         results = [
             analyze_architecture(
                 description="Test",
-                structural_signals=["shared-database"],
+                matched_signal_ids=_sigs,
             ),
-            evaluate_scalability(description="Test"),
+            evaluate_scalability(description="Test", matched_signal_ids=_sigs),
             recommend_pattern(
-                structural_signals=["team of 1-5 engineers"],
+                matched_signal_ids=_sigs,
                 constraints={"team_size": "3"},
             ),
             design_api(domain_model="Users and Orders"),
             assess_resilience(
                 system_description="Test",
-                structural_signals=["single-database"],
+                matched_signal_ids=_sigs,
             ),
         ]
         for result in results:
@@ -461,9 +213,10 @@ class TestSecurityChecks:
 
     def test_no_sensitive_data_in_results(self) -> None:
         """Tool results do not contain file paths, env vars, or credentials."""
+        _sigs = [e["signal_id"] for e in KnowledgeLoader().get_signal_index()[:3]]
         result = analyze_architecture(
             description="Test system with password=secret123 and API_KEY=abc",
-            structural_signals=["shared-database"],
+            matched_signal_ids=_sigs,
         )
         result_str = json.dumps(result)
         # Should not leak environment variable names or internal paths
@@ -563,9 +316,10 @@ class TestLogDecisionHardening:
 class TestAssessResilienceHardening:
 
     def test_system_alias(self):
+        _sigs = [e["signal_id"] for e in KnowledgeLoader().get_signal_index()[:3]]
         result = assess_resilience(
             system="A single-database monolith",  # alias of system_description
-            structural_signals=["single-database"],
+            matched_signal_ids=_sigs,
         )
         assert isinstance(result, dict)
 
@@ -573,16 +327,18 @@ class TestAssessResilienceHardening:
 class TestAnalyzeArchitectureHardening:
 
     def test_system_alias(self):
+        _sigs = [e["signal_id"] for e in KnowledgeLoader().get_signal_index()[:3]]
         result = analyze_architecture(
             system="A shared-database microservice mesh",  # alias of description
-            structural_signals=["shared-database"],
+            matched_signal_ids=_sigs,
         )
         assert isinstance(result, dict)
 
     def test_truthy_wrong_type_constraints_does_not_crash(self):
+        _sigs = [e["signal_id"] for e in KnowledgeLoader().get_signal_index()[:3]]
         result = analyze_architecture(
             description="x",
-            structural_signals=["shared-database"],
+            matched_signal_ids=_sigs,
             constraints=["wrong", "shape"],
         )
         assert isinstance(result, dict)

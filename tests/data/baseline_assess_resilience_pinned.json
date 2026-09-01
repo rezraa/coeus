@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "note": "bar-2 S0 pin: CURRENT (legacy) assess_resilience output BEFORE the Shape-C rewrite (story-bc2dece3). The fabricated-safety premise: a fragile payment API (all services on one shared Postgres, Stripe charged synchronously on the request path, single region, no message buffer) scores resilience_score:1.0 with EVERY list empty. The tool only 'works' on its exact hardcoded hyphen tokens (_SPOF_SIGNALS/_MISSING_PATTERN_SIGNALS/_BLAST_RADIUS_INDICATORS); on real problem-language signals AND on the new sig-id vocabulary it detects nothing and _compute_resilience_score(0,0,0) fabricates 1.0 -- a perfect resilience score for a system one Stripe timeout from a cascading outage. NOT a golden lock -- the 'before' half of the before/after delta the rebuild asserts (a fragile system can NEVER score as safe once wired onto retrieval).",
+    "tool_source_sha256": "cd4fdf6d06033cd514bb6cedc748d078cd50743fd392ba683ee2240ea0eb1219",
+    "tool_source_bytes": 12555,
+    "tool_source_line_endings": "CRLF (working-tree render; assess_resilience.py is unmodified at HEAD da996a6)",
+    "legacy_output_keys": [
+      "blast_radius_assessment",
+      "hardening_recommendations",
+      "missing_patterns",
+      "resilience_score",
+      "single_points_of_failure"
+    ],
+    "legacy_score_on_empty": 1.0
+  },
+  "cases": {
+    "fragile_payment_api": {
+      "system_description": "Payment API: every service shares one Postgres instance; Stripe is charged synchronously on the request path; single region; no message buffer or queue between request and downstream charge",
+      "prose_signals": [
+        "payments charged synchronously through Stripe on the request path",
+        "all services share a single Postgres instance with no replica",
+        "entire system deployed to a single cloud region",
+        "no message buffer or queue absorbing request spikes"
+      ],
+      "sig_id_signals_note": "the new-vocabulary input (coeus_matches_v2.json P01 sig-ids) also produces the fabricated 1.0 + all-empty on the legacy tool -- the legacy tool is blind to the exact input the rebuilt tool retrieves on",
+      "resilience_score": 1.0,
+      "single_points_of_failure_count": 0,
+      "missing_patterns_count": 0,
+      "blast_radius_assessment_count": 0,
+      "hardening_recommendations_count": 0,
+      "fabricated_safety": true
+    }
+  }
+}

@@ -15,18 +15,68 @@
         "Single build and release pipeline",
         "In-process function calls between modules"
       ],
-      "when_to_use": [
+      "use_when": [
         "Greenfield project with a small team (fewer than 8 developers)",
         "Domain boundaries are not yet well understood",
         "Low operational maturity — team lacks experience running distributed systems",
         "Latency-sensitive operations that benefit from in-process calls",
-        "Rapid prototyping where speed of iteration matters more than scalability"
+        "Rapid prototyping where speed of iteration matters more than scalability",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "compliance": "none"
+        },
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "timeline": "weeks"
+        },
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "latency": "sub-second"
+        },
+        {
+          "team_size": "1",
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        },
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        },
+        {
+          "latency": "sub-millisecond",
+          "scale": "enterprise"
+        },
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        },
+        "Ultra-low-latency systems (sub-millisecond p99): a single process is the only fit; GC pauses, network hops, and context switches dominate jitter, and distributed serialization overhead is unacceptable."
       ],
       "avoid_when": [
         "Multiple teams need to deploy independently on different cadences",
         "Parts of the system have fundamentally different scaling requirements",
         "Regulatory or compliance requirements mandate isolation between subsystems",
-        "The codebase has grown beyond 500k LOC and build times exceed 20 minutes"
+        "The codebase has grown beyond 500k LOC and build times exceed 20 minutes",
+        {
+          "team_size": "50+",
+          "scale": "hyperscale"
+        },
+        {
+          "team_size": "20+",
+          "scale": "enterprise"
+        },
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        },
+        {
+          "latency": "seconds",
+          "budget": "minimal"
+        }
       ],
       "signals": [
         "All business logic resides in a single repository with a single build output",
@@ -42,7 +92,16 @@
         "Big bang deployment",
         "Unified codebase"
       ],
-      "related_patterns": ["modular_monolith", "layered", "monolith_to_microservices"],
+      "related_patterns": [
+        "modular_monolith",
+        "layered",
+        "monolith_to_microservices",
+        "clean_architecture",
+        "serverless",
+        "graphql_schema_first",
+        "event_sourcing",
+        "cqrs"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -57,18 +116,52 @@
         "Single deployment unit but logically separated domains",
         "Module dependency graph is acyclic and enforced by tooling"
       ],
-      "when_to_use": [
+      "use_when": [
         "Team wants the simplicity of a monolith with clear domain separation",
         "Preparing for a potential future migration to microservices",
         "Domain boundaries are known but operational overhead of distribution is not justified",
         "Organization has fewer than 20 developers working on the same product",
-        "Need strong consistency guarantees that are easier in-process"
+        "Need strong consistency guarantees that are easier in-process",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp",
+          "compliance": "none"
+        },
+        {
+          "team_size": "6-15",
+          "scale": "growth",
+          "existing_stack": "monolith"
+        },
+        {
+          "team_size": "15-50",
+          "scale": "growth"
+        },
+        {
+          "team_size": "5-30",
+          "scale": "growth"
+        },
+        {
+          "team_size": "10-20",
+          "existing_stack": "monolith"
+        }
       ],
       "avoid_when": [
         "Teams need independent deployment and release cycles today",
         "Modules have fundamentally different runtime requirements (e.g., GPU vs CPU)",
         "Organization has more than 50 developers and coordination cost is already high",
-        "Different modules need different technology stacks"
+        "Different modules need different technology stacks",
+        {
+          "team_size": "50+",
+          "scale": "hyperscale"
+        },
+        {
+          "team_size": "1-3",
+          "scale": "startup_mvp"
+        },
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Codebase has clearly defined module directories with enforced import restrictions",
@@ -85,7 +178,17 @@
         "Bounded contexts within a monolith",
         "Compile-time boundary enforcement"
       ],
-      "related_patterns": ["monolith", "hexagonal", "monolith_to_microservices", "vertical_slice"],
+      "related_patterns": [
+        "monolith",
+        "hexagonal",
+        "monolith_to_microservices",
+        "vertical_slice",
+        "mini_services",
+        "component_based",
+        "domain_driven_design",
+        "clean_architecture",
+        "microservices"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -101,19 +204,27 @@
         "Design for failure with circuit breakers and bulkheads",
         "Each service is organized around a business capability"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multiple autonomous teams need to deploy independently on different cadences",
         "Different parts of the system have fundamentally different scaling profiles",
         "Organization has mature DevOps practices including CI/CD, monitoring, and container orchestration",
         "Business domains are well understood and stable enough to define service boundaries",
-        "Need to adopt different technology stacks for different problem domains"
+        "Need to adopt different technology stacks for different problem domains",
+        {
+          "team_size": "50+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Team lacks operational maturity for distributed systems debugging",
         "Domain boundaries are not yet understood — premature decomposition creates distributed monoliths",
         "Organization has fewer than 15 developers total",
         "Strong consistency across services is a hard requirement",
-        "Network latency between services is unacceptable for the use case"
+        "Network latency between services is unacceptable for the use case",
+        {
+          "team_size": "1-15",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Independent teams deploying different business domains on different release cycles",
@@ -131,7 +242,28 @@
         "Service mesh",
         "Eventual consistency"
       ],
-      "related_patterns": ["mini_services", "service_oriented", "saga_orchestration", "saga_choreography", "backends_for_frontends"],
+      "related_patterns": [
+        "mini_services",
+        "service_oriented",
+        "saga_orchestration",
+        "saga_choreography",
+        "backends_for_frontends",
+        "nanoservices",
+        "plugin",
+        "component_based",
+        "actor_model",
+        "containerized",
+        "sidecar",
+        "data_mesh",
+        "monolith_to_microservices",
+        "micro_frontends",
+        "space_based",
+        "service_mesh_pattern",
+        "domain_driven_design",
+        "api_gateway",
+        "bulkhead",
+        "event_driven"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -146,7 +278,7 @@
         "Team owns one or two services rather than a dozen",
         "Pragmatic data sharing within a service boundary is allowed"
       ],
-      "when_to_use": [
+      "use_when": [
         "Organization wants independent deployment but not the overhead of hundreds of microservices",
         "Teams are structured around subdomains rather than individual bounded contexts",
         "Operational maturity is moderate — can handle some distributed systems but not extreme fragmentation",
@@ -171,7 +303,11 @@
         "Team-service alignment",
         "Pragmatic decomposition"
       ],
-      "related_patterns": ["microservices", "modular_monolith", "service_oriented"],
+      "related_patterns": [
+        "microservices",
+        "modular_monolith",
+        "service_oriented"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -186,7 +322,7 @@
         "Extreme isolation at the cost of coordination complexity",
         "Each function has its own deployment lifecycle"
       ],
-      "when_to_use": [
+      "use_when": [
         "Individual operations have wildly different invocation frequencies and scaling needs",
         "Functions are truly independent with no coordination requirements",
         "Cost optimization through pay-per-invocation pricing is a primary driver",
@@ -213,7 +349,11 @@
         "Distributed tracing complexity",
         "Over-decomposition anti-pattern"
       ],
-      "related_patterns": ["microservices", "serverless", "pipeline"],
+      "related_patterns": [
+        "microservices",
+        "serverless",
+        "pipeline"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -229,7 +369,7 @@
         "Enterprise service bus mediates communication",
         "Canonical data models for interoperability"
       ],
-      "when_to_use": [
+      "use_when": [
         "Enterprise integration across multiple legacy systems and vendors",
         "Need to expose business capabilities as reusable services across departments",
         "Existing investment in ESB infrastructure and middleware",
@@ -256,7 +396,11 @@
         "Message-oriented middleware",
         "Service governance"
       ],
-      "related_patterns": ["microservices", "mini_services", "mediator"],
+      "related_patterns": [
+        "microservices",
+        "mini_services",
+        "mediator"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -271,7 +415,7 @@
         "Dependency rule: all dependencies point inward toward the core",
         "The application is testable without any external infrastructure"
       ],
-      "when_to_use": [
+      "use_when": [
         "Business logic is complex and must be protected from infrastructure churn",
         "Multiple inbound channels (REST, CLI, events) drive the same business logic",
         "Infrastructure components (databases, message brokers) are likely to change over time",
@@ -298,7 +442,14 @@
         "Technology-agnostic domain",
         "Testable architecture"
       ],
-      "related_patterns": ["clean_architecture", "onion", "modular_monolith"],
+      "related_patterns": [
+        "clean_architecture",
+        "onion",
+        "modular_monolith",
+        "plugin",
+        "branch_by_abstraction",
+        "domain_driven_design"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -313,16 +464,24 @@
         "Interface adapters convert data between use case and external formats",
         "Frameworks and drivers are details in the outermost ring"
       ],
-      "when_to_use": [
+      "use_when": [
         "Long-lived enterprise application where business rules must survive technology changes",
         "Multiple delivery mechanisms (web, mobile, CLI) share the same business logic",
         "Team values testability and wants to test business rules without UI or database",
-        "Application has rich domain logic that justifies the layering overhead"
+        "Application has rich domain logic that justifies the layering overhead",
+        {
+          "team_size": "5-30",
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Simple CRUD applications where the layering adds unnecessary complexity",
         "Short-lived applications or prototypes where speed of delivery matters most",
-        "Team is small and the ceremony of multiple layers slows them down"
+        "Team is small and the ceremony of multiple layers slows them down",
+        {
+          "team_size": "1-3",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Concentric dependency layers where inner layers have no knowledge of outer layers",
@@ -339,7 +498,11 @@
         "Frameworks and drivers layer",
         "Boundary crossing with DTOs"
       ],
-      "related_patterns": ["hexagonal", "onion", "layered"],
+      "related_patterns": [
+        "hexagonal",
+        "onion",
+        "layered"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -354,7 +517,7 @@
         "Infrastructure concerns live at the outermost ring",
         "Interfaces defined in inner layers are implemented in outer layers"
       ],
-      "when_to_use": [
+      "use_when": [
         "Domain-driven design is the primary modeling approach",
         "Infrastructure persistence strategy is expected to change over the application lifetime",
         "Team needs clear separation between domain logic and application orchestration",
@@ -380,7 +543,11 @@
         "Dependency inversion",
         "Repository pattern"
       ],
-      "related_patterns": ["hexagonal", "clean_architecture", "layered"],
+      "related_patterns": [
+        "hexagonal",
+        "clean_architecture",
+        "layered"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -395,7 +562,7 @@
         "Each layer can be developed and tested somewhat independently",
         "Layers can be physically distributed across tiers"
       ],
-      "when_to_use": [
+      "use_when": [
         "Simple business applications with straightforward CRUD operations",
         "Team is familiar with traditional three-tier development",
         "Application requirements map naturally to presentation-logic-data separation",
@@ -422,7 +589,12 @@
         "Strict vs relaxed layering",
         "Cross-cutting concerns"
       ],
-      "related_patterns": ["clean_architecture", "vertical_slice", "monolith"],
+      "related_patterns": [
+        "clean_architecture",
+        "vertical_slice",
+        "monolith",
+        "onion"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -437,16 +609,37 @@
         "No shared abstractions forced across features",
         "New features add new slices without modifying existing ones"
       ],
-      "when_to_use": [
+      "use_when": [
         "Features have different complexity levels and forcing uniform layering wastes effort",
         "Team wants to minimize the blast radius of changes to a single feature",
         "CQRS or mediator patterns are already in use, providing natural slice boundaries",
-        "Product development is feature-driven with features rarely sharing business logic"
+        "Product development is feature-driven with features rarely sharing business logic",
+        {
+          "team_size": "6-15",
+          "scale": "growth",
+          "existing_stack": "monolith"
+        },
+        {
+          "team_size": "5-30",
+          "scale": "growth"
+        },
+        {
+          "team_size": "10-20",
+          "existing_stack": "monolith"
+        }
       ],
       "avoid_when": [
         "Significant business logic is genuinely shared across many features",
         "Team is unfamiliar with the pattern and defaults to inconsistent internal structures",
-        "Application is primarily CRUD where slices would all look identical"
+        "Application is primarily CRUD where slices would all look identical",
+        {
+          "team_size": "1-3",
+          "scale": "startup_mvp"
+        },
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Code is organized by feature directory rather than by technical layer",
@@ -462,7 +655,14 @@
         "Per-feature complexity decisions",
         "Minimal cross-feature coupling"
       ],
-      "related_patterns": ["cqrs", "mediator", "modular_monolith", "command_pattern"],
+      "related_patterns": [
+        "cqrs",
+        "mediator",
+        "modular_monolith",
+        "command_pattern",
+        "layered",
+        "clean_architecture"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -477,7 +677,7 @@
         "Core is stable and deployable without any plugins",
         "Plugin isolation prevents one plugin from destabilizing another"
       ],
-      "when_to_use": [
+      "use_when": [
         "Application needs to support third-party extensions without core modification",
         "Different deployments need different feature sets composed from available plugins",
         "Core product must remain stable while extension development moves independently",
@@ -503,7 +703,12 @@
         "Plugin isolation",
         "Dependency resolution"
       ],
-      "related_patterns": ["component_based", "microservices", "hexagonal"],
+      "related_patterns": [
+        "component_based",
+        "microservices",
+        "hexagonal",
+        "chain_of_responsibility"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -518,7 +723,7 @@
         "Components encapsulate their internal state and behavior",
         "Components are reusable across different systems and contexts"
       ],
-      "when_to_use": [
+      "use_when": [
         "System can be naturally decomposed into reusable units with clear interfaces",
         "Multiple products or configurations need to be assembled from shared components",
         "Different teams own different components and need clear interface contracts",
@@ -544,7 +749,11 @@
         "Component registry",
         "Encapsulation"
       ],
-      "related_patterns": ["plugin", "microservices", "modular_monolith"],
+      "related_patterns": [
+        "plugin",
+        "microservices",
+        "modular_monolith"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -560,18 +769,46 @@
         "Event ordering and delivery guarantees are explicit architectural decisions",
         "Events are the system's source of truth for what happened"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multiple independent consumers need to react to the same business event",
         "System requires temporal decoupling — producers should not wait for consumers",
         "Audit trail of all state changes is a business requirement",
         "Real-time reactions to business events (notifications, analytics, cascading updates)",
-        "System spans multiple bounded contexts that should remain loosely coupled"
+        "System spans multiple bounded contexts that should remain loosely coupled",
+        {
+          "team_size": "15-50",
+          "scale": "growth"
+        },
+        {
+          "team_size": "20+",
+          "existing_stack": "modular_monolith"
+        },
+        {
+          "budget": "minimal",
+          "scale": "any"
+        },
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Request-response semantics are needed and async event flows add unnecessary complexity",
         "Debugging distributed event flows exceeds team capability",
         "Event ordering is critical but the event infrastructure cannot guarantee it",
-        "System requires synchronous consistency and eventual consistency is unacceptable"
+        "System requires synchronous consistency and eventual consistency is unacceptable",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        },
+        {
+          "team_size": "1-10",
+          "scale": "startup_mvp"
+        },
+        {
+          "latency": "sub-millisecond",
+          "scale": "hyperscale"
+        }
       ],
       "signals": [
         "Message broker or event bus sits at the center of the architecture",
@@ -589,7 +826,27 @@
         "Event ordering",
         "Dead letter queues"
       ],
-      "related_patterns": ["event_sourcing", "cqrs", "saga_choreography", "observer_pattern", "streaming"],
+      "related_patterns": [
+        "event_sourcing",
+        "cqrs",
+        "saga_choreography",
+        "observer_pattern",
+        "streaming",
+        "saga_orchestration",
+        "reactor",
+        "actor_model",
+        "serverless",
+        "data_mesh",
+        "cdc_pattern",
+        "space_based",
+        "blackboard",
+        "outbox_pattern",
+        "event_mesh",
+        "autoscaling_policy",
+        "microservices",
+        "database_read_replicas",
+        "cache_aside"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -604,18 +861,37 @@
         "Read and write stores may be different technologies",
         "Synchronization between models is eventually consistent via events"
       ],
-      "when_to_use": [
+      "use_when": [
         "Read and write workloads have vastly different scaling requirements",
         "Read model requires denormalized views that would be expensive to maintain in a normalized write model",
         "Business logic on the write side is complex but reads are simple projections",
         "Multiple read representations of the same data are needed for different consumers",
-        "Event sourcing is already in use and projections naturally separate reads from writes"
+        "Event sourcing is already in use and projections naturally separate reads from writes",
+        {
+          "compliance": "audit_required",
+          "scale": "enterprise"
+        },
+        {
+          "scale": "growth"
+        },
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Application is simple CRUD where read and write models would be nearly identical",
         "Strong consistency between reads and writes is a hard requirement",
         "Team is not prepared to handle eventual consistency and its edge cases",
-        "The additional complexity of maintaining two models is not justified by the workload difference"
+        "The additional complexity of maintaining two models is not justified by the workload difference",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        },
+        {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
       ],
       "signals": [
         "Separate code paths for handling commands (mutations) and queries (reads)",
@@ -632,7 +908,17 @@
         "Eventual consistency",
         "Task-based UI"
       ],
-      "related_patterns": ["event_sourcing", "event_driven", "materialized_view", "vertical_slice"],
+      "related_patterns": [
+        "event_sourcing",
+        "event_driven",
+        "materialized_view",
+        "vertical_slice",
+        "mediator",
+        "command_pattern",
+        "change_data_capture",
+        "database_read_replicas",
+        "cache_aside"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -648,18 +934,26 @@
         "Snapshots optimize replay performance for long event streams",
         "Events are the single source of truth"
       ],
-      "when_to_use": [
+      "use_when": [
         "Complete audit trail of all state changes is a regulatory or business requirement",
         "Need to reconstruct state at any point in time for debugging or compliance",
         "Business domain naturally models processes as sequences of events",
         "Multiple read models need to be built from the same event stream",
-        "Temporal queries (what was the state on date X) are a requirement"
+        "Temporal queries (what was the state on date X) are a requirement",
+        {
+          "compliance": "audit_required",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Simple CRUD where current state is all that matters",
         "Event schema evolution is complex and team lacks experience with schema migration",
         "Event replay for long-lived aggregates becomes prohibitively slow without snapshot management",
-        "Team is unfamiliar with eventual consistency and debugging event-sourced systems"
+        "Team is unfamiliar with eventual consistency and debugging event-sourced systems",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Append-only event store is the primary persistence mechanism",
@@ -677,7 +971,19 @@
         "Event upcasting",
         "Projections"
       ],
-      "related_patterns": ["cqrs", "event_driven", "write_ahead_log", "saga_orchestration"],
+      "related_patterns": [
+        "cqrs",
+        "event_driven",
+        "write_ahead_log",
+        "saga_orchestration",
+        "state_machine",
+        "command_pattern",
+        "kappa_architecture",
+        "materialized_view",
+        "outbox_pattern",
+        "domain_driven_design",
+        "change_data_capture"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -692,17 +998,26 @@
         "Orchestrator maintains saga state and handles retries",
         "Each participant service exposes both forward and compensating operations"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multi-service business process requires atomicity guarantees across services",
         "Saga flow is complex with conditional branching and parallel steps",
         "Central visibility into the state of long-running business processes is needed",
         "New services are frequently added to the saga and the flow needs explicit management",
-        "Team prefers explicit flow definition over implicit choreography"
+        "Team prefers explicit flow definition over implicit choreography",
+        {
+          "team_size": "15+",
+          "scale": "enterprise"
+        },
+        "Business processes beyond ~4 steps: orchestration is easier to reason about and debug than event choreography at that size."
       ],
       "avoid_when": [
         "Saga has only 2-3 simple sequential steps — choreography is simpler",
         "Central orchestrator becomes a bottleneck or single point of failure",
-        "Services are owned by different organizations and a central orchestrator creates coupling"
+        "Services are owned by different organizations and a central orchestrator creates coupling",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Central saga orchestrator service defines step sequences and compensation logic",
@@ -719,7 +1034,15 @@
         "Idempotency",
         "Forward recovery vs backward recovery"
       ],
-      "related_patterns": ["saga_choreography", "event_driven", "state_machine", "microservices"],
+      "related_patterns": [
+        "saga_choreography",
+        "event_driven",
+        "state_machine",
+        "microservices",
+        "event_sourcing",
+        "outbox_pattern",
+        "circuit_breaker"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -734,7 +1057,7 @@
         "Each service implements its own compensating logic triggered by failure events",
         "The saga flow emerges from the event subscriptions rather than being explicitly defined"
       ],
-      "when_to_use": [
+      "use_when": [
         "Saga flow is simple and linear with few branching points",
         "Services are owned by different teams and no team wants to own a central orchestrator",
         "Loose coupling between services is a higher priority than explicit flow visibility",
@@ -761,7 +1084,12 @@
         "Eventual consistency",
         "Decentralized control"
       ],
-      "related_patterns": ["saga_orchestration", "event_driven", "observer_pattern"],
+      "related_patterns": [
+        "saga_orchestration",
+        "event_driven",
+        "observer_pattern",
+        "microservices"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -776,7 +1104,7 @@
         "Synchronous demultiplexer (select/epoll/kqueue) waits for I/O readiness",
         "CPU-intensive work must be offloaded to avoid blocking the event loop"
       ],
-      "when_to_use": [
+      "use_when": [
         "High-concurrency I/O-bound workloads (web servers, proxies, chat servers)",
         "Many concurrent connections with relatively little CPU work per request",
         "Memory efficiency is critical — thread-per-connection uses too much memory",
@@ -802,7 +1130,11 @@
         "Callback chains",
         "Backpressure"
       ],
-      "related_patterns": ["event_driven", "observer_pattern", "pipeline"],
+      "related_patterns": [
+        "event_driven",
+        "observer_pattern",
+        "pipeline"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -818,7 +1150,7 @@
         "No shared state between actors — all state is private",
         "Supervision trees handle failure with let-it-crash philosophy"
       ],
-      "when_to_use": [
+      "use_when": [
         "System requires massive concurrency with millions of lightweight concurrent entities",
         "State isolation between concurrent entities is critical for correctness",
         "Fault tolerance with automatic recovery from component failures is needed",
@@ -846,7 +1178,12 @@
         "Location transparency",
         "Let-it-crash philosophy"
       ],
-      "related_patterns": ["event_driven", "microservices", "state_machine"],
+      "related_patterns": [
+        "event_driven",
+        "microservices",
+        "state_machine",
+        "blackboard"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -861,7 +1198,7 @@
         "Stages are composable and reusable",
         "Stages can potentially run in parallel on different data"
       ],
-      "when_to_use": [
+      "use_when": [
         "Data processing naturally decomposes into sequential transformation steps",
         "Stages need to be independently testable and reusable",
         "Different pipelines share common stages in different configurations",
@@ -887,7 +1224,14 @@
         "Pipeline configuration",
         "Intermediate results"
       ],
-      "related_patterns": ["pipe_and_filter", "chain_of_responsibility", "etl_pipeline"],
+      "related_patterns": [
+        "pipe_and_filter",
+        "chain_of_responsibility",
+        "etl_pipeline",
+        "nanoservices",
+        "reactor",
+        "blackboard"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -902,7 +1246,7 @@
         "Chain can be composed and reordered at runtime",
         "A handler can stop propagation or modify the request for downstream handlers"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multiple handlers may need to process the same request in sequence",
         "The set of handlers needs to be configurable or extensible without modifying existing code",
         "Cross-cutting concerns (auth, logging, validation) need to be composed flexibly",
@@ -928,7 +1272,11 @@
         "Short-circuit processing",
         "Middleware stack"
       ],
-      "related_patterns": ["pipeline", "mediator", "plugin"],
+      "related_patterns": [
+        "pipeline",
+        "mediator",
+        "plugin"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -943,7 +1291,7 @@
         "Adding new interaction patterns requires modifying the mediator, not the components",
         "Reduces the number of direct dependencies between components"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multiple components have complex many-to-many interaction patterns",
         "Need to centralize and manage interaction logic in one place",
         "CQRS or vertical slice architecture uses in-process command/query dispatch",
@@ -969,7 +1317,14 @@
         "Pipeline behaviors",
         "Command/query separation"
       ],
-      "related_patterns": ["cqrs", "vertical_slice", "observer_pattern", "command_pattern"],
+      "related_patterns": [
+        "cqrs",
+        "vertical_slice",
+        "observer_pattern",
+        "command_pattern",
+        "service_oriented",
+        "chain_of_responsibility"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -984,7 +1339,7 @@
         "Notification is typically synchronous within a single process",
         "Push vs pull models define how much data observers receive"
       ],
-      "when_to_use": [
+      "use_when": [
         "State changes in one object need to trigger updates in multiple dependent objects",
         "The set of dependent objects changes dynamically at runtime",
         "Decoupling the subject from the concrete types of its dependents is important",
@@ -1010,7 +1365,12 @@
         "Push vs pull notification",
         "Memory leak prevention"
       ],
-      "related_patterns": ["event_driven", "mediator", "reactor"],
+      "related_patterns": [
+        "event_driven",
+        "mediator",
+        "reactor",
+        "saga_choreography"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1025,7 +1385,7 @@
         "Invalid transitions are structurally prevented",
         "Current state determines which events are accepted"
       ],
-      "when_to_use": [
+      "use_when": [
         "Entity has a well-defined lifecycle with distinct states and transitions",
         "Need to enforce that only valid state transitions occur",
         "Business process has complex conditional logic based on current state",
@@ -1052,7 +1412,12 @@
         "Entry/exit actions",
         "State diagram"
       ],
-      "related_patterns": ["saga_orchestration", "event_sourcing", "command_pattern"],
+      "related_patterns": [
+        "saga_orchestration",
+        "event_sourcing",
+        "command_pattern",
+        "actor_model"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1067,7 +1432,7 @@
         "Undo is supported by storing inverse operations or previous state",
         "Command handler is separate from the command definition"
       ],
-      "when_to_use": [
+      "use_when": [
         "Operations need to be queued, scheduled, or executed asynchronously",
         "Undo/redo functionality is a requirement",
         "Operations need to be logged for audit or replay purposes",
@@ -1094,7 +1459,13 @@
         "Command serialization",
         "Idempotent execution"
       ],
-      "related_patterns": ["cqrs", "mediator", "event_sourcing", "state_machine"],
+      "related_patterns": [
+        "cqrs",
+        "mediator",
+        "event_sourcing",
+        "state_machine",
+        "vertical_slice"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1110,19 +1481,45 @@
         "Event-triggered invocation from various event sources",
         "Short-lived execution with provider-defined time limits"
       ],
-      "when_to_use": [
+      "use_when": [
         "Workload is spiky with long idle periods — pay-per-use is cost-effective",
         "Team wants to eliminate server management and operational overhead",
         "Event-driven workloads with well-defined triggers (HTTP, queue, schedule)",
         "Rapid prototyping where infrastructure setup would slow development",
-        "Glue logic connecting managed services (S3 to DynamoDB, API Gateway to Lambda)"
+        "Glue logic connecting managed services (S3 to DynamoDB, API Gateway to Lambda)",
+        {
+          "team_size": "1",
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        },
+        {
+          "scale": "growth",
+          "budget": "moderate"
+        },
+        {
+          "budget": "minimal",
+          "scale": "any"
+        },
+        "Sporadic / low-duty-cycle workloads: serverless wins on cost below the ~30-40% utilization break-even versus always-on compute."
       ],
       "avoid_when": [
         "Workload is steady-state with high utilization — serverless is more expensive than reserved instances",
         "Cold start latency is unacceptable for the use case",
         "Functions need long execution times exceeding provider limits",
         "Vendor lock-in is unacceptable and portability is a requirement",
-        "Complex stateful workflows are required within a single execution"
+        "Complex stateful workflows are required within a single execution",
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        },
+        {
+          "scale": "startup_mvp",
+          "latency": "sub-millisecond"
+        },
+        {
+          "latency": "sub-millisecond",
+          "scale": "hyperscale"
+        }
       ],
       "signals": [
         "Functions deployed to AWS Lambda, Azure Functions, or Google Cloud Functions",
@@ -1140,7 +1537,16 @@
         "Vendor lock-in",
         "Managed services integration"
       ],
-      "related_patterns": ["nanoservices", "event_driven", "containerized"],
+      "related_patterns": [
+        "nanoservices",
+        "event_driven",
+        "containerized",
+        "jamstack",
+        "edge_computing",
+        "cdn_caching",
+        "throttling",
+        "autoscaling_policy"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1156,7 +1562,7 @@
         "Service discovery and load balancing are provided by the platform",
         "Resource limits and isolation are enforced per container"
       ],
-      "when_to_use": [
+      "use_when": [
         "Need consistent deployment across development, staging, and production environments",
         "Multiple services with different runtime requirements share the same infrastructure",
         "Auto-scaling based on resource utilization or custom metrics is needed",
@@ -1185,7 +1591,16 @@
         "Resource limits",
         "Rolling updates"
       ],
-      "related_patterns": ["microservices", "sidecar", "cell_based", "blue_green"],
+      "related_patterns": [
+        "microservices",
+        "sidecar",
+        "cell_based",
+        "blue_green",
+        "serverless",
+        "ambassador",
+        "hybrid_cloud",
+        "service_mesh_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1201,7 +1616,7 @@
         "Cell size is bounded to limit blast radius",
         "New cells are deployed for capacity expansion, not by scaling existing cells"
       ],
-      "when_to_use": [
+      "use_when": [
         "Blast radius containment is critical — an outage must not affect all customers",
         "Multi-tenant SaaS where tenant isolation is a security or compliance requirement",
         "System serves millions of users and total failure would be catastrophic",
@@ -1228,7 +1643,13 @@
         "Traffic sharding",
         "Independent failure domains"
       ],
-      "related_patterns": ["multi_region", "containerized", "canary"],
+      "related_patterns": [
+        "multi_region",
+        "containerized",
+        "canary",
+        "space_based",
+        "bulkhead"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1243,17 +1664,37 @@
         "Each region can operate independently during a regional outage",
         "Data sovereignty and compliance requirements are respected per region"
       ],
-      "when_to_use": [
+      "use_when": [
         "Global user base requires low latency from multiple continents",
         "Business continuity requires surviving a full regional cloud outage",
         "Data sovereignty regulations require data to remain in specific regions",
-        "Compliance standards mandate geographic redundancy"
+        "Compliance standards mandate geographic redundancy",
+        {
+          "scale": "enterprise",
+          "latency": "sub-200ms"
+        },
+        {
+          "scale": "enterprise",
+          "compliance": "high_availability"
+        },
+        {
+          "compliance": "multi_jurisdiction",
+          "scale": "enterprise"
+        },
+        "Global sub-200ms targets: the speed-of-light RTT floor (~100ms trans-Atlantic round trip) makes a single region physically insufficient."
       ],
       "avoid_when": [
         "User base is concentrated in a single region",
         "Strong consistency across regions is a hard requirement — cross-region latency makes this expensive",
         "Operational complexity of multi-region deployment exceeds team capability",
-        "Cost of running redundant infrastructure in multiple regions is prohibitive"
+        "Cost of running redundant infrastructure in multiple regions is prohibitive",
+        {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        },
+        {
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Infrastructure-as-code provisions identical stacks in multiple cloud regions",
@@ -1270,7 +1711,13 @@
         "Regional failover",
         "Conflict resolution"
       ],
-      "related_patterns": ["cell_based", "blue_green", "edge_computing"],
+      "related_patterns": [
+        "cell_based",
+        "blue_green",
+        "edge_computing",
+        "hybrid_cloud",
+        "data_mesh"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1285,17 +1732,24 @@
         "Rollback is instant by switching traffic back to the previous environment",
         "Database schema changes must be backward-compatible across both versions"
       ],
-      "when_to_use": [
+      "use_when": [
         "Zero-downtime deployments are required",
         "Need instant rollback capability without redeployment",
         "Full production validation of the new version before exposing to users",
-        "Deployment window needs to be as short as possible"
+        "Deployment window needs to be as short as possible",
+        {
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Cost of maintaining two full production environments is prohibitive",
         "Database schema changes are not backward-compatible between versions",
         "Stateful components make environment switching complex",
-        "Gradual traffic shifting is preferred over all-at-once switching"
+        "Gradual traffic shifting is preferred over all-at-once switching",
+        {
+          "budget": "minimal",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Two production environments labeled blue and green in infrastructure configuration",
@@ -1312,7 +1766,12 @@
         "Instant rollback",
         "Backward-compatible schemas"
       ],
-      "related_patterns": ["canary", "feature_flags", "containerized"],
+      "related_patterns": [
+        "canary",
+        "feature_flags",
+        "containerized",
+        "multi_region"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1327,16 +1786,23 @@
         "Old and new versions run simultaneously during the rollout",
         "Canary metrics are compared against baseline for anomaly detection"
       ],
-      "when_to_use": [
+      "use_when": [
         "Changes have production risk that cannot be fully validated in staging",
         "Gradual rollout with automated rollback is preferred over all-at-once deployment",
         "Metrics infrastructure can detect anomalies in real-time during rollout",
-        "User impact of bugs must be minimized to a small percentage"
+        "User impact of bugs must be minimized to a small percentage",
+        {
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "System lacks metrics infrastructure for real-time comparison between versions",
         "Both versions must be schema-compatible and the schema change is breaking",
-        "Traffic volume is too low for statistically meaningful canary comparison"
+        "Traffic volume is too low for statistically meaningful canary comparison",
+        {
+          "scale": "startup_mvp",
+          "team_size": "1-3"
+        }
       ],
       "signals": [
         "Traffic splitting configuration routes a percentage of requests to the new version",
@@ -1353,7 +1819,11 @@
         "Baseline comparison",
         "Blast radius limitation"
       ],
-      "related_patterns": ["blue_green", "feature_flags", "cell_based"],
+      "related_patterns": [
+        "blue_green",
+        "feature_flags",
+        "cell_based"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1368,17 +1838,27 @@
         "Toggles can target specific users, segments, or percentages",
         "Toggle lifecycle management ensures stale flags are cleaned up"
       ],
-      "when_to_use": [
+      "use_when": [
         "Trunk-based development where incomplete features must be in main without being active",
         "Gradual feature rollout to specific user segments (beta users, regions, plans)",
         "A/B testing requires serving different experiences to different user groups",
         "Kill switch capability to disable features instantly without deployment",
-        "Long-running feature branches need to be eliminated"
+        "Long-running feature branches need to be eliminated",
+        {
+          "scale": "growth"
+        }
       ],
       "avoid_when": [
         "Toggle management overhead exceeds the benefit — tech debt from stale toggles accumulates",
         "Testing matrix explodes with too many toggle combinations",
-        "Team lacks discipline to remove toggles after features are fully released"
+        "Team lacks discipline to remove toggles after features are fully released",
+        {
+          "scale": "startup_mvp"
+        },
+        {
+          "scale": "startup_mvp",
+          "team_size": "1-3"
+        }
       ],
       "signals": [
         "Feature flag evaluation calls in application code gate feature access",
@@ -1395,7 +1875,12 @@
         "Toggle lifecycle management",
         "Targeting rules"
       ],
-      "related_patterns": ["canary", "blue_green", "branch_by_abstraction"],
+      "related_patterns": [
+        "canary",
+        "blue_green",
+        "branch_by_abstraction",
+        "throttling"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1410,7 +1895,7 @@
         "Sidecar lifecycle is coupled to the main application lifecycle",
         "Communication between main app and sidecar is via localhost"
       ],
-      "when_to_use": [
+      "use_when": [
         "Cross-cutting concerns need to be consistent across polyglot services",
         "Service mesh capabilities (mTLS, retries, circuit breaking) need to be added without code changes",
         "Logging, metrics, and tracing collection should be uniform across all services",
@@ -1436,7 +1921,15 @@
         "Cross-cutting concern extraction",
         "Control plane vs data plane"
       ],
-      "related_patterns": ["ambassador", "containerized", "microservices"],
+      "related_patterns": [
+        "ambassador",
+        "containerized",
+        "microservices",
+        "service_mesh_pattern",
+        "api_gateway",
+        "circuit_breaker",
+        "bulkhead"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1451,7 +1944,7 @@
         "Ambassador can be updated independently of the application",
         "Provides advanced features without modifying application code"
       ],
-      "when_to_use": [
+      "use_when": [
         "Legacy application needs modern communication resilience without code changes",
         "Application language lacks good client libraries for circuit breaking or retries",
         "Outbound traffic needs monitoring, routing, or transformation uniformly",
@@ -1477,7 +1970,12 @@
         "Retry and circuit breaking",
         "Legacy application integration"
       ],
-      "related_patterns": ["sidecar", "containerized", "strangler_fig"],
+      "related_patterns": [
+        "sidecar",
+        "containerized",
+        "strangler_fig",
+        "service_mesh_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1492,17 +1990,32 @@
         "Old system is decommissioned only after all functionality has migrated",
         "Rollback is possible by rerouting traffic back to the legacy system"
       ],
-      "when_to_use": [
+      "use_when": [
         "Replacing a legacy system that cannot be rewritten all at once",
         "Need to deliver value incrementally during a multi-year migration",
         "Risk of big-bang rewrite failure is unacceptable",
         "Legacy system must remain operational throughout the migration",
-        "Migrating from monolith to microservices incrementally"
+        "Migrating from monolith to microservices incrementally",
+        {
+          "existing_stack": "legacy",
+          "scale": "enterprise"
+        },
+        {
+          "existing_stack": "legacy",
+          "scale": "any"
+        }
       ],
       "avoid_when": [
         "Legacy system is small enough for a complete rewrite in a single sprint",
         "Routing layer between old and new systems is impractical",
-        "Data synchronization between old and new systems during migration is too complex"
+        "Data synchronization between old and new systems during migration is too complex",
+        {
+          "scale": "startup_mvp",
+          "timeline": "days"
+        },
+        {
+          "timeline": "days"
+        }
       ],
       "signals": [
         "Reverse proxy or API gateway routes some URLs to the legacy system and others to the new system",
@@ -1519,7 +2032,13 @@
         "Legacy decommissioning",
         "Data synchronization"
       ],
-      "related_patterns": ["branch_by_abstraction", "monolith_to_microservices", "ambassador"],
+      "related_patterns": [
+        "branch_by_abstraction",
+        "monolith_to_microservices",
+        "ambassador",
+        "api_gateway",
+        "event_sourcing"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1534,16 +2053,27 @@
         "Traffic is gradually switched from old to new implementation",
         "Old implementation is removed after full migration"
       ],
-      "when_to_use": [
+      "use_when": [
         "Need to replace a core component without long-lived feature branches",
         "Trunk-based development requires all changes to be on main",
         "Replacement work spans multiple sprints and must not block other development",
-        "Need to A/B test old vs new implementation during migration"
+        "Need to A/B test old vs new implementation during migration",
+        {
+          "existing_stack": "legacy",
+          "scale": "any"
+        },
+        {
+          "existing_stack": "any",
+          "scale": "any"
+        }
       ],
       "avoid_when": [
         "Abstraction layer is difficult to introduce because the component is deeply entangled",
         "Performance overhead of the abstraction layer is unacceptable",
-        "Replacement can be done quickly enough that branching is simpler"
+        "Replacement can be done quickly enough that branching is simpler",
+        {
+          "timeline": "days"
+        }
       ],
       "signals": [
         "Interface or abstraction layer wraps the component being replaced",
@@ -1560,7 +2090,13 @@
         "Implementation removal",
         "Behavioral parity testing"
       ],
-      "related_patterns": ["strangler_fig", "feature_flags", "hexagonal"],
+      "related_patterns": [
+        "strangler_fig",
+        "feature_flags",
+        "hexagonal",
+        "monolith_to_microservices",
+        "clean_architecture"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1575,7 +2111,7 @@
         "Filters can be added, removed, or reordered without modifying other filters",
         "Each filter performs a single transformation"
       ],
-      "when_to_use": [
+      "use_when": [
         "Data processing consists of independent transformation stages",
         "Need to reuse processing stages across different data flows",
         "Parallel processing of stages on streaming data is desirable",
@@ -1601,7 +2137,12 @@
         "Filter reusability",
         "Stream processing"
       ],
-      "related_patterns": ["pipeline", "streaming", "etl_pipeline"],
+      "related_patterns": [
+        "pipeline",
+        "streaming",
+        "etl_pipeline",
+        "batch_sequential"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1616,7 +2157,7 @@
         "Batch scheduling controls when processing runs",
         "Batch size and frequency are tunable parameters"
       ],
-      "when_to_use": [
+      "use_when": [
         "Data arrives in natural batches (daily files, hourly dumps, periodic exports)",
         "Processing requires complete dataset access (sorting, aggregation, global statistics)",
         "Real-time processing is not required and batch latency is acceptable",
@@ -1642,7 +2183,12 @@
         "Staging tables",
         "Processing latency"
       ],
-      "related_patterns": ["etl_pipeline", "lambda_architecture", "pipe_and_filter"],
+      "related_patterns": [
+        "etl_pipeline",
+        "lambda_architecture",
+        "pipe_and_filter",
+        "data_lake"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1658,7 +2204,7 @@
         "Windowing operations aggregate events over time intervals",
         "Stream processing topology defines the dataflow graph"
       ],
-      "when_to_use": [
+      "use_when": [
         "Real-time analytics, dashboards, or alerting on live data",
         "Event-driven reactions must happen within seconds or milliseconds",
         "Data volume makes batch processing windows too long",
@@ -1686,48 +2232,15 @@
         "Backpressure",
         "Stream processing topology"
       ],
-      "related_patterns": ["event_driven", "kappa_architecture", "cdc_pattern", "pipe_and_filter"],
-      "last_reviewed": "2026-03-21"
-    },
-    {
-      "id": "etl_pipeline",
-      "name": "ETL Pipeline",
-      "category": "data-flow",
-      "description": "A data integration pattern that extracts data from source systems, transforms it to fit operational or analytical needs, and loads it into a destination data store. The foundational pattern of data warehousing since the 1980s. The key insight is that source systems and analytical systems have fundamentally different schemas and quality requirements, and transformation bridges this gap.",
-      "principles": [
-        "Extract: read data from source systems without modifying them",
-        "Transform: clean, validate, denormalize, and reshape data",
-        "Load: write transformed data to the destination store",
-        "Idempotent operations enable safe re-execution",
-        "Data lineage tracking shows where each piece of data came from"
+      "related_patterns": [
+        "event_driven",
+        "kappa_architecture",
+        "cdc_pattern",
+        "pipe_and_filter",
+        "lambda_architecture",
+        "write_ahead_log",
+        "event_mesh"
       ],
-      "when_to_use": [
-        "Data needs to move from operational databases to analytical data warehouses",
-        "Source data requires cleaning, validation, and schema transformation",
-        "Multiple source systems need to be integrated into a unified data model",
-        "Regulatory requirements mandate data quality checks before loading"
-      ],
-      "avoid_when": [
-        "Real-time data availability is required — ETL batch latency is too high",
-        "Transformation logic is simple enough that ELT (load then transform) is better",
-        "Source systems can expose data through APIs, making extraction unnecessary"
-      ],
-      "signals": [
-        "ETL tool or framework (Airflow, dbt, SSIS, Informatica) orchestrates data pipelines",
-        "Source connectors extract data from databases, APIs, or files",
-        "Transformation logic cleans, validates, and reshapes data between extract and load",
-        "Data quality checks validate records before loading to the destination",
-        "Pipeline monitoring tracks extraction lag, transformation errors, and load throughput"
-      ],
-      "key_concepts": [
-        "Extract phase",
-        "Transform phase",
-        "Load phase",
-        "Data lineage",
-        "Idempotent loading",
-        "Data quality validation"
-      ],
-      "related_patterns": ["batch_sequential", "pipe_and_filter", "lambda_architecture", "data_mesh"],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1742,7 +2255,7 @@
         "Immutable master dataset is the source of truth",
         "Speed layer results are eventually replaced by batch layer results"
       ],
-      "when_to_use": [
+      "use_when": [
         "Need both real-time approximate results and accurate batch-computed results",
         "Complete reprocessing of historical data is needed when logic changes",
         "Use case tolerates temporary inconsistency between real-time and batch views",
@@ -1768,7 +2281,13 @@
         "Recomputation",
         "Dual codebase maintenance"
       ],
-      "related_patterns": ["kappa_architecture", "batch_sequential", "streaming"],
+      "related_patterns": [
+        "kappa_architecture",
+        "batch_sequential",
+        "streaming",
+        "data_lake",
+        "etl_pipeline"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1783,16 +2302,24 @@
         "No separate batch layer — stream processing handles everything",
         "Event log retention period determines reprocessing capability"
       ],
-      "when_to_use": [
+      "use_when": [
         "Stream processing technology can handle both real-time and reprocessing workloads",
         "Maintaining dual codebases (batch + stream) is unacceptable",
         "Event log can be retained long enough for reprocessing needs",
-        "Processing logic is the same for real-time and historical data"
+        "Processing logic is the same for real-time and historical data",
+        {
+          "scale": "enterprise",
+          "latency": "sub-second"
+        }
       ],
       "avoid_when": [
         "Historical reprocessing requires complete dataset access that event replay cannot provide",
         "Event log retention costs are prohibitive for the data volume",
-        "Processing logic fundamentally differs between real-time and batch (different algorithms)"
+        "Processing logic fundamentally differs between real-time and batch (different algorithms)",
+        {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
       ],
       "signals": [
         "Single stream processing pipeline handles both real-time and historical data",
@@ -1809,7 +2336,12 @@
         "Unified codebase",
         "Log compaction"
       ],
-      "related_patterns": ["lambda_architecture", "streaming", "event_sourcing"],
+      "related_patterns": [
+        "lambda_architecture",
+        "streaming",
+        "event_sourcing",
+        "cqrs"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1824,7 +2356,7 @@
         "Federated computational governance ensures interoperability",
         "Data product contracts define SLAs, schemas, and quality guarantees"
       ],
-      "when_to_use": [
+      "use_when": [
         "Centralized data team is a bottleneck for data delivery across the organization",
         "Organization has well-defined domain teams that understand their data best",
         "Multiple domains need to share data but a central data warehouse creates coupling",
@@ -1851,7 +2383,12 @@
         "Data contracts",
         "Data product catalog"
       ],
-      "related_patterns": ["microservices", "event_driven", "etl_pipeline"],
+      "related_patterns": [
+        "microservices",
+        "event_driven",
+        "etl_pipeline",
+        "data_lake"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1866,7 +2403,7 @@
         "Does not modify or impact the source database performance significantly",
         "Provides both initial snapshot and ongoing change stream"
       ],
-      "when_to_use": [
+      "use_when": [
         "Need to replicate data from operational databases to analytics or search systems",
         "Event-driven architecture needs events from legacy systems that do not emit them",
         "Database synchronization between systems without application-level change tracking",
@@ -1892,7 +2429,13 @@
         "Schema evolution handling",
         "Exactly-once delivery"
       ],
-      "related_patterns": ["event_driven", "streaming", "materialized_view", "write_ahead_log"],
+      "related_patterns": [
+        "event_driven",
+        "streaming",
+        "materialized_view",
+        "write_ahead_log",
+        "outbox_pattern"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1907,16 +2450,24 @@
         "Staleness is an explicit trade-off — refresh frequency balances freshness and cost",
         "Views are rebuilt from source data, not patched"
       ],
-      "when_to_use": [
+      "use_when": [
         "Expensive queries with complex joins or aggregations are executed frequently",
         "Read-heavy workloads where pre-computation amortizes the cost across many reads",
         "CQRS read models that serve denormalized views of the write model",
-        "Dashboard and reporting queries that do not need real-time data"
+        "Dashboard and reporting queries that do not need real-time data",
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Underlying data changes so frequently that view maintenance dominates write performance",
         "Query patterns are ad-hoc and unpredictable — cannot pre-compute all possible views",
-        "Storage cost of materialized views exceeds compute cost savings"
+        "Storage cost of materialized views exceeds compute cost savings",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Database materialized views or application-level projection tables store pre-computed results",
@@ -1933,7 +2484,13 @@
         "Incremental vs full refresh",
         "Storage vs compute trade-off"
       ],
-      "related_patterns": ["cqrs", "event_sourcing", "cdc_pattern"],
+      "related_patterns": [
+        "cqrs",
+        "event_sourcing",
+        "cdc_pattern",
+        "database_read_replicas",
+        "cache_aside"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1948,16 +2505,28 @@
         "Log is the source of truth until changes are flushed to main storage",
         "Checkpointing periodically saves state to reduce recovery time"
       ],
-      "when_to_use": [
+      "use_when": [
         "Crash recovery must guarantee no data loss for committed operations",
         "Sequential write performance is needed for write-heavy workloads",
         "Replication requires an ordered log of changes to propagate to replicas",
-        "Transactional guarantees (atomicity, durability) must be maintained across crashes"
+        "Transactional guarantees (atomicity, durability) must be maintained across crashes",
+        {
+          "scale": "hyperscale",
+          "latency": "seconds"
+        },
+        {
+          "scale": "growth",
+          "latency": "seconds"
+        }
       ],
       "avoid_when": [
         "Write volume is low and direct writes to the data structure are fast enough",
         "Storage overhead of maintaining the log is prohibitive",
-        "System does not need crash recovery guarantees"
+        "System does not need crash recovery guarantees",
+        {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
       ],
       "signals": [
         "Append-only log file exists alongside the main data files",
@@ -1974,7 +2543,13 @@
         "Log compaction",
         "Replication from log"
       ],
-      "related_patterns": ["event_sourcing", "cdc_pattern", "streaming"],
+      "related_patterns": [
+        "event_sourcing",
+        "cdc_pattern",
+        "streaming",
+        "lambda_architecture",
+        "kappa_architecture"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -1989,7 +2564,7 @@
         "Use strangler fig pattern to incrementally route traffic to new services",
         "Database decomposition follows service decomposition"
       ],
-      "when_to_use": [
+      "use_when": [
         "Monolith has become too large for a single team to maintain and deploy",
         "Different parts of the monolith need independent scaling or deployment",
         "Organization is growing and teams need autonomous service ownership",
@@ -2015,7 +2590,13 @@
         "Incremental migration",
         "Parallel running"
       ],
-      "related_patterns": ["strangler_fig", "modular_monolith", "microservices", "branch_by_abstraction"],
+      "related_patterns": [
+        "strangler_fig",
+        "modular_monolith",
+        "microservices",
+        "branch_by_abstraction",
+        "monolith"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2030,16 +2611,24 @@
         "Frontend team owns their BFF, not a separate backend team",
         "BFF contains only presentation logic, not business logic"
       ],
-      "when_to_use": [
+      "use_when": [
         "Different frontends (mobile, web, third-party) need significantly different API shapes",
         "General-purpose API is becoming bloated with frontend-specific logic",
         "Frontend teams want to control their own backend without coordinating with a central API team",
-        "Mobile and web have different performance constraints requiring different response shapes"
+        "Mobile and web have different performance constraints requiring different response shapes",
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Single frontend type — a BFF adds an unnecessary layer",
         "Frontend API needs are similar enough that a single API serves all well",
-        "BFF starts containing business logic that should live in downstream services"
+        "BFF starts containing business logic that should live in downstream services",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Separate backend services exist per frontend type (web-bff, mobile-bff, iot-bff)",
@@ -2056,7 +2645,14 @@
         "Client-type routing",
         "Presentation logic"
       ],
-      "related_patterns": ["microservices", "micro_frontends", "jamstack"],
+      "related_patterns": [
+        "microservices",
+        "micro_frontends",
+        "jamstack",
+        "api_gateway",
+        "edge_computing",
+        "rest_resource_oriented"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2071,7 +2667,7 @@
         "Shared nothing architecture — each micro frontend manages its own state",
         "Shell application provides routing and composition infrastructure"
       ],
-      "when_to_use": [
+      "use_when": [
         "Multiple teams work on different features of the same web application",
         "Teams need to deploy frontend changes independently without coordinating releases",
         "Different features benefit from different frontend frameworks or versions",
@@ -2097,7 +2693,12 @@
         "Cross-micro-frontend communication",
         "Shared design system"
       ],
-      "related_patterns": ["microservices", "backends_for_frontends", "islands_architecture"],
+      "related_patterns": [
+        "microservices",
+        "backends_for_frontends",
+        "islands_architecture",
+        "server_components"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2112,7 +2713,7 @@
         "Serverless functions handle server-side logic when needed",
         "Git-based workflow with atomic deploys"
       ],
-      "when_to_use": [
+      "use_when": [
         "Content-heavy sites (marketing, documentation, blogs) with mostly static content",
         "Global audience where CDN edge delivery provides significant performance benefit",
         "Security is a priority — no server to attack for pre-rendered pages",
@@ -2138,7 +2739,13 @@
         "Atomic deploys",
         "Headless CMS"
       ],
-      "related_patterns": ["serverless", "islands_architecture", "server_components", "edge_computing"],
+      "related_patterns": [
+        "serverless",
+        "islands_architecture",
+        "server_components",
+        "edge_computing",
+        "backends_for_frontends"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2153,7 +2760,7 @@
         "Islands hydrate independently — one island loading does not block others",
         "Non-interactive content requires zero client-side JavaScript"
       ],
-      "when_to_use": [
+      "use_when": [
         "Content-heavy pages with sparse interactivity (e.g., a few interactive widgets on a mostly static page)",
         "Performance budget demands minimal JavaScript for page load",
         "Different interactive components on the same page benefit from different frameworks",
@@ -2179,7 +2786,11 @@
         "Selective JavaScript loading",
         "Static-first rendering"
       ],
-      "related_patterns": ["jamstack", "server_components", "micro_frontends"],
+      "related_patterns": [
+        "jamstack",
+        "server_components",
+        "micro_frontends"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2194,7 +2805,7 @@
         "Server component code is never sent to the client browser",
         "Server and client components compose naturally in the same component tree"
       ],
-      "when_to_use": [
+      "use_when": [
         "Large component trees where most components only display data without interactivity",
         "Need to reduce client-side JavaScript bundle size significantly",
         "Components need direct access to server-side resources (database, file system)",
@@ -2220,7 +2831,11 @@
         "Direct data access",
         "Component boundary (server vs client)"
       ],
-      "related_patterns": ["islands_architecture", "jamstack", "micro_frontends"],
+      "related_patterns": [
+        "islands_architecture",
+        "jamstack",
+        "micro_frontends"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2235,17 +2850,25 @@
         "Edge state is limited — typically cache, KV stores, or small databases",
         "Cold start time is critical as edge functions may start on every request"
       ],
-      "when_to_use": [
+      "use_when": [
         "Latency-sensitive operations where every millisecond of round-trip time matters",
         "Request-level personalization or A/B testing that benefits from edge execution",
         "Geographically distributed users need consistent low-latency responses",
-        "Authentication, rate limiting, or header manipulation at the edge reduces origin load"
+        "Authentication, rate limiting, or header manipulation at the edge reduces origin load",
+        {
+          "scale": "enterprise",
+          "latency": "sub-200ms"
+        }
       ],
       "avoid_when": [
         "Computation requires access to large datasets that cannot be cached at the edge",
         "Business logic is too complex for the constrained edge runtime environment",
         "Edge runtime limitations (execution time, memory, APIs) are too restrictive",
-        "Debugging distributed edge functions is beyond team capability"
+        "Debugging distributed edge functions is beyond team capability",
+        {
+          "scale": "startup_mvp",
+          "budget": "minimal"
+        }
       ],
       "signals": [
         "Functions deployed to edge platforms (Cloudflare Workers, Lambda@Edge, Deno Deploy)",
@@ -2262,7 +2885,12 @@
         "Geographic distribution",
         "Constrained runtime environment"
       ],
-      "related_patterns": ["serverless", "jamstack", "multi_region"],
+      "related_patterns": [
+        "serverless",
+        "jamstack",
+        "multi_region",
+        "hybrid_cloud"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2277,7 +2905,7 @@
         "Data gravity drives placement — data-heavy workloads run near their data",
         "Portable workloads use containers or abstractions for environment mobility"
       ],
-      "when_to_use": [
+      "use_when": [
         "Regulatory requirements mandate certain data or workloads remain on-premises",
         "Existing on-premises investment has not yet been amortized",
         "Burst capacity in cloud supplements steady-state on-premises capacity",
@@ -2304,7 +2932,12 @@
         "Cloud bursting",
         "Environment portability"
       ],
-      "related_patterns": ["multi_region", "containerized", "edge_computing"],
+      "related_patterns": [
+        "multi_region",
+        "containerized",
+        "edge_computing",
+        "event_mesh"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2319,7 +2952,7 @@
         "Data is asynchronously persisted to the database for durability",
         "Messaging grid handles communication between processing units"
       ],
-      "when_to_use": [
+      "use_when": [
         "Application has extreme scalability requirements that database-centric architectures cannot meet",
         "Variable load with dramatic spikes requires elastic scaling of both compute and data",
         "Low-latency reads and writes are critical and database round-trips are unacceptable",
@@ -2345,7 +2978,11 @@
         "Messaging grid",
         "Tuple spaces"
       ],
-      "related_patterns": ["microservices", "cell_based", "event_driven"],
+      "related_patterns": [
+        "microservices",
+        "cell_based",
+        "event_driven"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2360,7 +2997,7 @@
         "Knowledge sources monitor the blackboard and act when they can contribute",
         "Solution emerges incrementally from contributions of multiple knowledge sources"
       ],
-      "when_to_use": [
+      "use_when": [
         "Problem is ill-structured with no single deterministic solution algorithm",
         "Multiple specialized algorithms can contribute partial solutions",
         "Solution requires integration of diverse knowledge from different domains",
@@ -2386,7 +3023,11 @@
         "Opportunistic problem solving",
         "Incremental solution building"
       ],
-      "related_patterns": ["actor_model", "pipeline", "event_driven"],
+      "related_patterns": [
+        "actor_model",
+        "pipeline",
+        "event_driven"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2401,16 +3042,32 @@
         "Mutual TLS encrypts all inter-service communication automatically",
         "Traffic management (routing, splitting, mirroring) is configured declaratively"
       ],
-      "when_to_use": [
+      "use_when": [
         "Many microservices need consistent communication policies (retries, timeouts, mTLS)",
         "Observability across services (distributed tracing, metrics) needs to be uniform",
         "Traffic management (canary routing, fault injection) is needed without code changes",
-        "Zero-trust security requires mTLS between all services"
+        "Zero-trust security requires mTLS between all services",
+        {
+          "team_size": "100+",
+          "scale": "enterprise"
+        },
+        {
+          "team_size": "15+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Fewer than 10 services — mesh overhead exceeds benefit",
         "Team cannot manage the operational complexity of mesh infrastructure",
-        "Latency overhead of sidecar proxies is unacceptable for the workload"
+        "Latency overhead of sidecar proxies is unacceptable for the workload",
+        {
+          "team_size": "1-50",
+          "scale": "growth"
+        },
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Sidecar proxy (Envoy) injected into every service pod",
@@ -2427,7 +3084,17 @@
         "Traffic policies",
         "Observability integration"
       ],
-      "related_patterns": ["sidecar", "microservices", "containerized", "ambassador"],
+      "related_patterns": [
+        "sidecar",
+        "microservices",
+        "containerized",
+        "ambassador",
+        "event_mesh",
+        "circuit_breaker",
+        "bulkhead",
+        "api_gateway",
+        "rest_resource_oriented"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2442,7 +3109,7 @@
         "At-least-once delivery is guaranteed — consumers must handle duplicates",
         "No dual write — all changes go to the database first"
       ],
-      "when_to_use": [
+      "use_when": [
         "Service needs to reliably publish events when state changes occur",
         "Dual writes to database and message broker are causing data inconsistency",
         "At-least-once event delivery guarantee is required",
@@ -2468,89 +3135,12 @@
         "Consumer deduplication",
         "Polling vs CDC relay"
       ],
-      "related_patterns": ["event_driven", "cdc_pattern", "saga_orchestration", "event_sourcing"],
-      "last_reviewed": "2026-03-21"
-    },
-    {
-      "id": "bulkhead",
-      "name": "Bulkhead Pattern",
-      "category": "deployment",
-      "description": "A resilience pattern that isolates elements of an application into pools so that if one fails, the others continue to function. Named after ship bulkheads that prevent water from flooding the entire vessel. The key insight is that resource isolation (thread pools, connection pools, process isolation) prevents a failure or resource exhaustion in one component from cascading to others.",
-      "principles": [
-        "Resources are partitioned into isolated pools per component or consumer",
-        "Failure in one pool does not exhaust resources available to other pools",
-        "Each pool has defined resource limits (threads, connections, memory)",
-        "Pools are sized based on expected load and criticality of the component",
-        "Monitoring detects pool exhaustion before it impacts other components"
+      "related_patterns": [
+        "event_driven",
+        "cdc_pattern",
+        "saga_orchestration",
+        "event_sourcing"
       ],
-      "when_to_use": [
-        "Failure in one dependency must not exhaust resources needed by other operations",
-        "Different consumers have different SLAs requiring resource isolation",
-        "Thread pool or connection pool exhaustion has caused cascading failures in production",
-        "Critical and non-critical operations share the same infrastructure"
-      ],
-      "avoid_when": [
-        "System has few dependencies and isolation overhead is unjustified",
-        "Resource utilization is low and pooling would waste reserved capacity",
-        "Operational complexity of managing multiple pools exceeds the resilience benefit"
-      ],
-      "signals": [
-        "Separate thread pools or connection pools exist for different downstream services",
-        "Resource limits are configured per dependency or consumer group",
-        "Pool exhaustion metrics trigger alerts before cascading failure occurs",
-        "Circuit breakers per pool prevent continued requests to failing dependencies",
-        "Load shedding activates when a specific pool reaches capacity"
-      ],
-      "key_concepts": [
-        "Resource isolation",
-        "Pool partitioning",
-        "Cascading failure prevention",
-        "Pool sizing",
-        "Load shedding",
-        "Failure domain isolation"
-      ],
-      "related_patterns": ["cell_based", "sidecar", "microservices", "service_mesh_pattern"],
-      "last_reviewed": "2026-03-21"
-    },
-    {
-      "id": "circuit_breaker",
-      "name": "Circuit Breaker Pattern",
-      "category": "behavioral",
-      "description": "A resilience pattern where a proxy monitors calls to a downstream service and trips to an open state after a threshold of failures, preventing further calls for a cooldown period before allowing tentative retries. Described by Michael Nygard in 'Release It!'. The key insight is that continuing to call a failing service wastes resources and can cause cascading failures — failing fast allows the caller to take alternative action.",
-      "principles": [
-        "Monitor failure rate of calls to downstream services",
-        "Trip to open state after failure threshold is exceeded",
-        "In open state, fail immediately without making the call",
-        "After cooldown, allow a limited number of test calls (half-open state)",
-        "Reset to closed state if test calls succeed"
-      ],
-      "when_to_use": [
-        "Downstream service failures cause timeout-induced resource exhaustion",
-        "Caller has fallback behavior when the downstream service is unavailable",
-        "Need to prevent cascading failures across service boundaries",
-        "Downstream service recovery is aided by reducing load during outage"
-      ],
-      "avoid_when": [
-        "Operations are fire-and-forget with no need for failure detection",
-        "Fallback behavior does not exist and failing fast provides no benefit",
-        "Single dependency where circuit breaking just moves the failure earlier"
-      ],
-      "signals": [
-        "Circuit breaker library (Resilience4j, Polly, Hystrix) wraps downstream calls",
-        "Three states visible in metrics: closed (normal), open (failing fast), half-open (testing)",
-        "Failure rate thresholds and cooldown periods are configured per downstream service",
-        "Fallback logic executes when circuit is open",
-        "Dashboard shows circuit breaker state transitions and trip frequency"
-      ],
-      "key_concepts": [
-        "Closed state (normal operation)",
-        "Open state (failing fast)",
-        "Half-open state (testing recovery)",
-        "Failure threshold",
-        "Cooldown period",
-        "Fallback behavior"
-      ],
-      "related_patterns": ["bulkhead", "sidecar", "service_mesh_pattern", "saga_orchestration"],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2566,16 +3156,24 @@
         "Context mapping defines relationships between bounded contexts",
         "Strategic design guides decomposition into bounded contexts"
       ],
-      "when_to_use": [
+      "use_when": [
         "Business domain is complex with rich rules, invariants, and processes",
         "Collaboration between developers and domain experts is feasible and valuable",
         "Multiple teams need to work on different parts of a complex domain",
-        "Domain model needs to evolve with changing business requirements"
+        "Domain model needs to evolve with changing business requirements",
+        {
+          "team_size": "50+",
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "Domain is simple CRUD with no significant business rules",
         "Domain experts are not available for collaboration",
-        "Project is a short-lived prototype where domain modeling overhead is unjustified"
+        "Project is a short-lived prototype where domain modeling overhead is unjustified",
+        {
+          "team_size": "1-15",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Code uses domain-specific terminology that matches business language",
@@ -2593,7 +3191,13 @@
         "Context mapping",
         "Value objects and entities"
       ],
-      "related_patterns": ["hexagonal", "microservices", "event_sourcing", "modular_monolith"],
+      "related_patterns": [
+        "hexagonal",
+        "microservices",
+        "event_sourcing",
+        "modular_monolith",
+        "event_driven"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2608,16 +3212,50 @@
         "Response aggregation combines data from multiple services",
         "API versioning and backward compatibility managed at the gateway"
       ],
-      "when_to_use": [
+      "use_when": [
         "Microservices backend needs a unified API surface for clients",
         "Cross-cutting concerns must be applied consistently across all services",
         "Client needs aggregated responses from multiple backend services",
-        "API versioning and deprecation must be managed centrally"
+        "API versioning and deprecation must be managed centrally",
+        {
+          "team_size": "6-15",
+          "scale": "growth"
+        },
+        {
+          "team_size": "50+",
+          "scale": "enterprise"
+        },
+        {
+          "team_size": "10+",
+          "scale": "enterprise"
+        },
+        {
+          "scale": "growth"
+        },
+        {
+          "team_size": "20+",
+          "existing_stack": "modular_monolith"
+        }
       ],
       "avoid_when": [
         "Single backend service — gateway adds unnecessary latency",
         "Gateway becomes a bottleneck or single point of failure",
-        "Gateway logic grows into a monolithic orchestration layer"
+        "Gateway logic grows into a monolithic orchestration layer",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        },
+        {
+          "team_size": "1-15",
+          "scale": "startup_mvp"
+        },
+        {
+          "scale": "startup_mvp"
+        },
+        {
+          "team_size": "1-10",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "API gateway (Kong, AWS API Gateway, Envoy) sits in front of all backend services",
@@ -2634,7 +3272,17 @@
         "Rate limiting",
         "Single entry point"
       ],
-      "related_patterns": ["backends_for_frontends", "microservices", "sidecar", "strangler_fig"],
+      "related_patterns": [
+        "backends_for_frontends",
+        "microservices",
+        "sidecar",
+        "strangler_fig",
+        "modular_monolith",
+        "event_driven",
+        "edge_computing",
+        "circuit_breaker",
+        "rest_resource_oriented"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2649,7 +3297,7 @@
         "Mesh spans on-premises, cloud, and edge environments",
         "Events are delivered with defined quality of service guarantees"
       ],
-      "when_to_use": [
+      "use_when": [
         "Event-driven architecture spans multiple clouds or data centers",
         "Events need to flow between on-premises and cloud environments",
         "Dynamic event routing based on content or context is required",
@@ -2675,7 +3323,12 @@
         "Quality of service",
         "Event governance"
       ],
-      "related_patterns": ["event_driven", "streaming", "service_mesh_pattern", "hybrid_cloud"],
+      "related_patterns": [
+        "event_driven",
+        "streaming",
+        "service_mesh_pattern",
+        "hybrid_cloud"
+      ],
       "last_reviewed": "2026-03-21"
     },
     {
@@ -2690,16 +3343,23 @@
         "Data governance prevents the lake from becoming a data swamp",
         "Metadata catalog enables discovery and understanding of stored data"
       ],
-      "when_to_use": [
+      "use_when": [
         "Need to store diverse data types (logs, images, JSON, CSV) in one repository",
         "Analytical use cases are not known at data ingestion time",
         "Data scientists need access to raw data for exploration and model training",
-        "Cost-effective storage of large volumes of data for future analysis"
+        "Cost-effective storage of large volumes of data for future analysis",
+        {
+          "scale": "enterprise"
+        }
       ],
       "avoid_when": [
         "All queries need structured, well-defined schemas — a data warehouse is better",
         "Data governance is immature and the lake will become an ungoverned swamp",
-        "Data volume is small enough that a traditional database handles all needs"
+        "Data volume is small enough that a traditional database handles all needs",
+        {
+          "team_size": "1-5",
+          "scale": "startup_mvp"
+        }
       ],
       "signals": [
         "Object storage (S3, ADLS, GCS) serves as the primary data repository",
@@ -2716,7 +3376,14 @@
         "Data governance",
         "Query engine"
       ],
-      "related_patterns": ["data_mesh", "etl_pipeline", "lambda_architecture", "batch_sequential"],
+      "related_patterns": [
+        "data_mesh",
+        "etl_pipeline",
+        "lambda_architecture",
+        "batch_sequential",
+        "data_warehouse",
+        "data_lakehouse"
+      ],
       "last_reviewed": "2026-03-21"
     }
   ]

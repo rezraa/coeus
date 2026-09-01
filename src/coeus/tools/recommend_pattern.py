@@ -1,274 +1,190 @@
 # Copyright (c) 2026 Reza Malik. Licensed under the Apache License, Version 2.0.
-"""MCP tool: recommend_pattern
+"""MCP tool: recommend_pattern — wired onto the Shape C retrieval engine.
 
-The decision engine. Takes constraints (team_size, budget, timeline,
-scale_requirements, compliance_needs, existing_stack, latency_requirements)
-and structural signals. Returns ranked recommendations with tradeoff analysis.
+The decision engine, and the reusable TEMPLATE the other Coeus tools inherit.
+Given the signal ids the caller recognised against ``get_signal_index`` plus a
+constraints dict, it:
 
-CRITICAL INVARIANT: Small team (1-5) + MVP scale NEVER gets microservices
-as the #1 recommendation.
+1. RETRIEVES candidates through one ``kb.hydrate`` call — the proven four-state,
+   fail-closed envelope; ``no_match``/``dangling`` abstain structurally, never a husk.
+2. RANKS by hydrate's already-proven integer vote key, then layers ONE boolean
+   ``avoid_when`` gate tier via a single stable sort: a pattern whose own
+   ``avoid_when`` facet the constraints satisfy sinks below every ungated
+   candidate, relative order intact. No float, no re-scoring — this is the general
+   form of the small-team guarantee (microservices sinks under small-team + MVP
+   because its OWN ``avoid_when`` names ``{team_size: 1-15, scale: startup_mvp}``).
+3. REASONS conflicts / alternatives / tradeoffs over each retrieved pattern's OWN
+   100%-populated fields (``use_when``/``avoid_when``/``principles``/
+   ``related_patterns``) — no hardcoded detector table, no tuned scalar.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from coeus.tools._shared import coerce, emit_event, get_knowledge
+from coeus.knowledge.loader import DANGLING, NO_MATCH, is_gated, split_conditions
+from coeus.tools._shared import (
+    _MAX_MATCHED_SIGNALS,
+    _MAX_RELATED_OUTPUT,
+    _bounded_constraints,
+    coerce,
+    emit_event,
+    get_knowledge,
+)
 
-# ---------------------------------------------------------------------------
-# Tradeoff dimensions for common patterns
-# ---------------------------------------------------------------------------
-
-_TRADEOFFS: dict[str, dict[str, str]] = {
-    "monolith": {
-        "pros": "Simple deployment, easy debugging, low operational overhead, fast iteration",
-        "cons": "Scaling ceiling, deployment coupling, technology lock-in",
-        "best_for": "Small teams, MVPs, well-understood domains",
-    },
-    "modular_monolith": {
-        "pros": "Module isolation with monolith simplicity, clear boundaries, easy refactoring",
-        "cons": "Requires discipline to maintain boundaries, shared deployment",
-        "best_for": "Growing teams (6-15), teams preparing for eventual decomposition",
-    },
-    "microservices": {
-        "pros": "Independent deployment, technology diversity, team autonomy, granular scaling",
-        "cons": "Operational complexity, distributed debugging, network latency, data consistency",
-        "best_for": "Large teams (50+) with platform engineering support",
-    },
-    "serverless": {
-        "pros": "Zero server management, pay-per-use, auto-scaling, rapid prototyping",
-        "cons": "Cold starts, vendor lock-in, execution time limits, debugging difficulty",
-        "best_for": "Event-driven workloads, sporadic traffic, cost-sensitive projects",
-    },
-    "event_driven": {
-        "pros": "Loose coupling, async processing, natural scalability, audit trail",
-        "cons": "Eventual consistency, complex debugging, message ordering challenges",
-        "best_for": "Systems with async workflows, audit requirements, high throughput",
-    },
-    "cqrs": {
-        "pros": "Optimized read/write models, scalable reads, clear separation of concerns",
-        "cons": "Complexity overhead, eventual consistency, more code to maintain",
-        "best_for": "Read-heavy systems with complex query requirements",
-    },
-    "hexagonal": {
-        "pros": "Testability, dependency inversion, infrastructure independence",
-        "cons": "More boilerplate, learning curve, over-engineering risk for simple apps",
-        "best_for": "Domain-heavy applications, systems requiring infrastructure flexibility",
-    },
-    "clean_architecture": {
-        "pros": "Clear dependency rules, testable business logic, framework independence",
-        "cons": "Verbose, many layers, can slow small team velocity",
-        "best_for": "Long-lived enterprise applications with complex business rules",
-    },
-}
+# The caller-boundary input caps and the output cross-product cap
+# (_MAX_RELATED_OUTPUT — bounds the derived alternatives set across k patterns'
+# related_patterns) both live once in _shared, one source of truth per concept.
 
 
-# ---------------------------------------------------------------------------
-# Fit scoring
-# ---------------------------------------------------------------------------
+def _tradeoffs(pattern: dict) -> dict:
+    """Derive a tradeoff view from the pattern's OWN fields.
 
-def _compute_fit_score(
-    pattern_id: str,
-    constraints: dict[str, Any],
-) -> float:
-    """Compute a 0.0-1.0 fit score for a pattern given constraints.
-
-    This is a heuristic based on constraint alignment, not a learned model.
+    ``strengths_when`` (its ``use_when`` prose) / ``costs_when`` (its ``avoid_when``
+    prose) / ``principles`` — all 100%-populated across the corpus, so this is
+    non-empty for every recommendation (the live empty-tradeoff bug is a
+    consequence of the deleted 8-of-174 hardcoded ``_TRADEOFFS`` table).
     """
-    score = 0.5  # baseline
+    use_texts, _ = split_conditions(pattern.get("use_when"))
+    avoid_texts, _ = split_conditions(pattern.get("avoid_when"))
+    return {
+        "strengths_when": list(use_texts),
+        "costs_when": list(avoid_texts),
+        "principles": list(pattern.get("principles") or []),
+    }
 
-    team_size = str(constraints.get("team_size", "")).lower()
-    scale = str(constraints.get("scale_requirements", constraints.get("scale", ""))).lower()
-    timeline = str(constraints.get("timeline", "")).lower()
-
-    # Small team bonuses/penalties
-    if any(x in team_size for x in ["1", "2", "3", "4", "5", "small", "solo"]):
-        if pattern_id in ("monolith", "modular_monolith", "serverless"):
-            score += 0.3
-        elif pattern_id in ("microservices", "service_mesh_pattern", "platform_engineering"):
-            score -= 0.4
-        elif pattern_id in ("hexagonal", "clean_architecture"):
-            score += 0.1
-
-    # Medium team
-    if any(x in team_size for x in ["6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "medium"]):
-        if pattern_id in ("modular_monolith", "vertical_slice", "hexagonal"):
-            score += 0.25
-        elif pattern_id == "microservices":
-            score -= 0.1
-
-    # Large team
-    if any(x in team_size for x in ["50", "100", "large"]):
-        if pattern_id in ("microservices", "domain_driven_design", "platform_engineering"):
-            score += 0.3
-        elif pattern_id == "monolith":
-            score -= 0.2
-
-    # Scale alignment
-    if any(x in scale for x in ["mvp", "startup", "prototype"]):
-        if pattern_id in ("monolith", "modular_monolith", "serverless"):
-            score += 0.2
-        elif pattern_id == "microservices":
-            score -= 0.3
-    elif any(x in scale for x in ["enterprise", "hyperscale", "global"]):
-        if pattern_id in ("microservices", "event_driven", "cqrs"):
-            score += 0.2
-
-    # Timeline pressure
-    if any(x in timeline for x in ["week", "days", "urgent", "fast", "mvp"]):
-        if pattern_id in ("monolith", "serverless"):
-            score += 0.15
-        elif pattern_id in ("microservices", "cqrs", "event_sourcing"):
-            score -= 0.2
-
-    return max(0.0, min(1.0, round(score, 2)))
-
-
-# ---------------------------------------------------------------------------
-# Main tool
-# ---------------------------------------------------------------------------
 
 def recommend_pattern(
-    structural_signals: list[str],
+    matched_signal_ids: list[str],
     constraints: dict | None = None,
-    existing_stack: str | None = None,
+    k: int = 10,
     conn: object = None,
 ) -> dict:
-    """Recommend architecture patterns based on constraints and signals.
+    """Recommend architecture patterns for a problem's matched signals.
 
-    CRITICAL: Small team (1-5) + MVP scale NEVER gets microservices as #1.
+    CRITICAL INVARIANT: a pattern whose own ``avoid_when`` facet the constraints
+    satisfy is gated below every ungated candidate — small team (1-5) + MVP scale
+    therefore NEVER gets microservices as the #1 recommendation.
 
     Args:
-        structural_signals: Agent-identified signals about the system.
-        constraints: Dict of constraints — team_size, budget, timeline,
-            scale_requirements, compliance_needs, existing_stack,
-            latency_requirements.
-        existing_stack: Optional string describing the current technology stack.
+        matched_signal_ids: Signal ids the caller recognised against
+            ``get_signal_index`` (problem-language → sig-id, the proven path).
+        constraints: Optional dict — ``team_size`` (numeric range) plus categorical
+            ``scale``/``budget``/``timeline``/``latency``/``compliance``/
+            ``existing_stack``. Drives the deterministic gate.
+        k: Number of ranked recommendations to return (engine-clamped to 1..50).
         conn: Kuzu/LadybugDB connection for graph mode, or None for JSON.
 
     Returns:
-        Dict with keys: constraints_analyzed, recommendations (ranked list),
-        conflicts, alternatives.
+        Dict with the contract keys ``constraints_analyzed`` / ``recommendations``
+        (ranked) / ``conflicts`` / ``alternatives`` plus the retrieval envelope
+        (``retrieval_state`` / ``unmatched`` / ``dangling``). Fail-closed: an
+        abstaining envelope returns empty lists, never a husk.
     """
-    structural_signals = coerce(structural_signals, list) or []
-    constraints = coerce(constraints, dict) or {}
-
-    if existing_stack and "existing_stack" not in constraints:
-        constraints["existing_stack"] = existing_stack
+    matched_signal_ids = coerce(matched_signal_ids, list) or []
+    constraints = _bounded_constraints(coerce(constraints, dict) or {})
+    try:
+        k = int(k)
+    except (TypeError, ValueError):
+        k = 10
 
     kb = get_knowledge(conn)
 
-    # 1. Match structural signals against decision rules
-    rule_matches = kb.match_structural_signals(structural_signals) if structural_signals else []
+    # 1. RETRIEVE — one hydrate call; the caller-boundary cap is non-amplifying
+    #    (the engine's _SEED_CAP already bounds fan-out downstream of it).
+    res = kb.hydrate(matched_signal_ids[:_MAX_MATCHED_SIGNALS], k=k)
 
-    # 2. Apply constraint filtering
-    if constraints and rule_matches:
-        filtered_rules = kb.filter_by_constraints(
-            [rm["rule"] for rm in rule_matches], constraints
-        )
-        filtered_ids = {r["id"] for r in filtered_rules}
-        rule_matches = [
-            rm for rm in rule_matches if rm["rule"]["id"] in filtered_ids
-        ]
+    envelope = {
+        "retrieval_state": res.state,
+        "unmatched": list(res.unmatched_signals),
+        "dangling": list(res.dangling),
+    }
 
-    # 3. Build candidate patterns from rule matches
-    seen_pattern_ids: set[str] = set()
-    candidates: list[dict[str, Any]] = []
+    # 2. Fail closed: recognised-but-empty (no_match) or unresolvable (dangling)
+    #    abstains structurally — no recommendations, never the nearest husk.
+    if res.state in (NO_MATCH, DANGLING):
+        result = {
+            "constraints_analyzed": constraints,
+            "recommendations": [],
+            "conflicts": [],
+            "alternatives": [],
+            **envelope,
+        }
+        emit_event("recommend_pattern", {
+            "n_signals": len(matched_signal_ids),
+            "state": res.state,
+            "recommendations_count": 0,
+            "top_pattern": "none",
+        })
+        return result
 
-    for rm in rule_matches:
-        for pattern in rm.get("recommended_patterns", []):
-            pid = pattern.get("id", "")
-            if pid and pid not in seen_pattern_ids:
-                seen_pattern_ids.add(pid)
-                fit_score = _compute_fit_score(pid, constraints)
-                tradeoff = _TRADEOFFS.get(pid, {})
-                candidates.append({
-                    "pattern_id": pid,
-                    "pattern_name": pattern.get("name", pid),
-                    "rationale": rm["rule"].get("rationale", ""),
-                    "tradeoffs": tradeoff,
-                    "fit_score": fit_score,
-                    "source_rule": rm["rule"]["id"],
-                })
+    # 3. RANK — hydrate already ordered res.patterns by the proven integer vote key.
+    #    Layer ONE boolean gate tier with a single stable sort on (gated, rank):
+    #    gated patterns sink below every ungated one, relative order within each
+    #    tier preserved. The index is the pre-existing hydrate rank, so the key is
+    #    a total order — deterministic without relying on sort stability. No float.
+    gate_flags = [is_gated(p, constraints) for p in res.patterns]
+    order = sorted(range(len(res.patterns)), key=lambda i: (gate_flags[i], i))
 
-    # 4. Collect alternatives
-    alternatives_set: set[str] = set()
-    for rm in rule_matches:
-        for alt in rm.get("alternatives", []):
-            alt_id = alt.get("id", "")
-            if alt_id and alt_id not in seen_pattern_ids:
-                alternatives_set.add(alt_id)
+    recommendations: list[dict[str, Any]] = []
+    recommended_ids: set[str] = set()
+    for rank, i in enumerate(order, start=1):
+        p = res.patterns[i]
+        recommended_ids.add(p["id"])
+        recommendations.append({
+            "rank": rank,
+            "pattern_id": p["id"],
+            "pattern_name": p.get("name", p["id"]),
+            "rationale": p.get("description", ""),
+            "tradeoffs": _tradeoffs(p),
+            "retrieval": dict(p["retrieval"]),   # plain dict for the output surface
+            "gated": gate_flags[i],
+        })
 
+    # 4. CONFLICTS — derived from each pattern's OWN avoid_when: a gated pattern is
+    #    in tension with the stated constraints. One source of truth (the gate).
+    conflicts = [
+        f"{r['pattern_name']} conflicts with your constraints — its own avoid_when "
+        f"matches them; ranked below the ungated options."
+        for r in recommendations if r["gated"]
+    ]
+
+    # 5. ALTERNATIVES — each retrieved pattern's OWN related_patterns, resolved via
+    #    _lookup_pattern (never a husk; a truly-absent id is already surfaced in the
+    #    envelope's dangling field), deduped, and excluding what is already ranked.
     alternatives: list[dict[str, Any]] = []
-    for alt_id in sorted(alternatives_set):
-        pat = kb.get_pattern(alt_id) or kb.get_scalability_pattern(alt_id) or kb.get_api_data_pattern(alt_id)
-        if pat:
+    seen_alts: set[str] = set()
+    for p in res.patterns:
+        for alt_id in p.get("related_patterns", []):
+            if alt_id in recommended_ids or alt_id in seen_alts:
+                continue
+            alt = kb._lookup_pattern(alt_id)
+            if alt is None:
+                continue
+            seen_alts.add(alt_id)
             alternatives.append({
-                "pattern_id": pat["id"],
-                "pattern_name": pat.get("name", alt_id),
-                "fit_score": _compute_fit_score(alt_id, constraints),
+                "pattern_id": alt["id"],
+                "pattern_name": alt.get("name", alt_id),
             })
-        else:
-            alternatives.append({
-                "pattern_id": alt_id,
-                "pattern_name": alt_id,
-                "fit_score": _compute_fit_score(alt_id, constraints),
-            })
+            if len(alternatives) >= _MAX_RELATED_OUTPUT:
+                break
+        if len(alternatives) >= _MAX_RELATED_OUTPUT:
+            break
 
-    # 5. Sort candidates by fit_score descending
-    candidates.sort(key=lambda c: c["fit_score"], reverse=True)
-
-    # 6. CRITICAL INVARIANT: Small team + MVP → microservices NEVER #1
-    team_size = str(constraints.get("team_size", "")).lower()
-    scale = str(constraints.get("scale_requirements", constraints.get("scale", ""))).lower()
-    is_small_team = any(x in team_size for x in ["1", "2", "3", "4", "5", "small", "solo"])
-    is_mvp_scale = any(x in scale for x in ["mvp", "startup", "prototype"])
-
-    if is_small_team and is_mvp_scale and candidates:
-        if candidates[0]["pattern_id"] == "microservices":
-            # Demote microservices — find first non-microservices candidate
-            micro = candidates.pop(0)
-            micro["rationale"] = (
-                "Microservices demoted: team size (1-5) and MVP scale "
-                "cannot absorb the operational overhead. "
-                + micro.get("rationale", "")
-            )
-            # Insert after first position (or at end if only one candidate)
-            insert_pos = min(1, len(candidates))
-            candidates.insert(insert_pos, micro)
-
-    # 7. Detect conflicts
-    conflicts: list[str] = []
-    pattern_ids_recommended = [c["pattern_id"] for c in candidates]
-
-    if "monolith" in pattern_ids_recommended and "microservices" in pattern_ids_recommended:
-        conflicts.append(
-            "Conflicting recommendations: monolith and microservices both matched. "
-            "Review constraints — these patterns serve different team sizes and scales."
-        )
-    if "event_sourcing" in pattern_ids_recommended and is_small_team:
-        conflicts.append(
-            "Event sourcing recommended but team is small. "
-            "Consider if the audit trail requirement justifies the complexity."
-        )
-
-    # 8. Assign ranks
-    for i, candidate in enumerate(candidates):
-        candidate["rank"] = i + 1
-
-    # 9. Build result
-    result: dict[str, Any] = {
+    result = {
         "constraints_analyzed": constraints,
-        "recommendations": candidates,
+        "recommendations": recommendations,
         "conflicts": conflicts,
         "alternatives": alternatives,
+        **envelope,
     }
 
     emit_event("recommend_pattern", {
-        "signals": structural_signals,
-        "constraints": {k: str(v)[:50] for k, v in constraints.items()},
-        "recommendations_count": len(candidates),
-        "top_pattern": candidates[0]["pattern_id"] if candidates else "none",
+        "n_signals": len(matched_signal_ids),
+        "state": res.state,
+        "recommendations_count": len(recommendations),
+        "gated_count": sum(gate_flags),
+        "top_pattern": recommendations[0]["pattern_id"] if recommendations else "none",
     })
 
     return result

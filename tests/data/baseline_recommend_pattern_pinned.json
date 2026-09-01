@@ -1,0 +1,433 @@
+{
+  "_meta": {
+    "note": "bar-2 S0 pin: CURRENT (legacy) recommend_pattern output BEFORE the Shape-C rewrite. Documents the tuned-scalar float fit_score, score ties, and empty-tradeoff rate the rebuild eliminates. NOT a golden lock \u2014 the 'before' half of the before/after delta (per test_retrieval_ranking.py:54-67 baseline pin convention).",
+    "tool_source_sha256": "d4899e295edd8f653abe0ea2f45236bbf02760422967366f23eb5973e269a9cc",
+    "legacy_TRADEOFFS_pattern_count": 8
+  },
+  "cases": {
+    "returns_ranked": {
+      "n_recs": 7,
+      "fit_scores": [
+        1.0,
+        1.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "score_ties(value->count)": {
+        "1.0": 2,
+        "0.5": 5
+      },
+      "empty_tradeoffs": "5/7",
+      "top_pattern": "monolith",
+      "recommendations": [
+        {
+          "rank": 1,
+          "pattern_id": "monolith",
+          "fit_score": 1.0,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 2,
+          "pattern_id": "modular_monolith",
+          "fit_score": 1.0,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 3,
+          "pattern_id": "task_queue",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 4,
+          "pattern_id": "rest_resource_oriented",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 5,
+          "pattern_id": "platform_as_service",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 6,
+          "pattern_id": "simple_deployment",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 7,
+          "pattern_id": "websocket_gateway",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        }
+      ],
+      "n_alternatives": 6,
+      "n_conflicts": 0
+    },
+    "small_team_mvp": {
+      "n_recs": 7,
+      "fit_scores": [
+        1.0,
+        1.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "score_ties(value->count)": {
+        "1.0": 2,
+        "0.5": 5
+      },
+      "empty_tradeoffs": "5/7",
+      "top_pattern": "monolith",
+      "recommendations": [
+        {
+          "rank": 1,
+          "pattern_id": "monolith",
+          "fit_score": 1.0,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 2,
+          "pattern_id": "modular_monolith",
+          "fit_score": 1.0,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 3,
+          "pattern_id": "task_queue",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 4,
+          "pattern_id": "rest_resource_oriented",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 5,
+          "pattern_id": "platform_as_service",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 6,
+          "pattern_id": "simple_deployment",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 7,
+          "pattern_id": "websocket_gateway",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        }
+      ],
+      "n_alternatives": 6,
+      "n_conflicts": 0
+    },
+    "large_team": {
+      "n_recs": 3,
+      "fit_scores": [
+        0.8,
+        0.6,
+        0.5
+      ],
+      "score_ties(value->count)": {},
+      "empty_tradeoffs": "2/3",
+      "top_pattern": "domain_driven_design",
+      "recommendations": [
+        {
+          "rank": 1,
+          "pattern_id": "domain_driven_design",
+          "fit_score": 0.8,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 2,
+          "pattern_id": "microservices",
+          "fit_score": 0.6,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 3,
+          "pattern_id": "api_gateway",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        }
+      ],
+      "n_alternatives": 2,
+      "n_conflicts": 0
+    },
+    "conflicting": {
+      "n_recs": 10,
+      "fit_scores": [
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "score_ties(value->count)": {
+        "0.5": 10
+      },
+      "empty_tradeoffs": "7/10",
+      "top_pattern": "monolith",
+      "recommendations": [
+        {
+          "rank": 1,
+          "pattern_id": "monolith",
+          "fit_score": 0.5,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 2,
+          "pattern_id": "modular_monolith",
+          "fit_score": 0.5,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 3,
+          "pattern_id": "task_queue",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 4,
+          "pattern_id": "rest_resource_oriented",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 5,
+          "pattern_id": "platform_as_service",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 6,
+          "pattern_id": "simple_deployment",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 7,
+          "pattern_id": "microservices",
+          "fit_score": 0.5,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 8,
+          "pattern_id": "domain_driven_design",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 9,
+          "pattern_id": "api_gateway",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 10,
+          "pattern_id": "websocket_gateway",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        }
+      ],
+      "n_alternatives": 8,
+      "n_conflicts": 1
+    },
+    "alternatives": {
+      "n_recs": 7,
+      "fit_scores": [
+        0.8,
+        0.8,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "score_ties(value->count)": {
+        "0.8": 2,
+        "0.5": 5
+      },
+      "empty_tradeoffs": "5/7",
+      "top_pattern": "monolith",
+      "recommendations": [
+        {
+          "rank": 1,
+          "pattern_id": "monolith",
+          "fit_score": 0.8,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 2,
+          "pattern_id": "modular_monolith",
+          "fit_score": 0.8,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 3,
+          "pattern_id": "task_queue",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 4,
+          "pattern_id": "rest_resource_oriented",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 5,
+          "pattern_id": "platform_as_service",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 6,
+          "pattern_id": "simple_deployment",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 7,
+          "pattern_id": "websocket_gateway",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        }
+      ],
+      "n_alternatives": 6,
+      "n_conflicts": 0
+    },
+    "tradeoffs": {
+      "n_recs": 7,
+      "fit_scores": [
+        1.0,
+        1.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "score_ties(value->count)": {
+        "1.0": 2,
+        "0.5": 5
+      },
+      "empty_tradeoffs": "5/7",
+      "top_pattern": "monolith",
+      "recommendations": [
+        {
+          "rank": 1,
+          "pattern_id": "monolith",
+          "fit_score": 1.0,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 2,
+          "pattern_id": "modular_monolith",
+          "fit_score": 1.0,
+          "has_tradeoffs": true,
+          "has_source_rule": true
+        },
+        {
+          "rank": 3,
+          "pattern_id": "task_queue",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 4,
+          "pattern_id": "rest_resource_oriented",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 5,
+          "pattern_id": "platform_as_service",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 6,
+          "pattern_id": "simple_deployment",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        },
+        {
+          "rank": 7,
+          "pattern_id": "websocket_gateway",
+          "fit_score": 0.5,
+          "has_tradeoffs": false,
+          "has_source_rule": true
+        }
+      ],
+      "n_alternatives": 6,
+      "n_conflicts": 0
+    },
+    "empty_signals": {
+      "n_recs": 0,
+      "fit_scores": [],
+      "score_ties(value->count)": {},
+      "empty_tradeoffs": "0/0",
+      "top_pattern": null,
+      "recommendations": [],
+      "n_alternatives": 0,
+      "n_conflicts": 0
+    }
+  }
+}
