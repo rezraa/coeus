@@ -16,8 +16,9 @@ from coeus.tools.evaluate_scalability import evaluate_scalability as _evaluate_s
 from coeus.tools.recommend_pattern import recommend_pattern as _recommend_pattern
 from coeus.tools.design_api import design_api as _design_api
 from coeus.tools.assess_resilience import assess_resilience as _assess_resilience
+from coeus.tools.get_signal_index import get_signal_index as _get_signal_index
 from coeus.tools.log_decision import log_decision as _log_decision
-from coeus.tools._shared import coerce, get_knowledge
+from coeus.tools._shared import coerce
 
 
 # ---------------------------------------------------------------------------
@@ -133,18 +134,21 @@ def evaluate_scalability(
 
 
 @mcp.tool()
-def get_signal_index(conn: Any = None) -> list[dict]:
+def get_signal_index(conn: Any = None) -> dict:
     """Return the corpus signal index — the recognition vocabulary shared by all
     four concern tools (recommend_pattern, analyze_architecture,
     evaluate_scalability, assess_resilience).
 
-    Each entry is {signal_id, signal_text, pattern_ids}. Recognise a problem's
-    structural signals against these texts, then pass the matched signal_ids to
-    any of the four tools; each hydrates the signal index into ranked patterns.
-    Deterministic and byte-reproducible — ids are content hashes, entries sorted
-    by signal_id with sorted pattern_ids.
+    Returns the uniform nested container {pattern_signals: [{signal_id,
+    signal_text, pattern_ids}, ...]} — one named group per corpus (Coeus has one
+    merged pattern corpus today; a future corpus is a new group behind this same
+    tool). Recognise a problem's structural signals against the pattern_signals
+    texts, then pass the matched signal_ids to any of the four tools; each
+    hydrates the signal index into ranked patterns. Deterministic and
+    byte-reproducible — ids are content hashes, entries sorted by signal_id with
+    sorted pattern_ids.
     """
-    return get_knowledge(conn).get_signal_index()
+    return _get_signal_index(conn=conn)
 
 
 @mcp.tool()
